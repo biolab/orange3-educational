@@ -7,7 +7,7 @@ ENTRY_POINTS = {
     # from welcome screen. Tutorials are saved Orange Workflows (.ows files).
     'orange.widgets.tutorials': (
         # Syntax: any_text = path.to.package.containing.tutorials
-        'exampletutorials = orangecontrib.example.tutorials',
+        'exampletutorials = orangecontrib.educational.tutorials',
     ),
 
     # Entry point used to specify packages containing widgets.
@@ -15,12 +15,12 @@ ENTRY_POINTS = {
         # Syntax: category name = path.to.package.containing.widgets
         # Widget category specification can be seen in
         #    orangecontrib/example/widgets/__init__.py
-        'My Category = orangecontrib.example.widgets',
+        'Education = orangecontrib.educational.widgets',
     ),
 
     # Register widget help
     "orange.canvas.help": (
-        'html-index = orangecontrib.example.widgets:WIDGET_HELP_PATH',)
+        'html-index = orangecontrib.educational.widgets:WIDGET_HELP_PATH',)
 }
 
 KEYWORDS = (
@@ -31,14 +31,14 @@ KEYWORDS = (
 
 if __name__ == '__main__':
     setup(
-        name="Orange3 Example Add-on",
+        name="Orange3 Educational Add-on",
         packages=['orangecontrib',
-                  'orangecontrib.example',
-                  'orangecontrib.example.tutorials',
-                  'orangecontrib.example.widgets'],
+                  'orangecontrib.educational',
+                  'orangecontrib.educational.tutorials',
+                  'orangecontrib.educational.widgets'],
         package_data={
-            'orangecontrib.example': ['tutorials/*.ows'],
-            'orangecontrib.example.widgets': ['icons/*'],
+            'orangecontrib.educational': ['tutorials/*.ows'],
+            'orangecontrib.educational.widgets': ['icons/*'],
         },
         install_requires=['Orange'],
         entry_points=ENTRY_POINTS,
