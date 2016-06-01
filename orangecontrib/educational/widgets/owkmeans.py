@@ -170,11 +170,11 @@ class OWKmeans(OWWidget):
             self.optionsBox.setDisabled(True)
 
         # if data contains at least two continuous attributes
-        if sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) <= 2:
-            self.info.setText("Too few Continuous feature. Min 2 required")
-            set_empty_plot()
-        elif data is None:
+        if data is None:
             self.info.setText("No data on input yet, waiting to get something.")
+            set_empty_plot()
+        elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
+            self.info.setText("Too few Continuous feature. Min 2 required")
             set_empty_plot()
         else:
             self.info.setText("")
