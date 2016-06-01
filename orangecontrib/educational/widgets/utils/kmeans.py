@@ -33,7 +33,7 @@ class Kmeans:
         self.centroids = self.centroids[~np.isnan(self.centroids).any(axis=1)]
 
     def random_positioning(self):
-        idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data)))))
+        idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
         return np.mean(self.data.X[idx], axis=0)
 
     def add_centroids(self, points=None):

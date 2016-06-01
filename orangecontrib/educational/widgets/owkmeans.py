@@ -191,8 +191,7 @@ class OWKmeans(OWWidget):
 
     def step(self):
         self.stepNo += 1
-        if self.stepNo % 2 == 1:
-            self.k_means.step()
+        self.k_means.step()
         self.replot()
 
     def replot(self):
@@ -217,11 +216,9 @@ class OWKmeans(OWWidget):
         options['series'].append(dict(data=[{'x': p[0],
                                              'y':p[1],
                                              'marker':{'fillColor': colors[i % len(colors)]}}
-                                            for i, p in enumerate(self.k_means.centroids_before
-                                                                  if self.stepNo % 2 == 1
-                                                                  else self.k_means.centroids)],
-                                      draggableX=True if self.stepNo == 0 else False,
-                                      draggableY=True if self.stepNo == 0 else False,
+                                            for i, p in enumerate(self.k_means.centroids)],
+                                      draggableX=True,
+                                      draggableY=True,
                                       showInLegend=False,
                                       marker=dict(symbol='diamond',
                                                   radius=10)))
