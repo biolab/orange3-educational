@@ -1,7 +1,7 @@
 import Orange
 from Orange.widgets.widget import OWWidget
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
-from Orange.widgets import gui, settings, highcharts
+from Orange.widgets import gui, settings, highcharts, widget
 import numpy as np
 from .utils.kmeans import Kmeans
 from PyQt4.QtCore import pyqtSlot
@@ -83,6 +83,8 @@ class OWKmeans(OWWidget):
 
     # inputs and outputs
     inputs = [("Data", Orange.data.Table, "set_data")]
+    outputs = [("Annotated Data", Table, widget.Default),
+               ("Centroids", Table)]
 
     # settings
     numberOfClusters = settings.Setting(0)
@@ -97,6 +99,7 @@ class OWKmeans(OWWidget):
     lines_to_centroids = settings.Setting(0)
 
     graph_name = 'scatter'
+    outputName = "cluster"
 
     def __init__(self):
         super().__init__()
@@ -195,6 +198,7 @@ class OWKmeans(OWWidget):
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False)
         self.stepButton.setText("Move centroids")
+        self.send_data()
 
     def step(self):
         self.stepNo += 1
@@ -202,6 +206,7 @@ class OWKmeans(OWWidget):
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.stepNo % 2 == 0 else True)
         self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
+        self.send_data()
 
 
     def replot(self):
@@ -272,13 +277,36 @@ class OWKmeans(OWWidget):
             for _ in range(self.k_means.k - self.numberOfClusters):
                 self.k_means.delete_centroids()
         self.replot()
+        self.send_data()
 
     def graph_clicked(self, x, y):
         if self.k_means.stepNo % 2 == 0:
             self.k_means.add_centroids([x, y])
             self.numberOfClusters += 1
             self.replot()
+            self.send_data()
 
     def centroid_dropped(self, _index, x, y):
         self.k_means.move_centroid(_index, x, y)
         self.replot()
+        self.send_data()
+
+    def send_data(self):
+        if self.k_means is None or self.k_means.clusters is None:
+            self.send("Annotated Data", None)
+            self.send("Centroids", None)
+        else:
+            clust_var = DiscreteVariable(
+                self.outputName, values=["C%d" % (x + 1) for x in range(self.k_means.k)])
+            attributes, classes = self.data.domain.attributes, self.data.domain.class_vars
+            meta_attrs = self.data.domain.metas
+            if classes:
+                meta_attrs += classes
+            classes = [clust_var]
+            domain = Domain(attributes, classes, meta_attrs)
+            annotated_data = Table.from_table(domain, self.data)
+            annotated_data.get_column_view(clust_var)[0][:] = self.k_means.clusters
+
+            centroids = Table(Domain(self.k_means.data.domain.attributes), self.k_means.centroids)
+            self.send("Annotated Data", annotated_data)
+            self.send("Centroids", centroids)
