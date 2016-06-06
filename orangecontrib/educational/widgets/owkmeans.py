@@ -232,14 +232,14 @@ class OWKmeans(OWWidget):
 
         # plot data points
         for i, points in enumerate(self.k_means.centroids_belonging_points):
-            options['series'].append(dict(data=points,
+            options['series'].append(dict(data=np.around(points, decimals=2),
                                           type="scatter",
                                           showInLegend=False,
                                           color=rgb_hash_brighter(colors[i % len(colors)], 30)))
 
         # plot centroids
-        options['series'].append(dict(data=[{'x': p[0],
-                                             'y':p[1],
+        options['series'].append(dict(data=[{'x': round(p[0], 2),
+                                             'y': round(p[1], 2),
                                              'marker':{'fillColor': colors[i % len(colors)]}}
                                             for i, p in enumerate(self.k_means.centroids)],
                                       type="scatter",
