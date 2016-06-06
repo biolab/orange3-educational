@@ -12,9 +12,6 @@ class Kmeans:
         self.centroids_belonging_points = [None] * self.k
         self.distance_metric = distance_metric
 
-        # if len od data is less than number of centroids take only len(data) centroids
-        if len(self.data) < self.k:
-            self.centroids = self.centroids[:len(self.data)]
 
     @property
     def k(self):

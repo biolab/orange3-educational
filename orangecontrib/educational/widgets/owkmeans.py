@@ -7,6 +7,7 @@ from .utils.kmeans import Kmeans
 from PyQt4.QtCore import pyqtSlot
 from os import path
 from .utils.color_transform import rgb_hash_brighter
+from itertools import chain
 
 
 class Scatterplot(highcharts.Highchart):
@@ -49,7 +50,7 @@ class Scatterplot(highcharts.Highchart):
         super().__init__(enable_zoom=True,
                          bridge=self,
                          enable_select='',
-                         chart_type='scatter',
+                         # chart_type='scatter',
                          chart_events_click=self.js_click_function,
                          plotOptions_series_point_events_drag=self.js_drag_function,
                          plotOptions_series_point_events_drop=self.js_drop_function,
@@ -94,6 +95,7 @@ class OWKmeans(OWWidget):
     # selected attributes in chart
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
+    lines_to_centroids = settings.Setting(0)
 
     graph_name = 'scatter'
 
@@ -117,9 +119,10 @@ class OWKmeans(OWWidget):
                                 callback=self.restart,
                                 sendSelectedValue=True)
         gui.spin(self.optionsBox, self, 'numberOfClusters',
-                 minv=0, maxv=10, step=1, label='Number of centroids:',  # how much to limit
+                 minv=0, maxv=10, step=1, label='Number of centroids:',
                  callback=self.number_of_clusters_changed)
-
+        gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
+                     'Membership lines', callback=self.replot)
         # step and restart buttons
         gui.button(self.optionsBox, self, 'Step', callback=self.step)
         gui.button(self.optionsBox, self, 'Restart', callback=self.restart)
@@ -184,7 +187,10 @@ class OWKmeans(OWWidget):
             self.restart()
 
     def restart(self):
+        # if self.k_means is None:
         self.k_means = Kmeans(self.concat_x_y())
+        # else:
+        #     self.k_means.data = self.concat_x_y()
         self.stepNo = 0
         self.number_of_clusters_changed()
         self.replot()
@@ -206,9 +212,19 @@ class OWKmeans(OWWidget):
 
         options = dict(series=[])
 
+        if self.lines_to_centroids:
+            for i, c in enumerate(self.k_means.centroids):
+                options['series'].append(dict(data=list(chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
+                                                    for p in self.k_means.centroids_belonging_points[i])),
+                                              type="line",
+                                              showInLegend=False,
+                                              lineWidth=0.2,
+                                              color="#ccc"))
+
         # plot data points
         for i, points in enumerate(self.k_means.centroids_belonging_points):
             options['series'].append(dict(data=points,
+                                          type="scatter",
                                           showInLegend=False,
                                           color=rgb_hash_brighter(colors[i % len(colors)], 30)))
 
@@ -217,6 +233,7 @@ class OWKmeans(OWWidget):
                                              'y':p[1],
                                              'marker':{'fillColor': colors[i % len(colors)]}}
                                             for i, p in enumerate(self.k_means.centroids)],
+                                      type="scatter",
                                       draggableX=True,
                                       draggableY=True,
                                       showInLegend=False,
@@ -250,6 +267,7 @@ class OWKmeans(OWWidget):
         else:
             for _ in range(self.k_means.k - self.numberOfClusters):
                 self.k_means.delete_centroids()
+        self.k_means.set_centroid_belonging()
         self.replot()
 
     def graph_clicked(self, x, y):
