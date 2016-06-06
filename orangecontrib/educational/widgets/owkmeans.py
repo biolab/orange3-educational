@@ -50,7 +50,6 @@ class Scatterplot(highcharts.Highchart):
         super().__init__(enable_zoom=True,
                          bridge=self,
                          enable_select='',
-                         # chart_type='scatter',
                          chart_events_click=self.js_click_function,
                          plotOptions_series_point_events_drag=self.js_drag_function,
                          plotOptions_series_point_events_drop=self.js_drop_function,
@@ -118,13 +117,13 @@ class OWKmeans(OWWidget):
                                 orientation='horizontal',
                                 callback=self.restart,
                                 sendSelectedValue=True)
-        gui.spin(self.optionsBox, self, 'numberOfClusters',
+        self.centroidNumbersSpinner = gui.spin(self.optionsBox, self, 'numberOfClusters',
                  minv=0, maxv=10, step=1, label='Number of centroids:',
                  callback=self.number_of_clusters_changed)
         gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
                      'Membership lines', callback=self.replot)
         # step and restart buttons
-        gui.button(self.optionsBox, self, 'Step', callback=self.step)
+        self.stepButton = gui.button(self.optionsBox, self, 'Step', callback=self.step)
         gui.button(self.optionsBox, self, 'Restart', callback=self.restart)
 
         # disable until data loaded
@@ -194,11 +193,16 @@ class OWKmeans(OWWidget):
         self.stepNo = 0
         self.number_of_clusters_changed()
         self.replot()
+        self.centroidNumbersSpinner.setDisabled(False)
+        self.stepButton.setText("Move centroids")
 
     def step(self):
         self.stepNo += 1
         self.k_means.step()
         self.replot()
+        self.centroidNumbersSpinner.setDisabled(False if self.k_means.stepNo % 2 == 0 else True)
+        self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
+
 
     def replot(self):
         colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
@@ -234,8 +238,8 @@ class OWKmeans(OWWidget):
                                              'marker':{'fillColor': colors[i % len(colors)]}}
                                             for i, p in enumerate(self.k_means.centroids)],
                                       type="scatter",
-                                      draggableX=True,
-                                      draggableY=True,
+                                      draggableX=True if self.k_means.stepNo % 2 == 0 else False,
+                                      draggableY=True if self.k_means.stepNo % 2 == 0 else False,
                                       showInLegend=False,
                                       marker=dict(symbol='diamond',
                                                   radius=10)))
@@ -267,13 +271,13 @@ class OWKmeans(OWWidget):
         else:
             for _ in range(self.k_means.k - self.numberOfClusters):
                 self.k_means.delete_centroids()
-        self.k_means.set_centroid_belonging()
         self.replot()
 
     def graph_clicked(self, x, y):
-        self.k_means.add_centroids([x, y])
-        self.numberOfClusters += 1
-        self.replot()
+        if self.k_means.stepNo % 2 == 0:
+            self.k_means.add_centroids([x, y])
+            self.numberOfClusters += 1
+            self.replot()
 
     def centroid_dropped(self, _index, x, y):
         self.k_means.move_centroid(_index, x, y)
