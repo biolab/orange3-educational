@@ -4,11 +4,27 @@ from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, highcharts, widget
 import numpy as np
 from .utils.kmeans import Kmeans
-from PyQt4.QtCore import pyqtSlot
+from PyQt4.QtCore import pyqtSlot, QThread, SIGNAL
 from os import path
 from .utils.color_transform import rgb_hash_brighter
 from itertools import chain
+import time
 
+
+class Autoplay(QThread):
+
+    def __init__(self, owkmeans):
+        QThread.__init__(self)
+        self.owkmeans = owkmeans
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        while not self.owkmeans.k_means.converged and self.owkmeans.autoPlay:
+            self.emit(SIGNAL('step()'))
+            time.sleep(1)
+        self.emit(SIGNAL('stop_auto_play()'))
 
 class Scatterplot(highcharts.Highchart):
     """
@@ -89,6 +105,7 @@ class OWKmeans(OWWidget):
     # settings
     numberOfClusters = settings.Setting(0)
     stepNo = 0
+    autoPlay = False
 
     # data
     data = None
@@ -126,8 +143,10 @@ class OWKmeans(OWWidget):
         gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
                      'Membership lines', callback=self.replot)
         # step and restart buttons
-        self.stepButton = gui.button(self.optionsBox, self, 'Step', callback=self.step)
-        gui.button(self.optionsBox, self, 'Restart', callback=self.restart)
+        self.commandsBox = gui.widgetBox(self.controlArea, "Commands")
+        self.stepButton = gui.button(self.commandsBox, self, 'Move centroids', callback=self.step)
+        self.restartButton = gui.button(self.commandsBox, self, 'Restart', callback=self.restart)
+        self.autoPlayButton = gui.button(self.commandsBox, self, 'Start', callback=self.auto_play)
 
         # disable until data loaded
         self.optionsBox.setDisabled(True)
@@ -208,6 +227,27 @@ class OWKmeans(OWWidget):
         self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
         self.send_data()
 
+
+    def auto_play(self):
+        self.autoPlay = not self.autoPlay
+        self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
+        if self.autoPlay:
+            self.optionsBox.setDisabled(True)
+            self.stepButton.setDisabled(True)
+            self.restartButton.setDisabled(True)
+            self.autoPlayThread = Autoplay(self)
+            self.connect(self.autoPlayThread, SIGNAL("step()"), self.step)
+            self.connect(self.autoPlayThread, SIGNAL("stop_auto_play()"), self.stop_auto_play)
+            self.autoPlayThread.start()
+        else:
+            self.stop_auto_play()
+
+    def stop_auto_play(self):
+        self.optionsBox.setDisabled(False)
+        self.stepButton.setDisabled(False)
+        self.restartButton.setDisabled(False)
+        self.autoPlay = False
+        self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
 
     def replot(self):
         colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',

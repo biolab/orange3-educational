@@ -1,9 +1,12 @@
 import Orange
 import numpy as np
 from Orange.distance import Euclidean
-
+from scipy.spatial import distance
 
 class Kmeans:
+
+    max_iter = 100
+    threshold = 1e-3
 
     def __init__(self, data, centroids=None, distance_metric=Orange.distance.Euclidean):
         self.data = data
@@ -11,8 +14,8 @@ class Kmeans:
         self.distance_metric = distance_metric
         self.stepNo = 0
         self.clusters = None
-
         self.find_clusters()
+        self.centroids_history = []
 
     @property
     def k(self):
@@ -24,6 +27,15 @@ class Kmeans:
         closest_centroid = self.clusters
         return [d[closest_centroid == i] for i in range(len(self.centroids))]
 
+    @property
+    def converged(self):
+        if len(self.centroids_history) == 0 or len(self.centroids) != len(self.centroids_history[-1]):
+            return False
+        distance = (np.sum(np.sqrt(np.sum((self.centroids - self.centroids_history[-1])**2 , axis=1)))
+                    / len(self.centroids))
+        return distance < self.threshold \
+               or self.stepNo > self.max_iter
+
     def find_clusters(self):
         if self.k > 0:
             d = self.data.X
@@ -34,6 +46,7 @@ class Kmeans:
 
     def step(self):
         if self.stepNo % 2 == 0:
+            self.centroids_history.append(np.copy(self.centroids))
             d = self.data.X
             points = [d[self.clusters == i] for i in range(len(self.centroids))]
             for i in range(len(self.centroids)):
@@ -63,4 +76,3 @@ class Kmeans:
     def move_centroid(self, _index, x, y):
         self.centroids[_index, :] = np.array([x, y])
         self.find_clusters()
-
