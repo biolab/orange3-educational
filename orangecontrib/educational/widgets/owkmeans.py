@@ -104,7 +104,6 @@ class OWKmeans(OWWidget):
 
     # settings
     numberOfClusters = settings.Setting(0)
-    stepNo = 0
     autoPlay = False
 
     # data
@@ -145,11 +144,13 @@ class OWKmeans(OWWidget):
         # step and restart buttons
         self.commandsBox = gui.widgetBox(self.controlArea, "Commands")
         self.stepButton = gui.button(self.commandsBox, self, 'Move centroids', callback=self.step)
+        self.stepBackButton = gui.button(self.commandsBox, self, 'Step back', callback=self.step_back)
         self.restartButton = gui.button(self.commandsBox, self, 'Restart', callback=self.restart)
         self.autoPlayButton = gui.button(self.commandsBox, self, 'Start', callback=self.auto_play)
 
         # disable until data loaded
         self.optionsBox.setDisabled(True)
+        self.stepBackButton.setDisabled(True)
         gui.rubber(self.controlArea)
 
         # plot
@@ -212,19 +213,29 @@ class OWKmeans(OWWidget):
         self.k_means = Kmeans(self.concat_x_y())
         # else:
         #     self.k_means.data = self.concat_x_y()
-        self.stepNo = 0
         self.number_of_clusters_changed()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False)
         self.stepButton.setText("Move centroids")
+        self.stepBackButton.setDisabled(True)
         self.send_data()
 
     def step(self):
-        self.stepNo += 1
         self.k_means.step()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.stepNo % 2 == 0 else True)
         self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
+        if not self.autoPlay:
+            self.stepBackButton.setDisabled(False)
+        self.send_data()
+
+    def step_back(self):
+        self.k_means.stepBack()
+        self.replot()
+        self.centroidNumbersSpinner.setDisabled(False if self.k_means.stepNo % 2 == 0 else True)
+        self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
+        if self.k_means.stepNo <= 0:
+            self.stepBackButton.setDisabled(True)
         self.send_data()
 
 
@@ -235,6 +246,7 @@ class OWKmeans(OWWidget):
             self.optionsBox.setDisabled(True)
             self.stepButton.setDisabled(True)
             self.restartButton.setDisabled(True)
+            self.stepBackButton.setDisabled(True)
             self.autoPlayThread = Autoplay(self)
             self.connect(self.autoPlayThread, SIGNAL("step()"), self.step)
             self.connect(self.autoPlayThread, SIGNAL("stop_auto_play()"), self.stop_auto_play)
@@ -246,6 +258,7 @@ class OWKmeans(OWWidget):
         self.optionsBox.setDisabled(False)
         self.stepButton.setDisabled(False)
         self.restartButton.setDisabled(False)
+        self.stepBackButton.setDisabled(False)
         self.autoPlay = False
         self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
 

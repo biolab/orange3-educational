@@ -13,8 +13,7 @@ class Kmeans:
         self.centroids = np.array(centroids) if centroids is not None else np.empty((0, 2))
         self.distance_metric = distance_metric
         self.stepNo = 0
-        self.clusters = None
-        self.find_clusters()
+        self.clusters = self.find_clusters(self.centroids)
         self.centroids_history = []
 
     @property
@@ -36,17 +35,20 @@ class Kmeans:
         return distance < self.threshold \
                or self.stepNo > self.max_iter
 
-    def find_clusters(self):
+    def find_clusters(self, centroids):
         if self.k > 0:
             d = self.data.X
-            dist = self.distance_metric(d, self.centroids)
-            self.clusters = np.argmin(dist, axis=1)
+            dist = self.distance_metric(d, centroids)
+            return np.argmin(dist, axis=1)
         else:
-            self.clusters = None
+            return None
 
     def step(self):
         if self.stepNo % 2 == 0:
-            self.centroids_history.append(np.copy(self.centroids))
+            if len(self.centroids_history) < self.stepNo // 2 + 1:
+                self.centroids_history.append(np.copy(self.centroids))
+            else:
+                self.centroids_history[self.stepNo // 2] = np.copy(self.centroids)
             d = self.data.X
             points = [d[self.clusters == i] for i in range(len(self.centroids))]
             for i in range(len(self.centroids)):
@@ -55,8 +57,18 @@ class Kmeans:
             # delete centroids that do not belong to any point
             self.centroids = self.centroids[~np.isnan(self.centroids).any(axis=1)]
         else:
-            self.find_clusters()
+            self.clusters = self.find_clusters(self.centroids)
         self.stepNo += 1
+
+    def stepBack(self):
+        if self.stepNo > 0:
+            if self.stepNo % 2 == 1:
+                self.centroids = self.centroids_history[self.stepNo // 2]
+            else:
+                self.clusters = self.find_clusters(self.centroids_history[self.stepNo // 2 - 1])
+            self.stepNo -= 1
+
+
 
     def random_positioning(self):
         idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
@@ -67,12 +79,12 @@ class Kmeans:
             self.centroids = np.vstack((self.centroids, np.array(points)))
         else:  # if no point provided add one centroid
             self.centroids = np.vstack((self.centroids, self.random_positioning()))
-        self.find_clusters()
+        self.clusters = self.find_clusters(self.centroids)
 
     def delete_centroids(self):
         self.centroids = self.centroids[:-1]
-        self.find_clusters()
+        self.clusters = self.find_clusters(self.centroids)
 
     def move_centroid(self, _index, x, y):
         self.centroids[_index, :] = np.array([x, y])
-        self.find_clusters()
+        self.clusters = self.find_clusters(self.centroids)
