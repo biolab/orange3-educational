@@ -137,7 +137,7 @@ class OWKmeans(OWWidget):
                                 callback=self.restart,
                                 sendSelectedValue=True)
         self.centroidNumbersSpinner = gui.spin(self.optionsBox, self, 'numberOfClusters',
-                 minv=0, maxv=10, step=1, label='Number of centroids:',
+                 minv=1, maxv=10, step=1, label='Number of centroids:',
                  callback=self.number_of_clusters_changed)
         gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
                      'Membership lines', callback=self.replot)
@@ -223,8 +223,8 @@ class OWKmeans(OWWidget):
     def step(self):
         self.k_means.step()
         self.replot()
-        self.centroidNumbersSpinner.setDisabled(False if self.k_means.stepNo % 2 == 0 else True)
-        self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
+        self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
+        self.stepButton.setText("Move centroids" if self.k_means.step_completed else "Find new clusters")
         if not self.autoPlay:
             self.stepBackButton.setDisabled(False)
         self.send_data()
@@ -232,8 +232,8 @@ class OWKmeans(OWWidget):
     def step_back(self):
         self.k_means.stepBack()
         self.replot()
-        self.centroidNumbersSpinner.setDisabled(False if self.k_means.stepNo % 2 == 0 else True)
-        self.stepButton.setText("Move centroids" if self.k_means.stepNo % 2 == 0 else "Find new clusters")
+        self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
+        self.stepButton.setText("Move centroids" if self.k_means.step_completed else "Find new clusters")
         if self.k_means.stepNo <= 0:
             self.stepBackButton.setDisabled(True)
         self.send_data()
@@ -296,8 +296,8 @@ class OWKmeans(OWWidget):
                                              'marker':{'fillColor': colors[i % len(colors)]}}
                                             for i, p in enumerate(self.k_means.centroids)],
                                       type="scatter",
-                                      draggableX=True if self.k_means.stepNo % 2 == 0 else False,
-                                      draggableY=True if self.k_means.stepNo % 2 == 0 else False,
+                                      draggableX=True if self.k_means.step_completed else False,
+                                      draggableY=True if self.k_means.step_completed else False,
                                       showInLegend=False,
                                       marker=dict(symbol='diamond',
                                                   radius=10)))
@@ -333,7 +333,7 @@ class OWKmeans(OWWidget):
         self.send_data()
 
     def graph_clicked(self, x, y):
-        if self.k_means.stepNo % 2 == 0:
+        if self.k_means.step_completed == 0:
             self.k_means.add_centroids([x, y])
             self.numberOfClusters += 1
             self.replot()

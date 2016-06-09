@@ -35,6 +35,10 @@ class Kmeans:
         return distance < self.threshold \
                or self.stepNo > self.max_iter
 
+    @property
+    def step_completed(self):
+        return self.stepNo % 2 == 0
+
     def find_clusters(self, centroids):
         if self.k > 0:
             d = self.data.X
@@ -44,7 +48,7 @@ class Kmeans:
             return None
 
     def step(self):
-        if self.stepNo % 2 == 0:
+        if self.step_completed:
             if len(self.centroids_history) < self.stepNo // 2 + 1:
                 self.centroids_history.append(np.copy(self.centroids))
             else:
@@ -62,13 +66,11 @@ class Kmeans:
 
     def stepBack(self):
         if self.stepNo > 0:
-            if self.stepNo % 2 == 1:
+            if not self.step_completed:
                 self.centroids = self.centroids_history[self.stepNo // 2]
             else:
                 self.clusters = self.find_clusters(self.centroids_history[self.stepNo // 2 - 1])
             self.stepNo -= 1
-
-
 
     def random_positioning(self):
         idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
