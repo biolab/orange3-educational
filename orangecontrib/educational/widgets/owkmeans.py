@@ -12,6 +12,14 @@ import time
 
 
 class Autoplay(QThread):
+    """
+    Class used for separated thread when using "Autoplay" for k-means
+
+    Parameters
+    ----------
+    owkmeans: OWKmeans
+        Instance of OWKmeans class
+    """
 
     def __init__(self, owkmeans):
         QThread.__init__(self)
@@ -21,6 +29,9 @@ class Autoplay(QThread):
         self.wait()
 
     def run(self):
+        """
+        Stepping through the algorithm until converge or user interrupts
+        """
         while not self.owkmeans.k_means.converged and self.owkmeans.autoPlay:
             self.emit(SIGNAL('step()'))
             time.sleep(1)
@@ -30,12 +41,9 @@ class Scatterplot(highcharts.Highchart):
     """
     Scatterplot extends Highchart and just defines some sane defaults:
     * enables scroll-wheel zooming,
-    * enables rectangle (+ individual point) selection,
-    * sets the chart type to 'scatter' (could also be 'bubble' or as
-      appropriate; Se Highcharts JS docs)
-    * sets the selection callback. The callback is passed a list (array)
-      of indices of selected points for each data series the chart knows
-      about.
+    * set callback functions for click (in empty chart), drag and drop
+    * enables moving of centroids points
+    * include drag_drop_js script by highchart
     """
 
     js_click_function = """/**/(function(event) {
@@ -83,7 +91,7 @@ class Scatterplot(highcharts.Highchart):
     @pyqtSlot(int, float, float)
     def point_dragged(self, index, x, y):
         print(index, x, y)
-        self.drag_callback(index, x, y)
+        # self.drag_callback(index, x, y)
 
     @pyqtSlot(int, float, float)
     def point_dropped(self, index, x, y):
@@ -91,6 +99,9 @@ class Scatterplot(highcharts.Highchart):
 
 
 class OWKmeans(OWWidget):
+    """
+    K-means widget
+    """
 
     name = "Educational k-Means"
     description = "Widget demonstrates working of k-means algorithm."
@@ -112,8 +123,9 @@ class OWKmeans(OWWidget):
     # selected attributes in chart
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
-    lines_to_centroids = settings.Setting(0)
 
+    # other settings
+    lines_to_centroids = settings.Setting(0)
     graph_name = 'scatter'
     outputName = "cluster"
 
@@ -141,19 +153,22 @@ class OWKmeans(OWWidget):
                  callback=self.number_of_clusters_changed)
         gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
                      'Membership lines', callback=self.replot)
-        # step and restart buttons
+
+        # control box
         self.commandsBox = gui.widgetBox(self.controlArea, "Commands")
         self.stepButton = gui.button(self.commandsBox, self, 'Move centroids', callback=self.step)
         self.stepBackButton = gui.button(self.commandsBox, self, 'Step back', callback=self.step_back)
         self.restartButton = gui.button(self.commandsBox, self, 'Restart', callback=self.restart)
         self.autoPlayButton = gui.button(self.commandsBox, self, 'Start', callback=self.auto_play)
 
+        gui.rubber(self.controlArea)
+
         # disable until data loaded
         self.optionsBox.setDisabled(True)
         self.stepBackButton.setDisabled(True)
-        gui.rubber(self.controlArea)
 
-        # plot
+
+        # graph in mainArea
         self.scatter = Scatterplot(click_callback=self.graph_clicked,
                                    drag_callback=self.centroid_dropped,
                                    xAxis_gridLineWidth=0,
@@ -165,9 +180,15 @@ class OWKmeans(OWWidget):
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
 
+        # k_means algorithm initialization
         self.k_means = None
 
     def concat_x_y(self):
+        """
+        Function take from data table two selected columns and merge them in new Orange.data.Table
+        :return: table with selected columns
+        :type: Orange.data.Table
+        """
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         cols = []
         for attr in (attr_x, attr_y):
@@ -178,9 +199,17 @@ class OWKmeans(OWWidget):
         return Table(domain, x)
 
     def set_data(self, data):
+        """
+        Function receives data from input and init some parts of widget
+        :param data: input data
+        :type data: Orange.data.Table
+        """
         self.data = data
 
         def init_combos():
+            """
+            function initialize the combos with attributes
+            """
             self.cbx.clear()
             self.cby.clear()
             for var in data.domain if data is not None else []:
@@ -194,7 +223,6 @@ class OWKmeans(OWWidget):
             self.scatter.clear()
             self.optionsBox.setDisabled(True)
 
-        # if data contains at least two continuous attributes
         if data is None:
             self.info.setText("No data on input yet, waiting to get something.")
             set_empty_plot()
@@ -209,6 +237,9 @@ class OWKmeans(OWWidget):
             self.restart()
 
     def restart(self):
+        """
+        Function triggered on data change or restart button pressed
+        """
         # if self.k_means is None:
         self.k_means = Kmeans(self.concat_x_y())
         # else:
@@ -221,6 +252,9 @@ class OWKmeans(OWWidget):
         self.send_data()
 
     def step(self):
+        """
+        Function called on every step
+        """
         self.k_means.step()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
@@ -230,6 +264,9 @@ class OWKmeans(OWWidget):
         self.send_data()
 
     def step_back(self):
+        """
+        Function called for step back
+        """
         self.k_means.stepBack()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
@@ -238,8 +275,10 @@ class OWKmeans(OWWidget):
             self.stepBackButton.setDisabled(True)
         self.send_data()
 
-
     def auto_play(self):
+        """
+        Function called when autoplay button pressed
+        """
         self.autoPlay = not self.autoPlay
         self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
         if self.autoPlay:
@@ -255,6 +294,9 @@ class OWKmeans(OWWidget):
             self.stop_auto_play()
 
     def stop_auto_play(self):
+        """
+        Called when stop autoplay button pressed or in the end of autoplay
+        """
         self.optionsBox.setDisabled(False)
         self.stepButton.setDisabled(False)
         self.restartButton.setDisabled(False)
@@ -263,6 +305,9 @@ class OWKmeans(OWWidget):
         self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
 
     def replot(self):
+        """
+        Function refreshes the chart
+        """
         colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
                   '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
 
@@ -323,6 +368,9 @@ class OWKmeans(OWWidget):
         self.scatter.chart(options, **kwargs)
 
     def number_of_clusters_changed(self):
+        """
+        Function called when user change number of clusters in spinner
+        """
         if self.k_means.k < self.numberOfClusters:
             for _ in range(self.numberOfClusters - self.k_means.k):
                 self.k_means.add_centroids()
@@ -333,6 +381,13 @@ class OWKmeans(OWWidget):
         self.send_data()
 
     def graph_clicked(self, x, y):
+        """
+        Function called when user click in graph. Centroid have to be added.
+        :param x: x coordinate of new centroid
+        :type x: float
+        :param y: y coordinate of new centroid
+        :type y: float
+        """
         if self.k_means.step_completed == 0:
             self.k_means.add_centroids([x, y])
             self.numberOfClusters += 1
@@ -340,11 +395,23 @@ class OWKmeans(OWWidget):
             self.send_data()
 
     def centroid_dropped(self, _index, x, y):
+        """
+        Function called when centroid with _index moved.
+        :param _index: index of moved centroid
+        :type _index: int
+        :param x: new x of moved centroid
+        :type x: float
+        :param y: new y of moved centroid
+        :type y: float
+        """
         self.k_means.move_centroid(_index, x, y)
         self.replot()
         self.send_data()
 
     def send_data(self):
+        """
+        Function sends data with clusters column and data with centroids position to the output
+        """
         if self.k_means is None or self.k_means.clusters is None:
             self.send("Annotated Data", None)
             self.send("Centroids", None)
