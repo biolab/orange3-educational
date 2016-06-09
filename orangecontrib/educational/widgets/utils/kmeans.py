@@ -39,6 +39,20 @@ class Kmeans:
     def step_completed(self):
         return self.stepNo % 2 == 0
 
+    def set_data(self, data):
+        if len(data) > 0:
+            self.data = data
+            self.clusters = self.find_clusters(self.centroids)
+
+            # with different data it does not make sense to have history, algorithm from begining
+            self.centroids_history = []
+            self.stepNo = 0
+        else:
+            self.data = None
+            self.clusters = None
+            self.centroids_history = []
+            self.stepNo = 0
+
     def find_clusters(self, centroids):
         if self.k > 0:
             d = self.data.X

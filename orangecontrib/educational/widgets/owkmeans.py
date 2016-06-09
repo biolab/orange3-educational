@@ -37,6 +37,7 @@ class Autoplay(QThread):
             time.sleep(1)
         self.emit(SIGNAL('stop_auto_play()'))
 
+
 class Scatterplot(highcharts.Highchart):
     """
     Scatterplot extends Highchart and just defines some sane defaults:
@@ -148,11 +149,19 @@ class OWKmeans(OWWidget):
                                 orientation='horizontal',
                                 callback=self.restart,
                                 sendSelectedValue=True)
-        self.centroidNumbersSpinner = gui.spin(self.optionsBox, self, 'numberOfClusters',
-                 minv=1, maxv=10, step=1, label='Number of centroids:',
-                 callback=self.number_of_clusters_changed)
-        self.linesCheckbox = gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
-                     'Membership lines', callback=self.replot)
+        self.centroidNumbersSpinner = gui.spin(self.optionsBox,
+                                               self,
+                                               'numberOfClusters',
+                                               minv=1,
+                                               maxv=10,
+                                               step=1,
+                                               label='Number of centroids:',
+                                               callback=self.number_of_clusters_changed)
+        self.linesCheckbox = gui.checkBox(self.optionsBox,
+                                          self,
+                                          'lines_to_centroids',
+                                          'Membership lines',
+                                          callback=self.replot)
 
         # control box
         self.commandsBox = gui.widgetBox(self.controlArea, "Commands")
@@ -166,7 +175,6 @@ class OWKmeans(OWWidget):
         # disable until data loaded
         self.optionsBox.setDisabled(True)
         self.stepBackButton.setDisabled(True)
-
 
         # graph in mainArea
         self.scatter = Scatterplot(click_callback=self.graph_clicked,
@@ -222,7 +230,7 @@ class OWKmeans(OWWidget):
 
         init_combos()
 
-        if data is None:
+        if data is None or len(data) == 0:
             self.info.setText("No data on input yet, waiting to get something.")
             self.set_empty_plot()
             self.optionsBox.setDisabled(True)
@@ -241,10 +249,10 @@ class OWKmeans(OWWidget):
         """
         Function triggered on data change or restart button pressed
         """
-        # if self.k_means is None:
-        self.k_means = Kmeans(self.concat_x_y())
-        # else:
-        #     self.k_means.data = self.concat_x_y()
+        if self.k_means is None:
+            self.k_means = Kmeans(self.concat_x_y())
+        else:
+            self.k_means.set_data(self.concat_x_y())
         self.number_of_clusters_changed()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False)
@@ -322,8 +330,9 @@ class OWKmeans(OWWidget):
 
         if self.lines_to_centroids:
             for i, c in enumerate(self.k_means.centroids):
-                options['series'].append(dict(data=list(chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
-                                                    for p in self.k_means.centroids_belonging_points[i])),
+                options['series'].append(dict(data=list(
+                    chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
+                                        for p in self.k_means.centroids_belonging_points[i])),
                                               type="line",
                                               showInLegend=False,
                                               lineWidth=0.2,
@@ -382,7 +391,7 @@ selected or decrease number of clusters""")
         else:
             self.info.setText("")
             self.commandsBox.setDisabled(False)
-            if self.k_means == None:
+            if self.k_means is None:
                 self.restart()
             if self.k_means.k < self.numberOfClusters:
                 for _ in range(self.numberOfClusters - self.k_means.k):
