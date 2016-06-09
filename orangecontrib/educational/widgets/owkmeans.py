@@ -151,7 +151,7 @@ class OWKmeans(OWWidget):
         self.centroidNumbersSpinner = gui.spin(self.optionsBox, self, 'numberOfClusters',
                  minv=1, maxv=10, step=1, label='Number of centroids:',
                  callback=self.number_of_clusters_changed)
-        gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
+        self.linesCheckbox = gui.checkBox(self.optionsBox, self, 'lines_to_centroids',
                      'Membership lines', callback=self.replot)
 
         # control box
@@ -198,6 +198,9 @@ class OWKmeans(OWWidget):
         domain = Domain([attr_x, attr_y])
         return Table(domain, x)
 
+    def set_empty_plot(self):
+        self.scatter.clear()
+
     def set_data(self, data):
         """
         Function receives data from input and init some parts of widget
@@ -219,19 +222,17 @@ class OWKmeans(OWWidget):
 
         init_combos()
 
-        def set_empty_plot():
-            self.scatter.clear()
-            self.optionsBox.setDisabled(True)
-
         if data is None:
             self.info.setText("No data on input yet, waiting to get something.")
-            set_empty_plot()
+            self.set_empty_plot()
+            self.optionsBox.setDisabled(True)
         elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
             self.info.setText("Too few Continuous feature. Min 2 required")
-            set_empty_plot()
+            self.set_empty_plot()
+            self.optionsBox.setDisabled(True)
         else:
-            self.info.setText("")
             self.optionsBox.setDisabled(False)
+            self.info.setText("")
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
             self.restart()
@@ -371,14 +372,27 @@ class OWKmeans(OWWidget):
         """
         Function called when user change number of clusters in spinner
         """
-        if self.k_means.k < self.numberOfClusters:
-            for _ in range(self.numberOfClusters - self.k_means.k):
-                self.k_means.add_centroids()
+        if self.numberOfClusters > len(self.data):
+            # if too less data for clusters number
+            self.info.setText("""Please provide at least number
+of points equal to number of clusters
+selected or decrease number of clusters""")
+            self.set_empty_plot()
+            self.commandsBox.setDisabled(True)
         else:
-            for _ in range(self.k_means.k - self.numberOfClusters):
-                self.k_means.delete_centroids()
-        self.replot()
-        self.send_data()
+            self.info.setText("")
+            self.commandsBox.setDisabled(False)
+            if self.k_means == None:
+                self.restart()
+            if self.k_means.k < self.numberOfClusters:
+                for _ in range(self.numberOfClusters - self.k_means.k):
+                    self.k_means.add_centroids()
+            else:
+                for _ in range(self.k_means.k - self.numberOfClusters):
+                    self.k_means.delete_centroids()
+
+            self.replot()
+            self.send_data()
 
     def graph_clicked(self, x, y):
         """
@@ -388,7 +402,7 @@ class OWKmeans(OWWidget):
         :param y: y coordinate of new centroid
         :type y: float
         """
-        if self.k_means.step_completed == 0:
+        if self.k_means is not None and self.k_means.step_completed:
             self.k_means.add_centroids([x, y])
             self.numberOfClusters += 1
             self.replot()
