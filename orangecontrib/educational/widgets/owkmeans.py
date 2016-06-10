@@ -78,6 +78,8 @@ class Scatterplot(highcharts.Highchart):
                          chart_events_click=self.js_click_function,
                          plotOptions_series_point_events_drag=self.js_drag_function,
                          plotOptions_series_point_events_drop=self.js_drop_function,
+                         plotOptions_series_states_hover_enabled=False,
+                         plotOptions_series_tooltip_pointFormat='<b>Volumn : {point.y}</b>',
                          plotOptions_series_cursor="move",
                          javascript=drag_drop_js,
                          **kwargs)
@@ -336,24 +338,31 @@ class OWKmeans(OWWidget):
                                               type="line",
                                               showInLegend=False,
                                               lineWidth=0.2,
+                                              enableMouseTracking=False,
                                               color="#ccc"))
 
         # plot data points
         for i, points in enumerate(self.k_means.centroids_belonging_points):
-            options['series'].append(dict(data=np.around(points, decimals=2),
+            options['series'].append(dict(data=points,
                                           type="scatter",
                                           showInLegend=False,
+                                          tooltip=dict(pointFormat="%s: {point.x:.2f} <br/>%s: {point.y:.2f}" %
+                                                                   (self.attr_x, self.attr_y),
+                                                       headerFormat=''),
                                           color=rgb_hash_brighter(colors[i % len(colors)], 30)))
 
         # plot centroids
-        options['series'].append(dict(data=[{'x': round(p[0], 2),
-                                             'y': round(p[1], 2),
+        options['series'].append(dict(data=[{'x': p[0],
+                                             'y': p[1],
                                              'marker':{'fillColor': colors[i % len(colors)]}}
                                             for i, p in enumerate(self.k_means.centroids)],
                                       type="scatter",
                                       draggableX=True if self.k_means.step_completed else False,
                                       draggableY=True if self.k_means.step_completed else False,
                                       showInLegend=False,
+                                      tooltip=dict(pointFormat="%s: {point.x:.2f} <br/>%s: {point.y:.2f}" %
+                                                               (self.attr_x, self.attr_y),
+                                                   headerFormat=''),
                                       marker=dict(symbol='diamond',
                                                   radius=10)))
 
