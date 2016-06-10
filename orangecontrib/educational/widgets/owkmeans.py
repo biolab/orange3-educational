@@ -142,10 +142,6 @@ class OWKmeans(OWWidget):
     def __init__(self):
         super().__init__()
 
-        # info box
-        box = gui.widgetBox(self.controlArea, "Info")
-        self.info = gui.widgetLabel(box, 'No data on input yet, waiting to get something.')
-
         # options box
         self.optionsBox = gui.widgetBox(self.controlArea)
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
@@ -247,20 +243,20 @@ class OWKmeans(OWWidget):
                     self.cby.addItem(gui.attributeIconDict[var], var.name)
 
         init_combos()
+        self.warning(1)  # remove warning about too less continuous attributes if exists
+        self.warning(2)  # remove warning about not enough data
 
         if data is None or len(data) == 0:
-            self.info.setText("No data on input yet, waiting to get something.")
             self.set_empty_plot()
             self.optionsBox.setDisabled(True)
             self.commandsBox.setDisabled(True)
         elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
-            self.info.setText("Too few Continuous feature. Min 2 required")
+            self.warning(1, "Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
             self.optionsBox.setDisabled(True)
             self.commandsBox.setDisabled(True)
         else:
             self.optionsBox.setDisabled(False)
-            self.info.setText("")
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
             if self.k_means is None:
@@ -423,13 +419,11 @@ class OWKmeans(OWWidget):
         """
         if self.numberOfClusters > len(self.data):
             # if too less data for clusters number
-            self.info.setText("""Please provide at least number
-of points equal to number of clusters
-selected or decrease number of clusters""")
+            self.warning(2, "Please provide at least number of points equal to number of clusters selected or decrease number of clusters")
             self.set_empty_plot()
             self.commandsBox.setDisabled(True)
         else:
-            self.info.setText("")
+            self.warning(2)
             self.commandsBox.setDisabled(False)
             if self.k_means is None:
                 self.restart()
