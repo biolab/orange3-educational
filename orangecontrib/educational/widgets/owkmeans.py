@@ -4,7 +4,8 @@ from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, highcharts, widget
 import numpy as np
 from .utils.kmeans import Kmeans
-from PyQt4.QtCore import pyqtSlot, QThread, SIGNAL
+from PyQt4.QtCore import pyqtSlot, QThread, SIGNAL, Qt
+from PyQt4.QtGui import QSizePolicy
 from os import path
 from .utils.color_transform import rgb_hash_brighter
 from itertools import chain
@@ -149,15 +150,19 @@ class OWKmeans(OWWidget):
         self.optionsBox = gui.widgetBox(self.controlArea)
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
                                 label='X:',
-                                orientation='horizontal',
+                                orientation=Qt.Horizontal,
                                 callback=self.restart,
                                 sendSelectedValue=True)
+        self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby = gui.comboBox(self.optionsBox, self, 'attr_y',
                                 label='Y:',
                                 orientation='horizontal',
                                 callback=self.restart,
                                 sendSelectedValue=True)
-        self.centroidNumbersSpinner = gui.spin(self.optionsBox,
+        self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
+
+        self.centroidsBox = gui.widgetBox(self.controlArea, "Centroids")
+        self.centroidNumbersSpinner = gui.spin(self.centroidsBox,
                                                self,
                                                'numberOfClusters',
                                                minv=1,
@@ -165,20 +170,21 @@ class OWKmeans(OWWidget):
                                                step=1,
                                                label='Number of centroids:',
                                                callback=self.number_of_clusters_changed)
-        self.linesCheckbox = gui.checkBox(self.optionsBox,
+        self.centroidNumbersSpinner.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
+        self.restartButton = gui.button(self.centroidsBox, self, self.button_labels["random_centroids"],
+                                        callback=self.restart)
+        self.linesCheckbox = gui.checkBox(self.centroidsBox,
                                           self,
                                           'lines_to_centroids',
                                           'Show membership lines',
                                           callback=self.replot)
 
         # control box
-        self.commandsBox = gui.widgetBox(self.controlArea, "Commands")
+        self.commandsBox = gui.widgetBox(self.controlArea)
         self.stepButton = gui.button(self.commandsBox, self, self.button_labels["step2"],
                                      callback=self.step)
         self.stepBackButton = gui.button(self.commandsBox, self, self.button_labels["step_back"],
                                          callback=self.step_back)
-        self.restartButton = gui.button(self.commandsBox, self, self.button_labels["random_centroids"],
-                                        callback=self.restart)
         self.autoPlayButton = gui.button(self.commandsBox, self, self.button_labels["autoplay_run"],
                                          callback=self.auto_play)
 
@@ -186,7 +192,7 @@ class OWKmeans(OWWidget):
 
         # disable until data loaded
         self.optionsBox.setDisabled(True)
-        self.stepBackButton.setDisabled(True)
+        self.commandsBox.setDisabled(True)
 
         # graph in mainArea
         self.scatter = Scatterplot(click_callback=self.graph_clicked,
@@ -246,10 +252,12 @@ class OWKmeans(OWWidget):
             self.info.setText("No data on input yet, waiting to get something.")
             self.set_empty_plot()
             self.optionsBox.setDisabled(True)
+            self.commandsBox.setDisabled(True)
         elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
             self.info.setText("Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
             self.optionsBox.setDisabled(True)
+            self.commandsBox.setDisabled(True)
         else:
             self.optionsBox.setDisabled(False)
             self.info.setText("")
@@ -270,9 +278,9 @@ class OWKmeans(OWWidget):
 
     def init_kmeans(self):
         self.number_of_clusters_changed()
-        self.centroidNumbersSpinner.setDisabled(False)
         self.stepButton.setText(self.button_labels["step2"])
         self.stepBackButton.setDisabled(True)
+        self.centroidNumbersSpinner.setDisabled(False)
         self.send_data()
 
     def step(self):
@@ -313,9 +321,10 @@ class OWKmeans(OWWidget):
                                     else self.button_labels["autoplay_run"])
         if self.autoPlay:
             self.optionsBox.setDisabled(True)
+            self.centroidNumbersSpinner.setDisabled(True)
             self.stepButton.setDisabled(True)
-            self.restartButton.setDisabled(True)
             self.stepBackButton.setDisabled(True)
+            self.centroidsBox.setDisabled(True)
             self.autoPlayThread = Autoplay(self)
             self.connect(self.autoPlayThread, SIGNAL("step()"), self.step)
             self.connect(self.autoPlayThread, SIGNAL("stop_auto_play()"), self.stop_auto_play)
@@ -329,8 +338,9 @@ class OWKmeans(OWWidget):
         """
         self.optionsBox.setDisabled(False)
         self.stepButton.setDisabled(False)
-        self.restartButton.setDisabled(False)
+        self.centroidsBox.setDisabled(False)
         self.stepBackButton.setDisabled(False)
+        self.centroidNumbersSpinner.setDisabled(False)
         self.autoPlay = False
         self.autoPlayButton.setText(self.button_labelsp["autoplay_stop"]
                                     if self.autoPlay
