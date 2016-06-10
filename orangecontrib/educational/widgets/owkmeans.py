@@ -256,7 +256,6 @@ class OWKmeans(OWWidget):
         else:
             self.k_means.set_data(self.concat_x_y())
         self.number_of_clusters_changed()
-        self.replot()
         self.centroidNumbersSpinner.setDisabled(False)
         self.stepButton.setText("Move centroids")
         self.stepBackButton.setDisabled(True)
