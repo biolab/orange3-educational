@@ -5,7 +5,7 @@ from scipy.spatial import distance
 
 class Kmeans:
     """
-    Class used for separated thread when using "Autoplay" for k-means
+    K-Means algorithm
 
     Parameters
     ----------

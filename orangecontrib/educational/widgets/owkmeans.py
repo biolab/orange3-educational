@@ -131,6 +131,12 @@ class OWKmeans(OWWidget):
     lines_to_centroids = settings.Setting(0)
     graph_name = 'scatter'
     outputName = "cluster"
+    button_labels = {"step1": "Reassign membership",
+                     "step2": "Recompute centroids",
+                     "step_back": "Step back",
+                     "autoplay_run": "Run",
+                     "autoplay_stop": "Stop",
+                     "random_centroids": "Randomize"}
 
     def __init__(self):
         super().__init__()
@@ -140,7 +146,7 @@ class OWKmeans(OWWidget):
         self.info = gui.widgetLabel(box, 'No data on input yet, waiting to get something.')
 
         # options box
-        self.optionsBox = gui.widgetBox(self.controlArea, "Options")
+        self.optionsBox = gui.widgetBox(self.controlArea)
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
                                 label='X:',
                                 orientation='horizontal',
@@ -162,15 +168,19 @@ class OWKmeans(OWWidget):
         self.linesCheckbox = gui.checkBox(self.optionsBox,
                                           self,
                                           'lines_to_centroids',
-                                          'Membership lines',
+                                          'Show membership lines',
                                           callback=self.replot)
 
         # control box
         self.commandsBox = gui.widgetBox(self.controlArea, "Commands")
-        self.stepButton = gui.button(self.commandsBox, self, 'Move centroids', callback=self.step)
-        self.stepBackButton = gui.button(self.commandsBox, self, 'Step back', callback=self.step_back)
-        self.restartButton = gui.button(self.commandsBox, self, 'Restart', callback=self.restart)
-        self.autoPlayButton = gui.button(self.commandsBox, self, 'Start', callback=self.auto_play)
+        self.stepButton = gui.button(self.commandsBox, self, self.button_labels["step2"],
+                                     callback=self.step)
+        self.stepBackButton = gui.button(self.commandsBox, self, self.button_labels["step_back"],
+                                         callback=self.step_back)
+        self.restartButton = gui.button(self.commandsBox, self, self.button_labels["random_centroids"],
+                                        callback=self.restart)
+        self.autoPlayButton = gui.button(self.commandsBox, self, self.button_labels["autoplay_run"],
+                                         callback=self.auto_play)
 
         gui.rubber(self.controlArea)
 
@@ -245,19 +255,23 @@ class OWKmeans(OWWidget):
             self.info.setText("")
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
-            self.restart()
+            if self.k_means is None:
+                self.k_means = Kmeans(self.concat_x_y())
+            else:
+                self.k_means.set_data(self.concat_x_y())
+            self.init_kmeans()
 
     def restart(self):
         """
         Function triggered on data change or restart button pressed
         """
-        if self.k_means is None:
-            self.k_means = Kmeans(self.concat_x_y())
-        else:
-            self.k_means.set_data(self.concat_x_y())
+        self.k_means = Kmeans(self.concat_x_y())
+        self.init_kmeans()
+
+    def init_kmeans(self):
         self.number_of_clusters_changed()
         self.centroidNumbersSpinner.setDisabled(False)
-        self.stepButton.setText("Move centroids")
+        self.stepButton.setText(self.button_labels["step2"])
         self.stepBackButton.setDisabled(True)
         self.send_data()
 
@@ -268,7 +282,9 @@ class OWKmeans(OWWidget):
         self.k_means.step()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
-        self.stepButton.setText("Move centroids" if self.k_means.step_completed else "Find new clusters")
+        self.stepButton.setText(self.button_labels["step2"]
+                                if self.k_means.step_completed
+                                else self.button_labels["step1"])
         if not self.autoPlay:
             self.stepBackButton.setDisabled(False)
         self.send_data()
@@ -280,7 +296,9 @@ class OWKmeans(OWWidget):
         self.k_means.stepBack()
         self.replot()
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
-        self.stepButton.setText("Move centroids" if self.k_means.step_completed else "Find new clusters")
+        self.stepButton.setText(self.button_labels["step2"]
+                                if self.k_means.step_completed
+                                else self.button_labels["step1"])
         if self.k_means.stepNo <= 0:
             self.stepBackButton.setDisabled(True)
         self.send_data()
@@ -290,7 +308,9 @@ class OWKmeans(OWWidget):
         Function called when autoplay button pressed
         """
         self.autoPlay = not self.autoPlay
-        self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
+        self.autoPlayButton.setText(self.button_labels["autoplay_stop"]
+                                    if self.autoPlay
+                                    else self.button_labels["autoplay_run"])
         if self.autoPlay:
             self.optionsBox.setDisabled(True)
             self.stepButton.setDisabled(True)
@@ -312,7 +332,9 @@ class OWKmeans(OWWidget):
         self.restartButton.setDisabled(False)
         self.stepBackButton.setDisabled(False)
         self.autoPlay = False
-        self.autoPlayButton.setText("Stop" if self.autoPlay else "Start")
+        self.autoPlayButton.setText(self.button_labelsp["autoplay_stop"]
+                                    if self.autoPlay
+                                    else self.button_labels["autoplay_run"])
 
     def replot(self):
         """
