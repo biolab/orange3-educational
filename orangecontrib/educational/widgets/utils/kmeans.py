@@ -27,6 +27,7 @@ class Kmeans:
         self.stepNo = 0
         self.clusters = self.find_clusters(self.centroids)
         self.centroids_history = []
+        self.centroids_moved = False
 
     @property
     def k(self):
@@ -117,8 +118,10 @@ class Kmeans:
                 self.centroids[i, :] = np.average(c_points, axis=0)
             # delete centroids that do not belong to any point
             self.centroids = self.centroids[~np.isnan(self.centroids).any(axis=1)]
+            self.centroids_moved = True
         else:
             self.clusters = self.find_clusters(self.centroids)
+            self.centroids_moved = False
         self.stepNo += 1
 
     def stepBack(self):
@@ -129,8 +132,10 @@ class Kmeans:
         if self.stepNo > 0:
             if not self.step_completed:
                 self.centroids = self.centroids_history[self.stepNo // 2]
+                self.centroids_moved = True
             else:
                 self.clusters = self.find_clusters(self.centroids_history[self.stepNo // 2 - 1])
+                self.centroids_moved = False
             self.stepNo -= 1
 
     def random_positioning(self):

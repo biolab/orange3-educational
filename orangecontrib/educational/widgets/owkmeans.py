@@ -35,7 +35,6 @@ class Autoplay(QThread):
         """
         while not self.owkmeans.k_means.converged and self.owkmeans.autoPlay:
             self.emit(SIGNAL('step()'))
-            print(2 - self.owkmeans.autoPlaySpeed)
             time.sleep(2 - self.owkmeans.autoPlaySpeed)
         self.emit(SIGNAL('stop_auto_play()'))
 
@@ -102,6 +101,13 @@ class Scatterplot(highcharts.Highchart):
     def point_dropped(self, index, x, y):
         self.drag_callback(index, x, y)
 
+    def update_series(self, series_no, data):
+        for i, d in enumerate(data):
+            self.evalJS("""chart.series[%d].points[%d].update({x: %f, y: %f},
+                        %s,
+                        {duration: 500, easing: 'linear'})""" % (series_no, i, d[0], d[1],
+                                                                ("true" if i == len(data) -1 else "false")))
+                                                        # until false points are not reploted what is much faster
 
 class OWKmeans(OWWidget):
     """
@@ -175,7 +181,7 @@ class OWKmeans(OWWidget):
                                           self,
                                           'lines_to_centroids',
                                           'Show membership lines',
-                                          callback=self.replot)
+                                          callback=self.complete_replot)
 
         # control box
         self.commandsBox = gui.widgetBox(self.controlArea)
@@ -357,16 +363,46 @@ class OWKmeans(OWWidget):
         """
         Function refreshes the chart
         """
-        colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
-                  '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
 
         if self.data is None or not self.attr_x or not self.attr_y:
             return
 
-        data = self.data
-        attr_x, attr_y = data.domain[self.attr_x], data.domain[self.attr_y]
+        if self.k_means.centroids_moved:
+            # move centroids
+            self.scatter.update_series(0, self.k_means.centroids)
 
+            if self.lines_to_centroids:
+                for i, c in enumerate(self.k_means.centroids):
+                    self.scatter.update_series(1 + i, list(chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
+                                                                for p in self.k_means.centroids_belonging_points[i])))
+
+        else:
+            self.complete_replot()
+
+
+    def complete_replot(self):
+
+        colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
+                  '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
+
+        attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
+
+        # plot centroids
         options = dict(series=[])
+        options['series'].append(dict(data=[{'x': p[0],
+                                             'y': p[1],
+                                             'marker':{'fillColor': colors[i % len(colors)]}}
+                                            for i, p in enumerate(self.k_means.centroids)],
+                                      type="scatter",
+                                      draggableX=True if self.k_means.step_completed else False,
+                                      draggableY=True if self.k_means.step_completed else False,
+                                      showInLegend=False,
+                                      zIndex=10,
+                                      tooltip=dict(pointFormat="%s: {point.x:.2f} <br/>%s: {point.y:.2f}" %
+                                                               (self.attr_x, self.attr_y),
+                                                   headerFormat=''),
+                                      marker=dict(symbol='diamond',
+                                                  radius=10)))
 
         if self.lines_to_centroids:
             for i, c in enumerate(self.k_means.centroids):
@@ -389,21 +425,6 @@ class OWKmeans(OWWidget):
                                                        headerFormat=''),
                                           color=rgb_hash_brighter(colors[i % len(colors)], 30)))
 
-        # plot centroids
-        options['series'].append(dict(data=[{'x': p[0],
-                                             'y': p[1],
-                                             'marker':{'fillColor': colors[i % len(colors)]}}
-                                            for i, p in enumerate(self.k_means.centroids)],
-                                      type="scatter",
-                                      draggableX=True if self.k_means.step_completed else False,
-                                      draggableY=True if self.k_means.step_completed else False,
-                                      showInLegend=False,
-                                      tooltip=dict(pointFormat="%s: {point.x:.2f} <br/>%s: {point.y:.2f}" %
-                                                               (self.attr_x, self.attr_y),
-                                                   headerFormat=''),
-                                      marker=dict(symbol='diamond',
-                                                  radius=10)))
-
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text=attr_x.name,
@@ -414,12 +435,6 @@ class OWKmeans(OWWidget):
             tooltip_pointFormat=(
                 '<b>{attr_x.name}:</b> {{point.x}}<br/>'
                 '<b>{attr_y.name}:</b> {{point.y}}<br/>').format_map(locals()))
-        # If any of selected attributes is discrete, we correctly scatter it
-        # as a categorical
-        if attr_x.is_discrete:
-            kwargs['xAxis_categories'] = attr_x.values
-        if attr_y.is_discrete:
-            kwargs['yAxis_categories'] = attr_y.values
 
         # plot
         self.scatter.chart(options, **kwargs)
