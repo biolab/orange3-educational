@@ -35,7 +35,8 @@ class Autoplay(QThread):
         """
         while not self.owkmeans.k_means.converged and self.owkmeans.autoPlay:
             self.emit(SIGNAL('step()'))
-            time.sleep(1)
+            print(2 - self.owkmeans.autoPlaySpeed)
+            time.sleep(2 - self.owkmeans.autoPlaySpeed)
         self.emit(SIGNAL('stop_auto_play()'))
 
 
@@ -129,6 +130,7 @@ class OWKmeans(OWWidget):
     attr_y = settings.Setting('')
 
     # other settings
+    autoPlaySpeed = settings.Setting(10)
     lines_to_centroids = settings.Setting(0)
     graph_name = 'scatter'
     outputName = "cluster"
@@ -183,6 +185,15 @@ class OWKmeans(OWWidget):
                                          callback=self.step_back)
         self.autoPlayButton = gui.button(self.commandsBox, self, self.button_labels["autoplay_run"],
                                          callback=self.auto_play)
+        self.autoPlaySpeedSpinner = gui.hSlider(self.commandsBox,
+                                               self,
+                                               'autoPlaySpeed',
+                                               minValue=0,
+                                               maxValue=1.91,
+                                               step=0.1,
+                                               intOnly=False,
+                                               createLabel=False,
+                                               label='Speed:')
 
         gui.rubber(self.controlArea)
 
@@ -419,7 +430,8 @@ class OWKmeans(OWWidget):
         """
         if self.numberOfClusters > len(self.data):
             # if too less data for clusters number
-            self.warning(2, "Please provide at least number of points equal to number of clusters selected or decrease number of clusters")
+            self.warning(2, "Please provide at least number of points equal to "
+                            "number of clusters selected or decrease number of clusters")
             self.set_empty_plot()
             self.commandsBox.setDisabled(True)
         else:
