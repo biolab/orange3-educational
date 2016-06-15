@@ -86,6 +86,7 @@ class Kmeans:
             self.clusters = None
             self.centroids_history = []
             self.stepNo = 0
+        self.centroids_moved = False
 
     def find_clusters(self, centroids):
         """
@@ -116,8 +117,10 @@ class Kmeans:
             for i in range(len(self.centroids)):
                 c_points = points[i]
                 self.centroids[i, :] = np.average(c_points, axis=0)
-            # delete centroids that do not belong to any point
-            self.centroids = self.centroids[~np.isnan(self.centroids).any(axis=1)]
+            # reinitialize empty centroids
+
+            nan_c = np.isnan(self.centroids).any(axis=1)
+            self.centroids[nan_c] = self.random_positioning(np.sum(nan_c))
             self.centroids_moved = True
         else:
             self.clusters = self.find_clusters(self.centroids)
@@ -138,14 +141,17 @@ class Kmeans:
                 self.centroids_moved = False
             self.stepNo -= 1
 
-    def random_positioning(self):
+    def random_positioning(self, no_centroids):
         """
         Calculates new centroid using random positioning
         :return: new centroid
         :type: np.array
         """
-        idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
-        return np.mean(self.data.X[idx], axis=0)
+        centroids = np.empty((no_centroids, 2))
+        for i in range(no_centroids):
+            idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
+            centroids[i, :] = np.mean(self.data.X[idx], axis=0)
+        return centroids
 
     def add_centroids(self, points=None):
         """
@@ -156,7 +162,7 @@ class Kmeans:
         if points is not None:
             self.centroids = np.vstack((self.centroids, np.array(points)))
         else:  # if no point provided add one centroid
-            self.centroids = np.vstack((self.centroids, self.random_positioning()))
+            self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
         self.clusters = self.find_clusters(self.centroids)
 
     def delete_centroids(self):
