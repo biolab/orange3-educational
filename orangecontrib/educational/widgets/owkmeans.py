@@ -80,7 +80,6 @@ class Scatterplot(highcharts.Highchart):
                          plotOptions_series_point_events_drag=self.js_drag_function,
                          plotOptions_series_point_events_drop=self.js_drop_function,
                          plotOptions_series_states_hover_enabled=False,
-                         plotOptions_series_tooltip_pointFormat='<b>Volumn : {point.y}</b>',
                          plotOptions_series_cursor="move",
                          javascript=drag_drop_js,
                          **kwargs)
@@ -173,7 +172,7 @@ class OWKmeans(OWWidget):
                                                maxv=10,
                                                step=1,
                                                label='Number of centroids:',
-                                               callback=self.number_of_clusters_changed)
+                                               callback=self.number_of_clusters_change)
         self.centroidNumbersSpinner.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.restartButton = gui.button(self.centroidsBox, self, self.button_labels["random_centroids"],
                                         callback=self.restart)
@@ -280,20 +279,18 @@ class OWKmeans(OWWidget):
                 self.k_means = Kmeans(self.concat_x_y())
             else:
                 self.k_means.set_data(self.concat_x_y())
-            self.init_kmeans()
+            self.modify_kmeans()
 
     def restart(self):
         """
         Function triggered on data change or restart button pressed
         """
         self.k_means = Kmeans(self.concat_x_y())
-        self.init_kmeans()
+        self.modify_kmeans()
 
-    def init_kmeans(self):
-        self.number_of_clusters_changed()
-        self.stepButton.setText(self.button_labels["step2"])
-        self.stepBackButton.setDisabled(True)
-        self.centroidNumbersSpinner.setDisabled(False)
+    def modify_kmeans(self):
+        self.number_of_clusters_change()
+        self.button_text_change()
         self.send_data()
 
     def step(self):
@@ -302,12 +299,7 @@ class OWKmeans(OWWidget):
         """
         self.k_means.step()
         self.replot()
-        self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
-        self.stepButton.setText(self.button_labels["step2"]
-                                if self.k_means.step_completed
-                                else self.button_labels["step1"])
-        if not self.autoPlay:
-            self.stepBackButton.setDisabled(False)
+        self.button_text_change()
         self.send_data()
 
     def step_back(self):
@@ -316,13 +308,22 @@ class OWKmeans(OWWidget):
         """
         self.k_means.stepBack()
         self.replot()
+        self.button_text_change()
+        self.send_data()
+
+    def button_text_change(self):
+        """
+        Function changes text on ste button and disable or enable centroid spinner depending on step phase
+        :return:
+        """
         self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
         self.stepButton.setText(self.button_labels["step2"]
                                 if self.k_means.step_completed
                                 else self.button_labels["step1"])
         if self.k_means.stepNo <= 0:
             self.stepBackButton.setDisabled(True)
-        self.send_data()
+        elif not self.autoPlay:
+            self.stepBackButton.setDisabled(False)
 
     def auto_play(self):
         """
@@ -334,10 +335,9 @@ class OWKmeans(OWWidget):
                                     else self.button_labels["autoplay_run"])
         if self.autoPlay:
             self.optionsBox.setDisabled(True)
-            self.centroidNumbersSpinner.setDisabled(True)
+            self.centroidsBox.setDisabled(True)
             self.stepButton.setDisabled(True)
             self.stepBackButton.setDisabled(True)
-            self.centroidsBox.setDisabled(True)
             self.autoPlayThread = Autoplay(self)
             self.connect(self.autoPlayThread, SIGNAL("step()"), self.step)
             self.connect(self.autoPlayThread, SIGNAL("stop_auto_play()"), self.stop_auto_play)
@@ -353,7 +353,6 @@ class OWKmeans(OWWidget):
         self.stepButton.setDisabled(False)
         self.centroidsBox.setDisabled(False)
         self.stepBackButton.setDisabled(False)
-        self.centroidNumbersSpinner.setDisabled(False)
         self.autoPlay = False
         self.autoPlayButton.setText(self.button_labelsp["autoplay_stop"]
                                     if self.autoPlay
@@ -368,14 +367,13 @@ class OWKmeans(OWWidget):
             return
 
         if self.k_means.centroids_moved:
-            # move centroids
+            # when centroids moved during step
             self.scatter.update_series(0, self.k_means.centroids)
 
             if self.lines_to_centroids:
                 for i, c in enumerate(self.k_means.centroids):
                     self.scatter.update_series(1 + i, list(chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
                                                                 for p in self.k_means.centroids_belonging_points[i])))
-
         else:
             self.complete_replot()
 
@@ -398,12 +396,10 @@ class OWKmeans(OWWidget):
                                       draggableY=True if self.k_means.step_completed else False,
                                       showInLegend=False,
                                       zIndex=10,
-                                      tooltip=dict(pointFormat="%s: {point.x:.2f} <br/>%s: {point.y:.2f}" %
-                                                               (self.attr_x, self.attr_y),
-                                                   headerFormat=''),
                                       marker=dict(symbol='diamond',
                                                   radius=10)))
 
+        # plot lines between centroids and points
         if self.lines_to_centroids:
             for i, c in enumerate(self.k_means.centroids):
                 options['series'].append(dict(data=list(
@@ -420,28 +416,23 @@ class OWKmeans(OWWidget):
             options['series'].append(dict(data=points,
                                           type="scatter",
                                           showInLegend=False,
-                                          tooltip=dict(pointFormat="%s: {point.x:.2f} <br/>%s: {point.y:.2f}" %
-                                                                   (self.attr_x, self.attr_y),
-                                                       headerFormat=''),
                                           color=rgb_hash_brighter(colors[i % len(colors)], 30)))
 
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text=attr_x.name,
             yAxis_title_text=attr_y.name,
-            tooltip_headerFormat=(
-                '<span style="color:{point.color}">\u25CF</span> '
-                '{series.name} <br/>'),
-            tooltip_pointFormat=(
-                '<b>{attr_x.name}:</b> {{point.x}}<br/>'
-                '<b>{attr_y.name}:</b> {{point.y}}<br/>').format_map(locals()))
+            tooltip_headerFormat="",
+            tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
+                                "<strong>%s:</strong> {point.y:.2f}" %
+                                (self.attr_x, self.attr_y))
 
         # plot
         self.scatter.chart(options, **kwargs)
 
-    def number_of_clusters_changed(self):
+    def number_of_clusters_change(self):
         """
-        Function called when user change number of clusters in spinner
+        Function that change number of clusters if required
         """
         if self.numberOfClusters > len(self.data):
             # if too less data for clusters number
@@ -452,8 +443,8 @@ class OWKmeans(OWWidget):
         else:
             self.warning(2)
             self.commandsBox.setDisabled(False)
-            if self.k_means is None:
-                self.restart()
+            if self.k_means is None:  # if before too less data k_means is None
+                self.k_means = Kmeans(self.concat_x_y())
             if self.k_means.k < self.numberOfClusters:
                 for _ in range(self.numberOfClusters - self.k_means.k):
                     self.k_means.add_centroids()
