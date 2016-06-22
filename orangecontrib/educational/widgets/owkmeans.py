@@ -93,17 +93,17 @@ class Scatterplot(highcharts.Highchart):
             self.evalJS("""chart.series[%d].points[%d].update({x: %f, y: %f},
                         %s,
                         {duration: 500, easing: 'linear'})""" % (series_no, i, d[0], d[1],
-                                                                ("true" if i == len(data) -1 else "false")))
-                                                        # until false points are not reploted what is much faster
+                                                                 ("true" if i == len(data) - 1 else "false")))
+            # until false points are not reploted what is much faster
 
     def remove_last_series(self, no):
         self.evalJS("""for(var i = 0; i < %d; i++)
-                    chart.series[1].remove(true);""" % (no))
+                    chart.series[1].remove(true);""" % no)
 
     def add_series(self, series):
         for i, s in enumerate(series):
-            self.exposeObject('series%d' % (i), series[i])
-            self.evalJS("chart.addSeries('series%d', true);" % (i))
+            self.exposeObject('series%d' % i, series[i])
+            self.evalJS("chart.addSeries('series%d', true);" % i)
 
 
 class OWKmeans(OWWidget):
@@ -145,7 +145,7 @@ class OWKmeans(OWWidget):
                      "autoplay_stop": "Stop",
                      "random_centroids": "Randomize"}
     colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
-                  '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
+              '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
 
     def __init__(self):
         super().__init__()
@@ -192,14 +192,14 @@ class OWKmeans(OWWidget):
         self.autoPlayButton = gui.button(self.commandsBox, self, self.button_labels["autoplay_run"],
                                          callback=self.auto_play)
         self.autoPlaySpeedSpinner = gui.hSlider(self.commandsBox,
-                                               self,
-                                               'autoPlaySpeed',
-                                               minValue=0,
-                                               maxValue=1.91,
-                                               step=0.1,
-                                               intOnly=False,
-                                               createLabel=False,
-                                               label='Speed:')
+                                                self,
+                                                'autoPlaySpeed',
+                                                minValue=0,
+                                                maxValue=1.91,
+                                                step=0.1,
+                                                intOnly=False,
+                                                createLabel=False,
+                                                label='Speed:')
 
         gui.rubber(self.controlArea)
 
@@ -368,11 +368,11 @@ class OWKmeans(OWWidget):
 
             if self.lines_to_centroids:
                 for i, c in enumerate(self.k_means.centroids):
-                    self.scatter.update_series(1 + i, list(chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
-                                                                for p in self.k_means.centroids_belonging_points[i])))
+                    self.scatter.update_series(1 + i, list(chain.from_iterable(
+                        ([p[0], p[1]], [c[0], c[1]])
+                        for p in self.k_means.centroids_belonging_points[i])))
         else:
             self.complete_replot()
-
 
     def complete_replot(self):
 
@@ -430,21 +430,21 @@ class OWKmeans(OWWidget):
         # plot lines between centroids and points
         if self.lines_to_centroids:
             for i, c in enumerate(self.k_means.centroids):
-               series.append(dict(data=list(
-                    chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
-                                        for p in self.k_means.centroids_belonging_points[i])),
-                                              type="line",
-                                              showInLegend=False,
-                                              lineWidth=0.2,
-                                              enableMouseTracking=False,
-                                              color="#ccc"))
+                series.append(dict(
+                   data=list(chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
+                                                 for p in self.k_means.centroids_belonging_points[i])),
+                   type="line",
+                   showInLegend=False,
+                   lineWidth=0.2,
+                   enableMouseTracking=False,
+                   color="#ccc"))
 
         # plot data points
         for i, points in enumerate(self.k_means.centroids_belonging_points):
             series.append(dict(data=points,
-                                          type="scatter",
-                                          showInLegend=False,
-                                          color=rgb_hash_brighter(self.colors[i % len(self.colors)], 30)))
+                               type="scatter",
+                               showInLegend=False,
+                               color=rgb_hash_brighter(self.colors[i % len(self.colors)], 30)))
 
         self.scatter.add_series(series)
 
@@ -466,11 +466,9 @@ class OWKmeans(OWWidget):
             if self.k_means is None:  # if before too less data k_means is None
                 self.k_means = Kmeans(self.concat_x_y())
             if self.k_means.k < self.numberOfClusters:
-                for _ in range(self.numberOfClusters - self.k_means.k):
-                    self.k_means.add_centroids()
+                self.k_means.add_centroids(self.numberOfClusters - self.k_means.k)
             else:
-                for _ in range(self.k_means.k - self.numberOfClusters):
-                    self.k_means.delete_centroids()
+                self.k_means.delete_centroids(self.k_means.k - self.numberOfClusters)
 
             self.replot()
             self.send_data()

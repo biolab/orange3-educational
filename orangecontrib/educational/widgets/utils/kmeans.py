@@ -156,23 +156,28 @@ class Kmeans:
     def add_centroids(self, points=None):
         """
         Add new centroid/s. Using points if provided else random positioning
-        :param points: Centroids
-        :type: list or numpy.array
+        :param points: Centroids or number of them
+        :type: list or numpy.array or int
         """
-        if points is not None:
-            self.centroids = np.vstack((self.centroids, np.array(points)))
-        else:  # if no point provided add one centroid
+        if points is None: # if no point provided add one centroid
             self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
+        elif isinstance(points, int):  # if int provided add as much of them
+            self.centroids = np.vstack((self.centroids, self.random_positioning(points)))
+        else:   # else it is array of new centroids
+            self.centroids = np.vstack((self.centroids, np.array(points)))
+
         self.clusters = self.find_clusters(self.centroids)
         self.centroids_moved = False
         if not self.step_completed:
             self.stepNo += 1
 
-    def delete_centroids(self):
+    def delete_centroids(self, num):
         """
         Remove last centroid
+        :param num: number of deleted centroids
+        :type num: int
         """
-        self.centroids = self.centroids[:-1]
+        self.centroids = self.centroids[:-num]
         self.clusters = self.find_clusters(self.centroids)
 
     def move_centroid(self, _index, x, y):

@@ -37,7 +37,7 @@ Widgets
 .. toctree::
    :maxdepth: 1
 
-   widgets/mywidget
+   widgets/kmeans
 
 Indices and tables
 ==================
