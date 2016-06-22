@@ -59,15 +59,9 @@ class Scatterplot(highcharts.Highchart):
             })
             """
 
-    js_drag_function = """/**/(function(event) {
-                var index = this.series.data.indexOf( this );
-                console.log(event.x);
-                console.log(event.y);
-                // window.pybridge.point_dropped(index, event.x, event.y);
-            })
-            """
+    prew_time = 0
 
-    def __init__(self, click_callback, drag_callback, **kwargs):
+    def __init__(self, click_callback, drop_callback, **kwargs):
 
         # read javascript for drag and drop
         with open(path.join(path.dirname(__file__), 'resources', 'draggable-points.js'), 'r') as f:
@@ -77,7 +71,6 @@ class Scatterplot(highcharts.Highchart):
                          bridge=self,
                          enable_select='',
                          chart_events_click=self.js_click_function,
-                         plotOptions_series_point_events_drag=self.js_drag_function,
                          plotOptions_series_point_events_drop=self.js_drop_function,
                          plotOptions_series_states_hover_enabled=False,
                          plotOptions_series_cursor="move",
@@ -85,20 +78,15 @@ class Scatterplot(highcharts.Highchart):
                          **kwargs)
 
         self.click_callback = click_callback
-        self.drag_callback = drag_callback
+        self.drop_callback = drop_callback
 
     @pyqtSlot(float, float)
     def chart_clicked(self, x, y):
         self.click_callback(x, y)
 
     @pyqtSlot(int, float, float)
-    def point_dragged(self, index, x, y):
-        print(index, x, y)
-        # self.drag_callback(index, x, y)
-
-    @pyqtSlot(int, float, float)
     def point_dropped(self, index, x, y):
-        self.drag_callback(index, x, y)
+        self.drop_callback(index, x, y)
 
     def update_series(self, series_no, data):
         for i, d in enumerate(data):
@@ -107,6 +95,16 @@ class Scatterplot(highcharts.Highchart):
                         {duration: 500, easing: 'linear'})""" % (series_no, i, d[0], d[1],
                                                                 ("true" if i == len(data) -1 else "false")))
                                                         # until false points are not reploted what is much faster
+
+    def remove_last_series(self, no):
+        self.evalJS("""for(var i = 0; i < %d; i++)
+                    chart.series[1].remove(true);""" % (no))
+
+    def add_series(self, series):
+        for i, s in enumerate(series):
+            self.exposeObject('series%d' % (i), series[i])
+            self.evalJS("chart.addSeries('series%d', true);" % (i))
+
 
 class OWKmeans(OWWidget):
     """
@@ -135,6 +133,7 @@ class OWKmeans(OWWidget):
     attr_y = settings.Setting('')
 
     # other settings
+    k_means = None
     autoPlaySpeed = settings.Setting(10)
     lines_to_centroids = settings.Setting(0)
     graph_name = 'scatter'
@@ -145,6 +144,8 @@ class OWKmeans(OWWidget):
                      "autoplay_run": "Run",
                      "autoplay_stop": "Stop",
                      "random_centroids": "Randomize"}
+    colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
+                  '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
 
     def __init__(self):
         super().__init__()
@@ -208,7 +209,7 @@ class OWKmeans(OWWidget):
 
         # graph in mainArea
         self.scatter = Scatterplot(click_callback=self.graph_clicked,
-                                   drag_callback=self.centroid_dropped,
+                                   drop_callback=self.centroid_dropped,
                                    xAxis_gridLineWidth=0,
                                    yAxis_gridLineWidth=0,
                                    title_text='',
@@ -217,9 +218,6 @@ class OWKmeans(OWWidget):
         # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
-
-        # k_means algorithm initialization
-        self.k_means = None
 
     def concat_x_y(self):
         """
@@ -291,7 +289,6 @@ class OWKmeans(OWWidget):
     def modify_kmeans(self):
         self.number_of_clusters_change()
         self.button_text_change()
-        self.send_data()
 
     def step(self):
         """
@@ -380,16 +377,13 @@ class OWKmeans(OWWidget):
 
     def complete_replot(self):
 
-        colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
-                  '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
-
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
 
         # plot centroids
         options = dict(series=[])
         options['series'].append(dict(data=[{'x': p[0],
                                              'y': p[1],
-                                             'marker':{'fillColor': colors[i % len(colors)]}}
+                                             'marker':{'fillColor': self.colors[i % len(self.colors)]}}
                                             for i, p in enumerate(self.k_means.centroids)],
                                       type="scatter",
                                       draggableX=True if self.k_means.step_completed else False,
@@ -416,7 +410,7 @@ class OWKmeans(OWWidget):
             options['series'].append(dict(data=points,
                                           type="scatter",
                                           showInLegend=False,
-                                          color=rgb_hash_brighter(colors[i % len(colors)], 30)))
+                                          color=rgb_hash_brighter(self.colors[i % len(self.colors)], 30)))
 
         # highcharts parameters
         kwargs = dict(
@@ -429,6 +423,33 @@ class OWKmeans(OWWidget):
 
         # plot
         self.scatter.chart(options, **kwargs)
+
+    def replot_series(self):
+        k = self.k_means.k
+
+        series = []
+        # plot lines between centroids and points
+        if self.lines_to_centroids:
+            for i, c in enumerate(self.k_means.centroids):
+               series.append(dict(data=list(
+                    chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
+                                        for p in self.k_means.centroids_belonging_points[i])),
+                                              type="line",
+                                              showInLegend=False,
+                                              lineWidth=0.2,
+                                              enableMouseTracking=False,
+                                              color="#ccc"))
+
+        # plot data points
+        for i, points in enumerate(self.k_means.centroids_belonging_points):
+            series.append(dict(data=points,
+                                          type="scatter",
+                                          showInLegend=False,
+                                          color=rgb_hash_brighter(self.colors[i % len(self.colors)], 30)))
+
+        self.scatter.add_series(series)
+
+        self.scatter.remove_last_series(k * 2 if self.lines_to_centroids else k)
 
     def number_of_clusters_change(self):
         """
