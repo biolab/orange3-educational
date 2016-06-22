@@ -313,7 +313,6 @@ class OWKmeans(OWWidget):
         Function changes text on ste button and disable or enable centroid spinner depending on step phase
         :return:
         """
-        self.centroidNumbersSpinner.setDisabled(False if self.k_means.step_completed else True)
         self.stepButton.setText(self.button_labels["step2"]
                                 if self.k_means.step_completed
                                 else self.button_labels["step1"])
@@ -484,11 +483,12 @@ class OWKmeans(OWWidget):
         :param y: y coordinate of new centroid
         :type y: float
         """
-        if self.k_means is not None and self.k_means.step_completed:
+        if self.k_means is not None:
             self.k_means.add_centroids([x, y])
             self.numberOfClusters += 1
             self.replot()
             self.send_data()
+            self.button_text_change()
 
     def centroid_dropped(self, _index, x, y):
         """
@@ -501,8 +501,9 @@ class OWKmeans(OWWidget):
         :type y: float
         """
         self.k_means.move_centroid(_index, x, y)
-        self.replot()
+        self.complete_replot()
         self.send_data()
+        self.button_text_change()
 
     def send_data(self):
         """

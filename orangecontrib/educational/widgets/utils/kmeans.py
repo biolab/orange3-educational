@@ -164,6 +164,9 @@ class Kmeans:
         else:  # if no point provided add one centroid
             self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
         self.clusters = self.find_clusters(self.centroids)
+        self.centroids_moved = False
+        if not self.step_completed:
+            self.stepNo += 1
 
     def delete_centroids(self):
         """
@@ -182,4 +185,7 @@ class Kmeans:
         :type y: float
         """
         self.centroids[_index, :] = np.array([x, y])
+        self.centroids_moved = False
         self.clusters = self.find_clusters(self.centroids)
+        if not self.step_completed:
+            self.stepNo += 1
