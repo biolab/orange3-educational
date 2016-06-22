@@ -122,7 +122,7 @@ class OWKmeans(OWWidget):
                ("Centroids", Table)]
 
     # settings
-    numberOfClusters = settings.Setting(0)
+    numberOfClusters = settings.Setting(1)
     autoPlay = False
 
     # data
@@ -278,6 +278,7 @@ class OWKmeans(OWWidget):
             else:
                 self.k_means.set_data(self.concat_x_y())
             self.modify_kmeans()
+
 
     def restart(self):
         """
@@ -461,17 +462,25 @@ class OWKmeans(OWWidget):
             self.set_empty_plot()
             self.commandsBox.setDisabled(True)
         else:
+            print(self.numberOfClusters)
+            print(self.k_means.clusters)
+
             self.warning(2)
             self.commandsBox.setDisabled(False)
             if self.k_means is None:  # if before too less data k_means is None
                 self.k_means = Kmeans(self.concat_x_y())
             if self.k_means.k < self.numberOfClusters:
                 self.k_means.add_centroids(self.numberOfClusters - self.k_means.k)
-            else:
+            elif not self.k_means.k == self.numberOfClusters:
                 self.k_means.delete_centroids(self.k_means.k - self.numberOfClusters)
+
+            print(self.numberOfClusters)
+            print(self.k_means.clusters)
+
 
             self.replot()
             self.send_data()
+
 
     def graph_clicked(self, x, y):
         """

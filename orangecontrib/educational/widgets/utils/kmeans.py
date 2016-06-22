@@ -171,6 +171,7 @@ class Kmeans:
         if not self.step_completed:
             self.stepNo += 1
 
+
     def delete_centroids(self, num):
         """
         Remove last centroid
