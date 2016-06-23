@@ -1,7 +1,7 @@
 import Orange
 import numpy as np
 from Orange.distance import Euclidean
-from scipy.spatial import distance
+
 
 class Kmeans:
     """
