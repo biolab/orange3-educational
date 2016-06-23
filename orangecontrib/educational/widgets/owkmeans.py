@@ -111,7 +111,7 @@ class OWKmeans(OWWidget):
     K-means widget
     """
 
-    name = "Educational k-Means"
+    name = "Interactive k-Means"
     description = "Widget demonstrates working of k-means algorithm."
     icon = "icons/mywidget.svg"
     want_main_area = False
@@ -462,9 +462,6 @@ class OWKmeans(OWWidget):
             self.set_empty_plot()
             self.commandsBox.setDisabled(True)
         else:
-            print(self.numberOfClusters)
-            print(self.k_means.clusters)
-
             self.warning(2)
             self.commandsBox.setDisabled(False)
             if self.k_means is None:  # if before too less data k_means is None
@@ -473,14 +470,8 @@ class OWKmeans(OWWidget):
                 self.k_means.add_centroids(self.numberOfClusters - self.k_means.k)
             elif not self.k_means.k == self.numberOfClusters:
                 self.k_means.delete_centroids(self.k_means.k - self.numberOfClusters)
-
-            print(self.numberOfClusters)
-            print(self.k_means.clusters)
-
-
             self.replot()
             self.send_data()
-
 
     def graph_clicked(self, x, y):
         """
