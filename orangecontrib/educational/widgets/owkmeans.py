@@ -204,8 +204,7 @@ class OWKmeans(OWWidget):
         gui.rubber(self.controlArea)
 
         # disable until data loaded
-        self.optionsBox.setDisabled(True)
-        self.commandsBox.setDisabled(True)
+        self.set_disabled_all(True)
 
         # graph in mainArea
         self.scatter = Scatterplot(click_callback=self.graph_clicked,
@@ -237,6 +236,16 @@ class OWKmeans(OWWidget):
     def set_empty_plot(self):
         self.scatter.clear()
 
+    def set_disabled_all(self, disabled):
+        """
+        Function disable all controls
+        :param disabled: tells if function disable or enable controls
+        :type disabled: bool
+        """
+        self.optionsBox.setDisabled(disabled)
+        self.centroidsBox.setDisabled(disabled)
+        self.commandsBox.setDisabled(disabled)
+
     def set_data(self, data):
         """
         Function receives data from input and init some parts of widget
@@ -262,15 +271,13 @@ class OWKmeans(OWWidget):
 
         if data is None or len(data) == 0:
             self.set_empty_plot()
-            self.optionsBox.setDisabled(True)
-            self.commandsBox.setDisabled(True)
+            self.set_disabled_all(True)
         elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
             self.warning(1, "Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
-            self.optionsBox.setDisabled(True)
-            self.commandsBox.setDisabled(True)
+            self.set_disabled_all(True)
         else:
-            self.optionsBox.setDisabled(False)
+            self.set_disabled_all(False)
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
             if self.k_means is None:
