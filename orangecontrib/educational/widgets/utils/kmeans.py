@@ -55,10 +55,9 @@ class Kmeans:
         """
         if len(self.centroids_history) == 0 or len(self.centroids) != len(self.centroids_history[-1]):
             return False
-        distance = (np.sum(np.sqrt(np.sum((self.centroids - self.centroids_history[-1])**2 , axis=1)))
-                    / len(self.centroids))
-        return distance < self.threshold \
-               or self.stepNo > self.max_iter
+        dist = (np.sum(np.sqrt(np.sum(np.power((self.centroids - self.centroids_history[-1]), 2), axis=1))) /
+                len(self.centroids))
+        return dist < self.threshold or self.stepNo > self.max_iter
 
     @property
     def step_completed(self):
@@ -120,14 +119,14 @@ class Kmeans:
             # reinitialize empty centroids
 
             nan_c = np.isnan(self.centroids).any(axis=1)
-            self.centroids[nan_c] = self.random_positioning(np.sum(nan_c))
+            self.centroids[nan_c] = self.random_positioning(np.count_nonzero(nan_c))
             self.centroids_moved = True
         else:
             self.clusters = self.find_clusters(self.centroids)
             self.centroids_moved = False
         self.stepNo += 1
 
-    def stepBack(self):
+    def step_back(self):
         """
         Half of the step back of k-means
         :return:
@@ -144,6 +143,8 @@ class Kmeans:
     def random_positioning(self, no_centroids):
         """
         Calculates new centroid using random positioning
+        :param no_centroids: number of centroids to calculate
+        :type no_centroids: int
         :return: new centroid
         :type: np.array
         """
@@ -159,7 +160,7 @@ class Kmeans:
         :param points: Centroids or number of them
         :type: list or numpy.array or int
         """
-        if points is None: # if no point provided add one centroid
+        if points is None:  # if no point provided add one centroid
             self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
         elif isinstance(points, int):  # if int provided add as much of them
             self.centroids = np.vstack((self.centroids, self.random_positioning(points)))
@@ -170,7 +171,6 @@ class Kmeans:
         self.centroids_moved = False
         if not self.step_completed:
             self.stepNo += 1
-
 
     def delete_centroids(self, num):
         """

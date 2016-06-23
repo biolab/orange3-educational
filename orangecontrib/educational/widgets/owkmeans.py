@@ -134,7 +134,7 @@ class OWKmeans(OWWidget):
 
     # other settings
     k_means = None
-    autoPlaySpeed = settings.Setting(10)
+    autoPlaySpeed = settings.Setting(1)
     lines_to_centroids = settings.Setting(0)
     graph_name = 'scatter'
     outputName = "cluster"
@@ -304,7 +304,7 @@ class OWKmeans(OWWidget):
         """
         Function called for step back
         """
-        self.k_means.stepBack()
+        self.k_means.step_back()
         self.replot()
         self.button_text_change()
         self.send_data()
