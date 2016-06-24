@@ -31,26 +31,17 @@ class Kmeans:
 
     @property
     def k(self):
-        """
-        :return: Number of clusters
-        :type: int
-        """
         return len(self.centroids) if self.centroids is not None else 0
 
     @property
     def centroids_belonging_points(self):
-        """
-        :return: List of lists that contains each clusters points
-        :type: list of numpy.arrays
-        """
         d = self.data.X
-        return [d[ self.clusters == i] for i in range(len(self.centroids))]
+        return [d[self.clusters == i] for i in range(len(self.centroids))]
 
     @property
     def converged(self):
         """
-        :return: True if k-means converged else False.
-        :type: boolean
+        Function check if algorithm already converged
         """
         if len(self.centroids_history) == 0 or len(self.centroids) != len(self.centroids_history[-1]):
             return False
@@ -60,15 +51,11 @@ class Kmeans:
 
     @property
     def step_completed(self):
-        """
-        :return: True if booth phases of step (centroids moved and points assigned to new centroids)
-        :type: boolean
-        """
         return self.stepNo % 2 == 0
 
     def set_data(self, data):
         """
-        Function called when data changed on imput
+        Function called when data changed on input
         :param data: Data used for k-means
         :type data: Orange.data.Table or None
         """
@@ -89,10 +76,6 @@ class Kmeans:
     def find_clusters(self, centroids):
         """
         Function calculates new clusters to data points
-        :param centroids: Centroids
-        :type centroids: numpy.array
-        :return: Clusters indices for every data point
-        :type: numpy.array
         """
         if self.k > 0:
             d = self.data.X
@@ -129,7 +112,6 @@ class Kmeans:
     def step_back(self):
         """
         Half of the step back of k-means
-        :return:
         """
         if self.stepNo > 0:
             if not self.step_completed:
@@ -160,7 +142,7 @@ class Kmeans:
         """
         Add new centroid/s. Using points if provided else random positioning
         :param points: Centroids or number of them
-        :type: list or numpy.array or int
+        :type: list or numpy.array or int or None
         """
         if points is None:  # if no point provided add one centroid
             self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
@@ -175,9 +157,7 @@ class Kmeans:
 
     def delete_centroids(self, num):
         """
-        Remove last centroid
-        :param num: number of deleted centroids
-        :type num: int
+        Remove last num centroids
         """
         self.centroids = self.centroids[:(-num if num <= len(self.centroids) else len(self.centroids))]
         self.clusters = self.find_clusters(self.centroids)
@@ -185,11 +165,6 @@ class Kmeans:
     def move_centroid(self, _index, x, y):
         """
         Move centroid with index to position x, y
-        :param _index: centroid index
-        :param x: x position
-        :type x: float
-        :param y: y position
-        :type y: float
         """
         self.centroids[_index, :] = np.array([x, y])
         self.centroids_moved = False

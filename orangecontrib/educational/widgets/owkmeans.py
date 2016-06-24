@@ -220,7 +220,7 @@ class OWKmeans(OWWidget):
 
     def concat_x_y(self):
         """
-        Function take from data table two selected columns and merge them in new Orange.data.Table
+        Function takes two selected columns from data table and merge them in new Orange.data.Table
         :return: table with selected columns
         :type: Orange.data.Table
         """
@@ -239,8 +239,6 @@ class OWKmeans(OWWidget):
     def set_disabled_all(self, disabled):
         """
         Function disable all controls
-        :param disabled: tells if function disable or enable controls
-        :type disabled: bool
         """
         self.optionsBox.setDisabled(disabled)
         self.centroidsBox.setDisabled(disabled)
@@ -248,7 +246,8 @@ class OWKmeans(OWWidget):
 
     def set_data(self, data):
         """
-        Function receives data from input and init some parts of widget
+        Function receives data from input and init part of widget if data are ok. Otherwise set empty plot and notice
+        user about that
         :param data: input data
         :type data: Orange.data.Table or None
         """
@@ -300,6 +299,7 @@ class OWKmeans(OWWidget):
         self.modify_kmeans()
 
     def modify_kmeans(self):
+
         self.number_of_clusters_change()
         self.button_text_change()
 
@@ -323,8 +323,7 @@ class OWKmeans(OWWidget):
 
     def button_text_change(self):
         """
-        Function changes text on ste button and disable or enable centroid spinner depending on step phase
-        :return:
+        Function changes text on ste button and chanbe the button text
         """
         self.stepButton.setText(self.button_labels["step2"]
                                 if self.k_means.step_completed
@@ -371,7 +370,6 @@ class OWKmeans(OWWidget):
         """
         Function refreshes the chart
         """
-
         if self.data is None or not self.attr_x or not self.attr_y:
             return
 
@@ -388,7 +386,9 @@ class OWKmeans(OWWidget):
             self.complete_replot()
 
     def complete_replot(self):
-
+        """
+        This function performs complete replot of the graph without animation
+        """
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
 
         # plot centroids
@@ -437,6 +437,9 @@ class OWKmeans(OWWidget):
         self.scatter.chart(options, **kwargs)
 
     def replot_series(self):
+        """
+        This function replot just series connected with centroids and uses animation for that
+        """
         k = self.k_means.k
 
         series = []
@@ -488,10 +491,6 @@ class OWKmeans(OWWidget):
     def graph_clicked(self, x, y):
         """
         Function called when user click in graph. Centroid have to be added.
-        :param x: x coordinate of new centroid
-        :type x: float
-        :param y: y coordinate of new centroid
-        :type y: float
         """
         if self.k_means is not None:
             self.k_means.add_centroids([x, y])
@@ -503,12 +502,6 @@ class OWKmeans(OWWidget):
     def centroid_dropped(self, _index, x, y):
         """
         Function called when centroid with _index moved.
-        :param _index: index of moved centroid
-        :type _index: int
-        :param x: new x of moved centroid
-        :type x: float
-        :param y: new y of moved centroid
-        :type y: float
         """
         self.k_means.move_centroid(_index, x, y)
         self.complete_replot()
