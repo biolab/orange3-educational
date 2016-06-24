@@ -115,7 +115,7 @@ class Kmeans:
             points = [d[self.clusters == i] for i in range(len(self.centroids))]
             for i in range(len(self.centroids)):
                 c_points = points[i]
-                self.centroids[i, :] = np.average(c_points, axis=0)
+                self.centroids[i, :] = np.average(c_points, axis=0) if len(c_points) > 0 else np.nan
             # reinitialize empty centroids
 
             nan_c = np.isnan(self.centroids).any(axis=1)
@@ -166,7 +166,6 @@ class Kmeans:
             self.centroids = np.vstack((self.centroids, self.random_positioning(points)))
         else:   # else it is array of new centroids
             self.centroids = np.vstack((self.centroids, np.array(points)))
-
         self.clusters = self.find_clusters(self.centroids)
         self.centroids_moved = False
         if not self.step_completed:

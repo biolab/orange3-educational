@@ -3,11 +3,11 @@ from Orange.widgets.widget import OWWidget
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, highcharts, widget
 import numpy as np
-from .utils.kmeans import Kmeans
+from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 from PyQt4.QtCore import pyqtSlot, QThread, SIGNAL, Qt
 from PyQt4.QtGui import QSizePolicy
 from os import path
-from .utils.color_transform import rgb_hash_brighter
+from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter
 from itertools import chain
 import time
 
@@ -250,33 +250,38 @@ class OWKmeans(OWWidget):
         """
         Function receives data from input and init some parts of widget
         :param data: input data
-        :type data: Orange.data.Table
+        :type data: Orange.data.Table or None
         """
         self.data = data
+
+        def reset_combos():
+            self.cbx.clear()
+            self.cby.clear()
 
         def init_combos():
             """
             function initialize the combos with attributes
             """
-            self.cbx.clear()
-            self.cby.clear()
+            reset_combos()
             for var in data.domain if data is not None else []:
                 if var.is_primitive() and var.is_continuous:
                     self.cbx.addItem(gui.attributeIconDict[var], var.name)
                     self.cby.addItem(gui.attributeIconDict[var], var.name)
 
-        init_combos()
         self.warning(1)  # remove warning about too less continuous attributes if exists
         self.warning(2)  # remove warning about not enough data
 
         if data is None or len(data) == 0:
+            reset_combos()
             self.set_empty_plot()
             self.set_disabled_all(True)
         elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
+            reset_combos()
             self.warning(1, "Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
             self.set_disabled_all(True)
         else:
+            init_combos()
             self.set_disabled_all(False)
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
