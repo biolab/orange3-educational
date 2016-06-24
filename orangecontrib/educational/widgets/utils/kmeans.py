@@ -44,8 +44,7 @@ class Kmeans:
         :type: list of numpy.arrays
         """
         d = self.data.X
-        closest_centroid = self.clusters
-        return [d[closest_centroid == i] for i in range(len(self.centroids))]
+        return [d[ self.clusters == i] for i in range(len(self.centroids))]
 
     @property
     def converged(self):
@@ -71,9 +70,9 @@ class Kmeans:
         """
         Function called when data changed on imput
         :param data: Data used for k-means
-        :type data: Orange.data.Table
+        :type data: Orange.data.Table or None
         """
-        if len(data) > 0:
+        if data is not None and len(data) > 0:
             self.data = data
             self.clusters = self.find_clusters(self.centroids)
 
@@ -119,7 +118,8 @@ class Kmeans:
             # reinitialize empty centroids
 
             nan_c = np.isnan(self.centroids).any(axis=1)
-            self.centroids[nan_c] = self.random_positioning(np.count_nonzero(nan_c))
+            if np.count_nonzero(nan_c) > 0:
+                self.centroids[nan_c] = self.random_positioning(np.count_nonzero(nan_c))
             self.centroids_moved = True
         else:
             self.clusters = self.find_clusters(self.centroids)
@@ -148,6 +148,8 @@ class Kmeans:
         :return: new centroid
         :type: np.array
         """
+        if no_centroids <= 0:
+            return np.array([])
         centroids = np.empty((no_centroids, 2))
         for i in range(no_centroids):
             idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
@@ -177,7 +179,7 @@ class Kmeans:
         :param num: number of deleted centroids
         :type num: int
         """
-        self.centroids = self.centroids[:-num]
+        self.centroids = self.centroids[:(-num if num <= len(self.centroids) else len(self.centroids))]
         self.clusters = self.find_clusters(self.centroids)
 
     def move_centroid(self, _index, x, y):

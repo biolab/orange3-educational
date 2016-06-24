@@ -4,6 +4,7 @@ def rgb_hash_brighter(hash, percent_brighter):
     r, g, b = r + brightness_to_add, g + brightness_to_add, b + brightness_to_add
     return rgb_to_hex(tuple(min(v, 255) for v in (r, g, b)))
 
+
 def hex_to_rgb(value):
     value = value.lstrip('#')
     lv = len(value)
