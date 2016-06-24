@@ -31,8 +31,8 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.set_data(self.data[:3])
         self.kmeans.add_centroids([[4.7, 3.0]])
         desired_array = np.array([np.array([[5.100, 3.500]]),
-                                       np.array([[4.900, 3.000],
-                                                 [4.700, 3.200]])])
+                                  np.array([[4.900, 3.000],
+                                            [4.700, 3.200]])])
         for i, arr in enumerate(self.kmeans.centroids_belonging_points):
             np.testing.assert_equal(arr, desired_array[i])
 
