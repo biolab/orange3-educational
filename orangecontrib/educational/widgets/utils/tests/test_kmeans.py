@@ -1,6 +1,5 @@
 import unittest
-from Orange.widgets.tests.base import GuiTest
-import Orange
+from Orange.data import Table, Domain
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 import numpy as np
 
@@ -8,9 +7,9 @@ import numpy as np
 class TestKmeans(unittest.TestCase):
 
     def setUp(self):
-        self.data = Orange.data.Table('iris')
-        new_domain = Orange.data.Domain(self.data.domain.attributes[:2])
-        self.data = Orange.data.Table(new_domain, self.data)
+        self.data = Table('iris')
+        new_domain = Domain(self.data.domain.attributes[:2])
+        self.data = Table(new_domain, self.data)
         # self.centroids = [[5.2, 3.1], [6.5, 3], [7, 4]]
         self.kmeans = Kmeans(self.data, centroids=None)
 
