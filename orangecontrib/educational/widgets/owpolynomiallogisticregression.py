@@ -1,6 +1,7 @@
 from Orange.data import Table, ContinuousVariable, Table, Domain
 from Orange.widgets import highcharts, settings, gui
-from Orange.widgets.widget import OWWidget
+from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
+from Orange.classification import LogisticRegressionLearner
 import numpy as np
 
 
@@ -25,17 +26,21 @@ class Scatterplot(highcharts.Highchart):
                          **kwargs)
 
 
-class OWPolyinomialLogisticRegression(OWWidget):
+class OWPolyinomialLogisticRegression(OWBaseLearner):
     name = "Polynomial logistic regression"
     description = "a"  #TODO: description
     icon = "icons/mywidget.svg"
-    want_main_area = False
+    want_main_area = True
 
     # inputs and outputs
     inputs = [("Data", Table, "set_data")]
 
     data = None
     selected_data = None
+    learner = None
+
+    LEARNER = LogisticRegressionLearner
+    learner_name = settings.Setting("Univariate Classification")
 
     # selected attributes in chart
     attr_x = settings.Setting('')
@@ -43,9 +48,7 @@ class OWPolyinomialLogisticRegression(OWWidget):
 
     graph_name = 'scatter'
 
-    def __init__(self):
-        super().__init__()
-
+    def add_main_layout(self):
         # options box
         self.optionsBox = gui.widgetBox(self.controlArea, "Options")
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
