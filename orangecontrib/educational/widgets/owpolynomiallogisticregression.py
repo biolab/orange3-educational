@@ -4,6 +4,7 @@ from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
 import numpy as np
 from math import log
+from PyQt4.QtGui import QSizePolicy
 
 class Scatterplot(highcharts.Highchart):
     """
@@ -27,7 +28,7 @@ class Scatterplot(highcharts.Highchart):
 
 
 class OWPolyinomialLogisticRegression(OWBaseLearner):
-    name = "Polynomial logistic regression"
+    name = "Polynomial classification"
     description = "a"  #TODO: description
     icon = "icons/mywidget.svg"
     want_main_area = True
@@ -54,13 +55,15 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
                                 label='X:',
                                 orientation='horizontal',
-                                callback=self.refresh(),
+                                callback=self.refresh,
                                 sendSelectedValue=True)
         self.cby = gui.comboBox(self.optionsBox, self, 'attr_y',
                                 label='Y:',
                                 orientation='horizontal',
-                                callback=self.refresh(),
+                                callback=self.refresh,
                                 sendSelectedValue=True)
+        self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
+        self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
 
         gui.rubber(self.controlArea)
 
@@ -129,8 +132,10 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         self.scatter.clear()
 
     def refresh(self):
+        print("refresh")
         if self.data is not None:
             self.change_features()
+            print("refresh1")
 
     def change_features(self):
 
@@ -166,20 +171,26 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         self.scatter.chart(options, **kwargs)
 
     def plot_line(self):
-        # print(type(self.LEARNER))
-        # if isinstance(self.LEARNER, LogisticRegressionLearner):
-        model = self.LEARNER(self.selected_data)
-        thetas = model.coefficients
-        intercept = model.intercept
-        line_function = lambda x: - (log(1) + thetas[0, 0] * x + intercept) / thetas[0, 1]
-        xs = np.linspace(0, 1)
-        ys = line_function(xs)
+        # min and max x
+        attr_x = self.data.domain[self.attr_x]
+        data_x = [v[0] for v in self.data[:, attr_x]]
+        min_x = min(data_x)
+        max_x = max(data_x)
 
-        print()
-
-        return dict(data=np.hstack((xs.reshape((-1, 1)), ys.reshape((-1, 1)))).tolist(),
-                    type="line",
-                    showInLegend=False)
+        if self.LEARNER.name == "logreg":
+            model = self.LEARNER(self.selected_data)
+            thetas = model.coefficients
+            intercept = model.intercept
+            line_function = lambda x: - (log(1) + thetas[0, 0] * x + intercept) / thetas[0, 1]
+            xs = np.linspace(min_x, max_x)
+            ys = line_function(xs)
+            return dict(data=np.hstack((xs[:, None], ys[:, None])).tolist(),
+                        type="line",
+                        showInLegend=False,
+                        marker=dict(enabled=False),
+                        enableMouseTracking=False)
+        else:
+            return {}
 
     def concat_x_y(self):
         """
