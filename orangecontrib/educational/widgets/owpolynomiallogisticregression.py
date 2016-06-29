@@ -1,9 +1,9 @@
 from Orange.data import Table, ContinuousVariable, Table, Domain
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
-from Orange.classification import LogisticRegressionLearner
+from Orange.classification import LogisticRegressionLearner, Learner
 import numpy as np
-
+from math import log
 
 class Scatterplot(highcharts.Highchart):
     """
@@ -33,11 +33,11 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
     want_main_area = True
 
     # inputs and outputs
-    inputs = [("Data", Table, "set_data")]
+    inputs = [("Data", Table, "set_data"),
+              ("Learner", Learner, "set_learner")]
 
     data = None
     selected_data = None
-    learner = None
 
     LEARNER = LogisticRegressionLearner
     learner_name = settings.Setting("Univariate Classification")
@@ -73,6 +73,10 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
+
+    def set_learner(self, learner):
+        self.LEARNER = learner
+        self.change_features()
 
     def set_data(self, data):
         """
@@ -148,6 +152,8 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
                                       type="scatter",
                                       showInLegend=False) for _class in classes]
 
+        options['series'].append(self.plot_line())
+
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text=attr_x.name,
@@ -158,6 +164,22 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
                                 (self.attr_x, self.attr_y))
         # plot
         self.scatter.chart(options, **kwargs)
+
+    def plot_line(self):
+        # print(type(self.LEARNER))
+        # if isinstance(self.LEARNER, LogisticRegressionLearner):
+        model = self.LEARNER(self.selected_data)
+        thetas = model.coefficients
+        intercept = model.intercept
+        line_function = lambda x: - (log(1) + thetas[0, 0] * x + intercept) / thetas[0, 1]
+        xs = np.linspace(0, 1)
+        ys = line_function(xs)
+
+        print()
+
+        return dict(data=np.hstack((xs.reshape((-1, 1)), ys.reshape((-1, 1)))).tolist(),
+                    type="line",
+                    showInLegend=False)
 
     def concat_x_y(self):
         """
