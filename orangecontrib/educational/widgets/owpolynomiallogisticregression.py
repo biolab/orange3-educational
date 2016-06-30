@@ -26,6 +26,43 @@ class Scatterplot(highcharts.Highchart):
                          plotOptions_series_cursor="move",
                          **kwargs)
 
+    def paint_background(self):
+        function = """
+            var series = chart.series[0];
+            var path = [];
+
+            series.data.forEach(function(element) {
+                path.push(element.plotX + chart.plotLeft);
+                path.push(element.plotY + chart.plotTop);
+            });
+
+            var path_above = ['M', chart.plotLeft, chart.plotTop, 'L']
+                .concat(path)
+                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop]);
+
+            var path_below = ['M', chart.plotLeft, chart.plotTop + chart.plotHeight, 'L']
+                .concat(path)
+                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop + chart.plotHeight]);
+
+            chart.renderer.path(path_above)
+                .attr({
+                    stroke: "none",
+                    fill: chart.series[1].color,
+                    'fill-opacity': 0.2,
+                    zIndex: 0.5
+                }).add();
+
+            chart.renderer.path(path_below)
+                .attr({
+                    stroke: "none",
+                    fill: chart.series[2].color,
+                    'fill-opacity': 0.2,
+                    zIndex: 0.5
+                }).add();
+        """
+        self.evalJS(function)
+
+
 
 class OWPolyinomialLogisticRegression(OWBaseLearner):
     name = "Polynomial classification"
@@ -146,43 +183,49 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         """
         This function performs complete replot of the graph without animation
         """
-
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
+        data_x = [v[0] for v in self.data[:, attr_x]]
+        min_x = min(data_x)
+        max_x = max(data_x)
+        diff = max_x - min_x
+        min_x = min_x - 0.03 * diff
+        max_x = max_x + 0.03 * diff
+
         # plot centroids
         options = dict(series=[])
         classes = list(set(self.data.Y))
+        options['series'].append(self.plot_line(min_x, max_x))
 
         options['series'] += [dict(data=[list(p.attributes())
                                             for p in self.selected_data if int(p.get_class()) == _class],
-                                      type="scatter",
-                                      showInLegend=False) for _class in classes]
+                                   type="scatter",
+                                   zIndex=10,
+                                   showInLegend=False) for _class in classes]
 
-        options['series'].append(self.plot_line())
 
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text=attr_x.name,
             yAxis_title_text=attr_y.name,
+            xAxis_min=min_x,
+            xAxis_max=max_x,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
                                 (self.attr_x, self.attr_y))
         # plot
         self.scatter.chart(options, **kwargs)
+        self.scatter.paint_background()
 
-    def plot_line(self):
+    def plot_line(self, x_from, x_to):
         # min and max x
-        attr_x = self.data.domain[self.attr_x]
-        data_x = [v[0] for v in self.data[:, attr_x]]
-        min_x = min(data_x)
-        max_x = max(data_x)
 
         if self.LEARNER.name == "logreg":
             model = self.LEARNER(self.selected_data)
             thetas = model.coefficients
             intercept = model.intercept
             line_function = lambda x: - (log(1) + thetas[0, 0] * x + intercept) / thetas[0, 1]
-            xs = np.linspace(min_x, max_x)
+            xs = np.linspace(x_from, x_to)
             ys = line_function(xs)
             return dict(data=np.hstack((xs[:, None], ys[:, None])).tolist(),
                         type="line",
