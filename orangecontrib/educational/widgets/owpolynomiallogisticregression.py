@@ -20,6 +20,7 @@ class Scatterplot(highcharts.Highchart):
 
     paint_function = """
         paint_function = function() {
+            console.log("a");
             $('#belowPath').remove()
             $('#abovePath').remove()
 
@@ -67,51 +68,6 @@ class Scatterplot(highcharts.Highchart):
                          plotOptions_series_cursor="move",
                          **kwargs)
         self.evalJS(self.paint_function)
-
-    def paint_background(self):
-        function = """
-        paint_function = function() {
-            $('#belowPath').remove()
-            $('#abovePath').remove()
-
-            var series = chart.series[0];
-            var path = [];
-
-            series.data.forEach(function(element) {
-                path.push(element.plotX + chart.plotLeft);
-                path.push(element.plotY + chart.plotTop);
-            });
-
-            var path_above = ['M', chart.plotLeft, chart.plotTop, 'L']
-                .concat(path)
-                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop]);
-
-            var path_below = ['M', chart.plotLeft, chart.plotTop + chart.plotHeight, 'L']
-                .concat(path)
-                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop + chart.plotHeight]);
-
-            chart.renderer.path(path_above)
-                .attr({
-                    stroke: "none",
-                    fill: chart.series[1].color,
-                    'fill-opacity': 0.2,
-                    zIndex: 0.5,
-                    id: "abovePath"
-                }).add();
-
-            chart.renderer.path(path_below)
-                .attr({
-                    stroke: "none",
-                    fill: chart.series[2].color,
-                    'fill-opacity': 0.2,
-                    zIndex: 0.5,
-                    id: "belowPath"
-                }).add();
-        }
-        """
-        # self.evalJS(function)
-        # self.evalJS("paint_function()")
-        # self.evalJS("""chart. """)
 
 
 class OWPolyinomialLogisticRegression(OWBaseLearner):
@@ -220,10 +176,8 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         self.scatter.clear()
 
     def refresh(self):
-        print("refresh")
         if self.data is not None:
             self.change_features()
-            print("refresh1")
 
     def change_features(self):
 
@@ -275,7 +229,7 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
                                 (self.attr_x, self.attr_y))
         # plot
         self.scatter.chart(options, **kwargs)
-        # self.scatter.paint_background()
+        self.scatter.evalJS("chart.redraw()")
 
     def plot_line(self, model, x_from, x_to):
         # min and max x
