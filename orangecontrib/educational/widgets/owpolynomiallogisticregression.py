@@ -18,16 +18,11 @@ class Scatterplot(highcharts.Highchart):
       about.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(enable_zoom=True,
-                         bridge=self,
-                         enable_select='',
-                         chart_type='scatter',
-                         plotOptions_series_cursor="move",
-                         **kwargs)
+    paint_function = """
+        paint_function = function() {
+            $('#belowPath').remove()
+            $('#abovePath').remove()
 
-    def paint_background(self):
-        function = """
             var series = chart.series[0];
             var path = [];
 
@@ -49,7 +44,8 @@ class Scatterplot(highcharts.Highchart):
                     stroke: "none",
                     fill: chart.series[1].color,
                     'fill-opacity': 0.2,
-                    zIndex: 0.5
+                    zIndex: 0.5,
+                    id: "abovePath"
                 }).add();
 
             chart.renderer.path(path_below)
@@ -57,11 +53,65 @@ class Scatterplot(highcharts.Highchart):
                     stroke: "none",
                     fill: chart.series[2].color,
                     'fill-opacity': 0.2,
-                    zIndex: 0.5
+                    zIndex: 0.5,
+                    id: "belowPath"
                 }).add();
+        }
         """
-        self.evalJS(function)
 
+    def __init__(self, **kwargs):
+        super().__init__(enable_zoom=True,
+                         bridge=self,
+                         enable_select='',
+                         chart_type='scatter',
+                         plotOptions_series_cursor="move",
+                         **kwargs)
+        self.evalJS(self.paint_function)
+
+    def paint_background(self):
+        function = """
+        paint_function = function() {
+            $('#belowPath').remove()
+            $('#abovePath').remove()
+
+            var series = chart.series[0];
+            var path = [];
+
+            series.data.forEach(function(element) {
+                path.push(element.plotX + chart.plotLeft);
+                path.push(element.plotY + chart.plotTop);
+            });
+
+            var path_above = ['M', chart.plotLeft, chart.plotTop, 'L']
+                .concat(path)
+                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop]);
+
+            var path_below = ['M', chart.plotLeft, chart.plotTop + chart.plotHeight, 'L']
+                .concat(path)
+                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop + chart.plotHeight]);
+
+            chart.renderer.path(path_above)
+                .attr({
+                    stroke: "none",
+                    fill: chart.series[1].color,
+                    'fill-opacity': 0.2,
+                    zIndex: 0.5,
+                    id: "abovePath"
+                }).add();
+
+            chart.renderer.path(path_below)
+                .attr({
+                    stroke: "none",
+                    fill: chart.series[2].color,
+                    'fill-opacity': 0.2,
+                    zIndex: 0.5,
+                    id: "belowPath"
+                }).add();
+        }
+        """
+        # self.evalJS(function)
+        # self.evalJS("paint_function()")
+        # self.evalJS("""chart. """)
 
 
 class OWPolyinomialLogisticRegression(OWBaseLearner):
@@ -69,6 +119,7 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
     description = "a"  #TODO: description
     icon = "icons/mywidget.svg"
     want_main_area = True
+    resizing_enabled = True
 
     # inputs and outputs
     inputs = [("Data", Table, "set_data"),
@@ -190,11 +241,20 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
         diff = max_x - min_x
         min_x = min_x - 0.03 * diff
         max_x = max_x + 0.03 * diff
+        model = self.LEARNER(self.selected_data)
 
         # plot centroids
         options = dict(series=[])
-        classes = list(set(self.data.Y))
-        options['series'].append(self.plot_line(min_x, max_x))
+
+        line_series = self.plot_line(model, min_x, max_x)
+        options['series'].append(line_series)
+
+        # make sure that series[1] are train data of the class above the line and series[2] data below the line
+        if model(line_series["data"][0] + np.array([0, 1]))[0] == 1:
+            # model called with point that is for sue above the line
+            classes = [1, 0]
+        else:
+            classes = [0, 1]
 
         options['series'] += [dict(data=[list(p.attributes())
                                             for p in self.selected_data if int(p.get_class()) == _class],
@@ -202,26 +262,26 @@ class OWPolyinomialLogisticRegression(OWBaseLearner):
                                    zIndex=10,
                                    showInLegend=False) for _class in classes]
 
-
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text=attr_x.name,
             yAxis_title_text=attr_y.name,
             xAxis_min=min_x,
             xAxis_max=max_x,
+            chart_events_redraw="/**/paint_function/**/",
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
                                 (self.attr_x, self.attr_y))
         # plot
         self.scatter.chart(options, **kwargs)
-        self.scatter.paint_background()
+        # self.scatter.paint_background()
 
-    def plot_line(self, x_from, x_to):
+    def plot_line(self, model, x_from, x_to):
         # min and max x
 
         if self.LEARNER.name == "logreg":
-            model = self.LEARNER(self.selected_data)
+
             thetas = model.coefficients
             intercept = model.intercept
             line_function = lambda x: - (log(1) + thetas[0, 0] * x + intercept) / thetas[0, 1]
