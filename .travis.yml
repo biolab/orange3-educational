@@ -15,6 +15,7 @@ addons:
             - libblas-dev
             - liblapack-dev
             - gfortran
+            - libqt4-dev
 
 install:
     # Update pip to be able to install wheel dependencies
