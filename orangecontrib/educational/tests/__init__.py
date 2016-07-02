@@ -2,7 +2,7 @@ import os
 import unittest
 
 def suite(loader=None, pattern='test*.py'):
-    test_dir = os.path.dirname(__file__)
+    test_dir = os.path.join(os.path.dirname(__file__), '..')
     if loader is None:
         loader = unittest.TestLoader()
     if pattern is None:
