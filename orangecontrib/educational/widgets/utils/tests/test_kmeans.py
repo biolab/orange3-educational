@@ -48,7 +48,7 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.set_data(self.data)
         self.assertEqual(self.kmeans.data, self.data)
         self.assertEqual(self.kmeans.centroids_history, [])
-        self.assertEqual(self.kmeans.stepNo, 0)
+        self.assertEqual(self.kmeans.step_no, 0)
         self.assertEqual(self.kmeans.step_completed, True)
         self.assertEqual(self.kmeans.centroids_moved, False)
 
@@ -57,7 +57,7 @@ class TestKmeans(unittest.TestCase):
         self.assertEqual(self.kmeans.data, None)
         self.assertEqual(self.kmeans.centroids_history, [])
         self.assertEqual(self.kmeans.clusters, None)
-        self.assertEqual(self.kmeans.stepNo, 0)
+        self.assertEqual(self.kmeans.step_no, 0)
         self.assertEqual(self.kmeans.step_completed, True)
         self.assertEqual(self.kmeans.centroids_moved, False)
 
@@ -80,7 +80,7 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.step()
         self.assertEqual(self.kmeans.step_completed, False)
         self.assertEqual(self.kmeans.centroids_moved, True)
-        np.testing.assert_equal(centroids_before, self.kmeans.centroids_history[-1])
+        np.testing.assert_equal(centroids_before, self.kmeans.centroids_history[-2])
         # clusters doesnt change in every odd step
         np.testing.assert_equal(clusters_before, self.kmeans.clusters)
 
@@ -139,11 +139,11 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.add_centroids()
         self.assertEqual(self.kmeans.k, 6)
 
-        step_before = self.kmeans.stepNo
-        self.assertEqual(step_before, self.kmeans.stepNo)
+        step_before = self.kmeans.step_no
+        self.assertEqual(step_before, self.kmeans.step_no)
         self.kmeans.step()
         self.kmeans.add_centroids()
-        self.assertEqual(step_before + 2, self.kmeans.stepNo)
+        self.assertEqual(step_before + 2, self.kmeans.step_no)
         self.assertEqual(self.kmeans.centroids_moved, False)
 
     def test_delete_centroids(self):
@@ -164,4 +164,4 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.step()
         self.kmeans.move_centroid(2, 3.2, 3.4)
         self.assertEqual(self.kmeans.centroids_moved, False)
-        self.assertEqual(self.kmeans.stepNo, 2)
+        self.assertEqual(self.kmeans.step_no, 2)
