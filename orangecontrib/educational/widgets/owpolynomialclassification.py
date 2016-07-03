@@ -70,7 +70,7 @@ class Scatterplot(highcharts.Highchart):
         self.evalJS(self.paint_function)
 
 
-class OWPolyinomialLogisticRegression(OWBaseLearner):
+class OWPolyinomialClassification(OWBaseLearner):
     name = "Polynomial classification"
     description = "a"  #TODO: description
     icon = "icons/mywidget.svg"
