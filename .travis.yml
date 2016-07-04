@@ -8,6 +8,9 @@ python:
 cache:
     apt: true
     pip: true
+    ccache: true
+    directories:
+        - $TRAVIS_BUILD_DIR/pyqt
 
 addons:
     apt:
@@ -18,6 +21,7 @@ addons:
             - libqt4-dev
 
 install:
+    - source $TRAVIS_BUILD_DIR/.travis/install_pyqt.sh
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel
     - pip install -e .
