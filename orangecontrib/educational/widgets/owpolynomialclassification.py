@@ -5,6 +5,8 @@ from Orange.classification import LogisticRegressionLearner, Learner
 import numpy as np
 from math import log
 from PyQt4.QtGui import QSizePolicy
+from os import path
+
 
 class Scatterplot(highcharts.Highchart):
     """
@@ -61,13 +63,15 @@ class Scatterplot(highcharts.Highchart):
         """
 
     def __init__(self, **kwargs):
-        super().__init__(enable_zoom=True,
+        with open(path.join(path.dirname(__file__), 'resources', 'highcharts-contour.js'), 'r') as f:
+            contour_js = f.read()
+
+        super().__init__(enable_zoom=False,
                          bridge=self,
                          enable_select='',
-                         chart_type='scatter',
                          plotOptions_series_cursor="move",
+                         javascript=contour_js,
                          **kwargs)
-        self.evalJS(self.paint_function)
 
 
 class OWPolyinomialClassification(OWBaseLearner):
@@ -83,6 +87,7 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     data = None
     selected_data = None
+    probabilities_grid = None
 
     LEARNER = LogisticRegressionLearner
     learner_name = settings.Setting("Univariate Classification")
@@ -92,6 +97,9 @@ class OWPolyinomialClassification(OWBaseLearner):
     attr_y = settings.Setting('')
 
     graph_name = 'scatter'
+
+    # settings
+    grid_size = 5
 
     def add_main_layout(self):
         # options box
@@ -190,25 +198,30 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
+        data_y = [v[0] for v in self.data[:, attr_y]]
         min_x = min(data_x)
         max_x = max(data_x)
-        diff = max_x - min_x
-        min_x = min_x - 0.03 * diff
-        max_x = max_x + 0.03 * diff
+        min_y = min(data_y)
+        max_y = max(data_y)
+        diff_x = max_x - min_x
+        diff_y = max_y - min_y
+        min_x, max_x = min_x - 0.03 * diff_x, max_x + 0.03 * diff_x
+        min_y, max_y = min_y - 0.03 * diff_y, max_y + 0.03 * diff_y
+
         model = self.LEARNER(self.selected_data)
 
         # plot centroids
         options = dict(series=[])
 
-        line_series = self.plot_line(model, min_x, max_x)
+        line_series = self.plot_line(model, min_x, max_x, min_y, max_y)
         options['series'].append(line_series)
 
         # make sure that series[1] are train data of the class above the line and series[2] data below the line
-        if model(line_series["data"][0] + np.array([0, 1]))[0] == 1:
-            # model called with point that is for sue above the line
-            classes = [1, 0]
-        else:
-            classes = [0, 1]
+        # if model(line_series["data"][0] + np.array([0, 1]))[0] == 1:
+        #     # model called with point that is for sue above the line
+        #     classes = [1, 0]
+        # else:
+        classes = [0, 1]
 
         options['series'] += [dict(data=[list(p.attributes())
                                             for p in self.selected_data if int(p.get_class()) == _class],
@@ -218,36 +231,52 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text=attr_x.name,
-            yAxis_title_text=attr_y.name,
-            xAxis_min=min_x,
-            xAxis_max=max_x,
-            chart_events_redraw="/**/paint_function/**/",
-            tooltip_headerFormat="",
-            tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
-                                "<strong>%s:</strong> {point.y:.2f}" %
-                                (self.attr_x, self.attr_y))
+            # xAxis_title_text=attr_x.name,
+            # yAxis_title_text=attr_y.name,
+            # xAxis_min=min_x,
+            # xAxis_max=max_x,
+            # # chart_events_redraw="/**/paint_function/**/",
+            # tooltip_headerFormat="",
+            # tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
+            #                     "<strong>%s:</strong> {point.y:.2f}" %
+            #                     (self.attr_x, self.attr_y),
+            colorAxis=dict(
+                stops=[
+                [0, '#3060cf'],
+                [0.5, '#fffbbc'],
+                [0.9, '#c4463a']],
+                min=-5
+            ))
+
+        import json
+        print(json.dumps(options, indent=4, sort_keys=True))
+        print(json.dumps(kwargs, indent=4, sort_keys=True))
+
         # plot
         self.scatter.chart(options, **kwargs)
-        self.scatter.evalJS("chart.redraw()")
+        # self.scatter.evalJS("chart.redraw()")
 
-    def plot_line(self, model, x_from, x_to):
-        # min and max x
+    def plot_line(self, model, x_from, x_to, y_from, y_to):
+        x = np.linspace(x_from, x_to, self.grid_size)
+        y = np.linspace(y_from, y_to, self.grid_size)
+        xv, yv = np.meshgrid(x, y)
+        attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
+        self.probabilities_grid = model(attr, 1)[:, 0].reshape(xv.shape)
 
-        if self.LEARNER.name == "logreg":
+        # series = []
+        # for i in range(2):
+        #     series.append(dict(data=[[xv[j, k], yv[j, k]] for j in range(len(xv)) for k in range(yv.shape[1])
+        #                              if abs(self.probabilities_grid[j, k] - i) < 0.5],
+        #                 type="scatter",
+        #                 showInLegend=False,
+        #                 enableMouseTracking=False))
 
-            thetas = model.coefficients
-            intercept = model.intercept
-            line_function = lambda x: - (log(1) + thetas[0, 0] * x + intercept) / thetas[0, 1]
-            xs = np.linspace(x_from, x_to)
-            ys = line_function(xs)
-            return dict(data=np.hstack((xs[:, None], ys[:, None])).tolist(),
-                        type="line",
-                        showInLegend=False,
-                        marker=dict(enabled=False),
-                        enableMouseTracking=False)
-        else:
-            return {}
+        return dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
+                          for k in range(yv.shape[1])],
+                        grid_width=self.grid_size,
+                        type="contour")
+
+
 
     def concat_x_y(self):
         """
