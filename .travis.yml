@@ -1,22 +1,9 @@
 language: python
 
 sudo: false
-dist: trusty
 
-matrix:
-    include:
-        - &pylint
-          env: RUN_PYLINT=true
-          python: '3.4'
-          addons: { apt: { packages: [] } }
-          cache: {}
-        - python: '3.4'
-        - python: '3.5'
-        - python: 'nightly'
-    allow_failures:
-        - python: 'nightly'
-        - *pylint
-    fast_finish: true
+python:
+    - "3.4"
 
 cache:
     apt: true
@@ -36,13 +23,11 @@ addons:
 
 before_install:
     - set -e  # fail on any error
-    - source $TRAVIS_BUILD_DIR/.travis/util.sh
-
 
 install:
-    - source $TRAVIS_BUILD_DIR/.travis/stage_install.sh
+    - source $TRAVIS_BUILD_DIR/.travis/install_pyqt.sh
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel
     - pip install -e .
 
-script: python setup.py test
+script: catchsegv xvfb-run python setup.py test
