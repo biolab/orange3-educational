@@ -32,4 +32,6 @@ make install
 cd $PYQT/PyQt
 make install
 
+cd ../..
+
 pip install pyqtgraph
