@@ -89,7 +89,8 @@ class OWPolyinomialClassification(OWBaseLearner):
     selected_data = None
     probabilities_grid = None
 
-    LEARNER = LogisticRegressionLearner
+    default_learner = LogisticRegressionLearner
+    LEARNER = default_learner
     learner_name = settings.Setting("Univariate Classification")
 
     # selected attributes in chart
@@ -100,6 +101,7 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     # settings
     grid_size = 5
+
 
     def add_main_layout(self):
         # options box
@@ -130,7 +132,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.mainArea.layout().addWidget(self.scatter)
 
     def set_learner(self, learner):
-        self.LEARNER = learner
+        self.LEARNER = learner if learner is not None else self.default_learner
         self.change_features()
 
     def set_data(self, data):
