@@ -29,5 +29,9 @@ install:
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel
     - pip install -e .
+    - pip install codecov
 
-script: catchsegv xvfb-run python setup.py test
+script: catchsegv xvfb-run coverage python setup.py test
+
+after_success:
+    codecov
