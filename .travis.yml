@@ -1,0 +1,37 @@
+language: python
+
+sudo: false
+
+python:
+    - "3.4"
+
+cache:
+    apt: true
+    pip: true
+    ccache: true
+    directories:
+        - $TRAVIS_BUILD_DIR/pyqt
+
+addons:
+    apt:
+        packages:
+            - libblas-dev
+            - liblapack-dev
+            - gfortran
+            - libqt4-dev
+            - xvfb
+
+before_install:
+    - set -e  # fail on any error
+
+install:
+    - source $TRAVIS_BUILD_DIR/.travis/install_pyqt.sh
+    # Update pip to be able to install wheel dependencies
+    - pip install -U pip wheel
+    - pip install -e .
+    - pip install codecov
+
+script: catchsegv xvfb-run coverage run setup.py test
+
+after_success:
+    codecov
