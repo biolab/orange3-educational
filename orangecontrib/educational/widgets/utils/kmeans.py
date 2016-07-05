@@ -24,9 +24,9 @@ class Kmeans:
         self.data = data
         self.centroids = np.array(centroids) if centroids is not None else np.empty((0, 2))
         self.distance_metric = distance_metric
-        self.stepNo = 0
+        self.step_no = 0
         self.clusters = self.find_clusters(self.centroids)
-        self.centroids_history = []
+        self.centroids_history = [np.copy(self.centroids)]
         self.centroids_moved = False
 
     @property
@@ -47,17 +47,20 @@ class Kmeans:
             return False
         dist = (np.sum(np.sqrt(np.sum(np.power((self.centroids - self.centroids_history[-1]), 2), axis=1))) /
                 len(self.centroids))
-        return dist < self.threshold or self.stepNo > self.max_iter
+        return dist < self.threshold or self.step_no > self.max_iter
 
     @property
     def step_completed(self):
-        return self.stepNo % 2 == 0
+        return self.step_no % 2 == 0
 
     def set_data(self, data):
         """
         Function called when data changed on input
-        :param data: Data used for k-means
-        :type data: Orange.data.Table or None
+
+        Parameters
+        ----------
+        data : Orange.data.Table or None
+            Data used for k-means
         """
         if data is not None and len(data) > 0:
             self.data = data
@@ -65,12 +68,12 @@ class Kmeans:
 
             # with different data it does not make sense to have history, algorithm from begining
             self.centroids_history = []
-            self.stepNo = 0
+            self.step_no = 0
         else:
             self.data = None
             self.clusters = None
             self.centroids_history = []
-            self.stepNo = 0
+            self.step_no = 0
         self.centroids_moved = False
 
     def find_clusters(self, centroids):
@@ -89,10 +92,6 @@ class Kmeans:
         Half of the step of k-means
         """
         if self.step_completed:
-            if len(self.centroids_history) < self.stepNo // 2 + 1:
-                self.centroids_history.append(np.copy(self.centroids))
-            else:
-                self.centroids_history[self.stepNo // 2] = np.copy(self.centroids)
             d = self.data.X
             points = [d[self.clusters == i] for i in range(len(self.centroids))]
             for i in range(len(self.centroids)):
@@ -107,28 +106,36 @@ class Kmeans:
         else:
             self.clusters = self.find_clusters(self.centroids)
             self.centroids_moved = False
-        self.stepNo += 1
+        self.step_no += 1
+        self.centroids_history = self.set_list(self.centroids_history, self.step_no, np.copy(self.centroids))
 
     def step_back(self):
         """
         Half of the step back of k-means
         """
-        if self.stepNo > 0:
+        if self.step_no > 0:
             if not self.step_completed:
-                self.centroids = self.centroids_history[self.stepNo // 2]
+                self.centroids = np.copy(self.centroids_history[self.step_no - 1])
                 self.centroids_moved = True
             else:
-                self.clusters = self.find_clusters(self.centroids_history[self.stepNo // 2 - 1])
+                self.centroids = np.copy(self.centroids_history[self.step_no - 1])
+                self.clusters = self.find_clusters(self.centroids_history[self.step_no - 2])
                 self.centroids_moved = False
-            self.stepNo -= 1
+            self.step_no -= 1
 
     def random_positioning(self, no_centroids):
         """
         Calculates new centroid using random positioning
-        :param no_centroids: number of centroids to calculate
-        :type no_centroids: int
-        :return: new centroid
-        :type: np.array
+
+        Parameters
+        ----------
+        no_centroids : int
+            number of centroids to calculate
+
+        Returns
+        -------
+        np.array
+            new centroid
         """
         if no_centroids <= 0:
             return np.array([])
@@ -138,11 +145,24 @@ class Kmeans:
             centroids[i, :] = np.mean(self.data.X[idx], axis=0)
         return centroids
 
+    def recompute_clusters(self):
+        """
+        Function recomputes belonging points to centroid and increases step_no
+        """
+        self.clusters = self.find_clusters(self.centroids)
+        self.centroids_moved = False
+        if not self.step_completed:
+            self.step_no += 1
+        self.centroids_history = self.set_list(self.centroids_history, self.step_no, np.copy(self.centroids))
+
     def add_centroids(self, points=None):
         """
         Add new centroid/s. Using points if provided else random positioning
-        :param points: Centroids or number of them
-        :type: list or numpy.array or int or None
+
+        Parameters
+        ----------
+        points : list or numpy.array or int or None
+            Centroids or number of them
         """
         if points is None:  # if no point provided add one centroid
             self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
@@ -150,17 +170,14 @@ class Kmeans:
             self.centroids = np.vstack((self.centroids, self.random_positioning(points)))
         else:   # else it is array of new centroids
             self.centroids = np.vstack((self.centroids, np.array(points)))
-        self.clusters = self.find_clusters(self.centroids)
-        self.centroids_moved = False
-        if not self.step_completed:
-            self.stepNo += 1
+        self.recompute_clusters()
 
     def delete_centroids(self, num):
         """
         Remove last num centroids
         """
         self.centroids = self.centroids[:(-num if num <= len(self.centroids) else len(self.centroids))]
-        self.clusters = self.find_clusters(self.centroids)
+        self.recompute_clusters()
 
     def move_centroid(self, _index, x, y):
         """
@@ -168,6 +185,14 @@ class Kmeans:
         """
         self.centroids[_index, :] = np.array([x, y])
         self.centroids_moved = False
-        self.clusters = self.find_clusters(self.centroids)
-        if not self.step_completed:
-            self.stepNo += 1
+        self.recompute_clusters()
+
+    @staticmethod
+    def set_list(l, i, v):
+        try:
+            l[i] = v
+        except IndexError:
+            for _ in range(i-len(l)):
+                l.append(None)
+            l.append(v)
+        return l
