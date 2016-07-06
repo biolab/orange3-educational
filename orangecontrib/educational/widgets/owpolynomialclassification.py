@@ -6,6 +6,7 @@ import numpy as np
 from orangecontrib.educational.widgets.utils.polynomialexpansion import PolynomialTransform
 from PyQt4.QtGui import QSizePolicy
 from os import path
+from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter
 
 
 class Scatterplot(highcharts.Highchart):
@@ -100,7 +101,8 @@ class OWPolyinomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 5
+    grid_size = 20
+    colors = ['#2f7ed8', '#D32525']
 
 
     def add_main_layout(self):
@@ -222,31 +224,39 @@ class OWPolyinomialClassification(OWBaseLearner):
                                             for p in self.selected_data if int(p.get_class()) == _class],
                                    type="scatter",
                                    zIndex=10,
-                                   showInLegend=False) for _class in classes]
+                                   color=self.colors[_class],
+                                   showInLegend=False) for _class in [0, 1]]
 
         # highcharts parameters
         kwargs = dict(
-            # xAxis_title_text=attr_x.name,
-            # yAxis_title_text=attr_y.name,
-            # xAxis_min=min_x,
-            # xAxis_max=max_x,
-            # # chart_events_redraw="/**/paint_function/**/",
-            # tooltip_headerFormat="",
-            # tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
-            #                     "<strong>%s:</strong> {point.y:.2f}" %
-            #                     (self.attr_x, self.attr_y),
+            xAxis_title_text=attr_x.name,
+            yAxis_title_text=attr_y.name,
+            xAxis_min=min_x,
+            xAxis_max=max_x,
+            yAxis_min=min_y,
+            yAxis_max=max_y,
+            yAxis_startOnTick=False,
+            yAxis_endOnTick= False,
+            xAxis_startOnTick=False,
+            xAxis_endOnTick= False,
+            xAxis_lineWidth=0,
+            yAxis_lineWidth=0,
+            yAxis_tickWidth=1,
+            tooltip_headerFormat="",
+            tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
+                                "<strong>%s:</strong> {point.y:.2f}" %
+                                (self.attr_x, self.attr_y),
             colorAxis=dict(
                 stops=[
-                [0, '#3060cf'],
-                [0.5, '#fffbbc'],
-                [0.9, '#c4463a']],
-                min=-5
+                [0, rgb_hash_brighter(self.colors[0], 30)],
+                [0.5, '#ffffff'],
+                [1, rgb_hash_brighter(self.colors[1], 30)]],
+                tickInterval=0.2,
+                min=0,
+                max=1
             ))
 
-        import json
-        print(json.dumps(options, indent=4, sort_keys=True))
-        print(json.dumps(kwargs, indent=4, sort_keys=True))
-
+    
         # plot
         self.scatter.chart(options, **kwargs)
         # self.scatter.evalJS("chart.redraw()")
@@ -259,7 +269,10 @@ class OWPolyinomialClassification(OWBaseLearner):
         y = np.linspace(y_from, y_to, self.grid_size)
         xv, yv = np.meshgrid(x, y)
         attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
-        self.probabilities_grid = model(attr, 1)[:, 0].reshape(xv.shape)
+        self.probabilities_grid = model(attr, 1)[:, 1].reshape(xv.shape)
+            # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
+
+        
 
         return dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
                           for k in range(yv.shape[1])],
