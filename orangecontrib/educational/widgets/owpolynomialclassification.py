@@ -90,13 +90,16 @@ class OWPolyinomialClassification(OWBaseLearner):
     selected_data = None
     probabilities_grid = None
 
-    default_learner = LogisticRegressionLearner
-    LEARNER = default_learner
+    LEARNER = LogisticRegressionLearner
+    learner1 = None
+    default_preprocessor = PolynomialTransform
+
     learner_name = settings.Setting("Univariate Classification")
 
     # selected attributes in chart
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
+    degree = settings.Setting(1)
 
     graph_name = 'scatter'
 
@@ -106,6 +109,9 @@ class OWPolyinomialClassification(OWBaseLearner):
 
 
     def add_main_layout(self):
+
+        self.preprocessors = []
+
         # options box
         self.optionsBox = gui.widgetBox(self.controlArea, "Options")
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
@@ -118,6 +124,9 @@ class OWPolyinomialClassification(OWBaseLearner):
                                 orientation='horizontal',
                                 callback=self.refresh,
                                 sendSelectedValue=True)
+        self.degreeSpin = gui.spin(self.optionsBox, self, 'degree',
+                 minv=1, maxv=5, step=1, label='Polynomial expansion:',  # how much to limit
+                 callback=self.degree_changed)
         self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
 
@@ -134,7 +143,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.mainArea.layout().addWidget(self.scatter)
 
     def set_learner(self, learner):
-        self.LEARNER = learner if learner is not None else self.default_learner
+        self.learner1 = learner if learner is not None else self.LEARNER(preprocessors=self.preprocessors)
         self.change_features()
 
     def set_data(self, data):
@@ -183,6 +192,12 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
             self.change_features()
+
+    def degree_changed(self):
+        if self.learner1 is None:
+            self.learner1 = self.LEARNER()
+        self.learner1.preprocessors = self.preprocessors + [self.default_preprocessor(self.degree)]
+        self.replot()
 
     def set_empty_plot(self):
         self.scatter.clear()
@@ -262,17 +277,19 @@ class OWPolyinomialClassification(OWBaseLearner):
         # self.scatter.evalJS("chart.redraw()")
 
     def plot_line(self, x_from, x_to, y_from, y_to):
-        learner = self.LEARNER() #preprocessors=[PolynomialTransform(degree=2)]
-        model = learner(self.selected_data)
+        if self.learner1 is None:
+            self.learner1 = self.LEARNER(preprocessors=self.preprocessors + [self.default_preprocessor(self.degree)])
+        model = self.learner1(self.selected_data)
 
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
         xv, yv = np.meshgrid(x, y)
         attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
-        self.probabilities_grid = model(attr, 1)[:, 1].reshape(xv.shape)
-            # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
 
-        
+        attr_data = Table(self.selected_data.domain, attr, np.array([[None]] * len(attr)))
+
+        self.probabilities_grid = model(attr_data, 1)[:, 1].reshape(xv.shape)
+            # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
 
         return dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
                           for k in range(yv.shape[1])],
