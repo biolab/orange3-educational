@@ -3,7 +3,7 @@ from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
 import numpy as np
-from math import log
+from orangecontrib.educational.widgets.utils.polynomialexpansion import PolynomialTransform
 from PyQt4.QtGui import QSizePolicy
 from os import path
 
@@ -75,7 +75,7 @@ class Scatterplot(highcharts.Highchart):
 
 
 class OWPolyinomialClassification(OWBaseLearner):
-    name = "Polynomial classification"
+    name = "Polynomial Classification"
     description = "a"  #TODO: description
     icon = "icons/mywidget.svg"
     want_main_area = True
@@ -210,19 +210,12 @@ class OWPolyinomialClassification(OWBaseLearner):
         min_x, max_x = min_x - 0.03 * diff_x, max_x + 0.03 * diff_x
         min_y, max_y = min_y - 0.03 * diff_y, max_y + 0.03 * diff_y
 
-        model = self.LEARNER(self.selected_data)
-
-        # plot centroids
+       # plot centroids
         options = dict(series=[])
 
-        line_series = self.plot_line(model, min_x, max_x, min_y, max_y)
+        line_series = self.plot_line(min_x, max_x, min_y, max_y)
         options['series'].append(line_series)
 
-        # make sure that series[1] are train data of the class above the line and series[2] data below the line
-        # if model(line_series["data"][0] + np.array([0, 1]))[0] == 1:
-        #     # model called with point that is for sue above the line
-        #     classes = [1, 0]
-        # else:
         classes = [0, 1]
 
         options['series'] += [dict(data=[list(p.attributes())
@@ -258,20 +251,15 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.scatter.chart(options, **kwargs)
         # self.scatter.evalJS("chart.redraw()")
 
-    def plot_line(self, model, x_from, x_to, y_from, y_to):
+    def plot_line(self, x_from, x_to, y_from, y_to):
+        learner = self.LEARNER() #preprocessors=[PolynomialTransform(degree=2)]
+        model = learner(self.selected_data)
+
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
         xv, yv = np.meshgrid(x, y)
         attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
         self.probabilities_grid = model(attr, 1)[:, 0].reshape(xv.shape)
-
-        # series = []
-        # for i in range(2):
-        #     series.append(dict(data=[[xv[j, k], yv[j, k]] for j in range(len(xv)) for k in range(yv.shape[1])
-        #                              if abs(self.probabilities_grid[j, k] - i) < 0.5],
-        #                 type="scatter",
-        #                 showInLegend=False,
-        #                 enableMouseTracking=False))
 
         return dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
                           for k in range(yv.shape[1])],
