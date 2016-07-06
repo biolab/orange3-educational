@@ -1,13 +1,11 @@
-from colorsys import rgb_to_hsv, hsv_to_rgb
+from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
+
 
 def rgb_hash_brighter(hash, percent_brighter):
     rgb = hex_to_rgb(hash)
-    hsv = list(rgb_to_hsv(*rgb))
-    print(hsv)
-    hsv[2] = min(1, hsv[2] + percent_brighter * (1 - hsv[2])) # correct s component
-    hsv[1] = max(0, hsv[1] - percent_brighter * hsv[1])
-    print(hsv)
-    return rgb_to_hex(tuple(map(lambda x: int(x * 255), hsv_to_rgb(*hsv))))
+    hls = list(rgb_to_hls(*rgb))
+    hls[1] = min(1, hls[2] + percent_brighter * (1 - hls[2]))
+    return rgb_to_hex(tuple(map(lambda x: int(x * 255), hls_to_rgb(*hls))))
 
 
 def hex_to_rgb(value):
