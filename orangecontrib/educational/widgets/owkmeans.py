@@ -429,7 +429,7 @@ class OWKmeans(OWWidget):
                      type="scatter",
                      showInLegend=False,
                      fillOpacity=0.5,
-                     color=rgb_hash_brighter(self.colors[i % len(self.colors)], 30)))
+                     color=rgb_hash_brighter(self.colors[i % len(self.colors)], 0.3)))
 
         # highcharts parameters
         kwargs = dict(
@@ -468,7 +468,7 @@ class OWKmeans(OWWidget):
                 data=points,
                 type="scatter",
                 showInLegend=False,
-                color=rgb_hash_brighter(self.colors[i % len(self.colors)], 30)))
+                color=rgb_hash_brighter(self.colors[i % len(self.colors)], 0.3)))
 
         self.scatter.add_series(series)
 
