@@ -112,7 +112,7 @@ class OWKmeans(OWWidget):
 
     name = "Interactive k-Means"
     description = "Widget demonstrates working of k-means algorithm."
-    icon = "icons/mywidget.svg"
+    icon = "icons/InteractiveKMeans.svg"
     want_main_area = False
 
     # inputs and outputs
