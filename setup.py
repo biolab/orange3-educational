@@ -9,7 +9,7 @@ NAME = "Orange3 Educational Add-on"
 
 VERSION = "0.0.1"
 
-DESCRIPTION = "Add-on that demonstrates working of the data mining algorithms."
+DESCRIPTION = "Orange Educational add-on for Orange data mining software package."
 LONG_DESCRIPTION = open(path.join(path.dirname(__file__), 'README.md')).read()
 
 LICENSE = "BSD"
