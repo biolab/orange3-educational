@@ -65,6 +65,10 @@ NAMESPACE_PACKAGES = ["orangecontrib"]
 
 TEST_SUITE = "orangecontrib.educational.tests.suite"
 
+AUTHOR = 'Bioinformatics Laboratory, FRI UL'
+AUTHOR_EMAIL = 'contact@orange.biolab.si'
+URL = "https://github.com/biolab/orange3-educational"
+DOWNLOAD_URL = "https://github.com/biolab/orange3-text/tarball/{}".format(VERSION)
 
 def include_documentation(local_dir, install_dir):
     global DATA_FILES
@@ -99,4 +103,9 @@ if __name__ == '__main__':
         test_suite=TEST_SUITE,
         include_package_data=True,
         zip_safe=False,
+        author=AUTHOR,
+        author_email=AUTHOR_EMAIL,
+        url=URL,
+        download_url=DOWNLOAD_URL,
+        classifiers = []
     )
