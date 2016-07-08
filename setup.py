@@ -5,7 +5,7 @@ from os import path, walk
 import sys
 from setuptools import setup, find_packages
 
-NAME = "Orange3 Educational Add-on"
+NAME = "Orange3-Educational"
 
 VERSION = "0.0.1"
 
@@ -68,7 +68,7 @@ TEST_SUITE = "orangecontrib.educational.tests.suite"
 AUTHOR = 'Bioinformatics Laboratory, FRI UL'
 AUTHOR_EMAIL = 'contact@orange.biolab.si'
 URL = "https://github.com/biolab/orange3-educational"
-DOWNLOAD_URL = "https://github.com/biolab/orange3-text/tarball/{}".format(VERSION)
+DOWNLOAD_URL = "https://github.com/biolab/orange3-educational/releases"
 
 def include_documentation(local_dir, install_dir):
     global DATA_FILES
