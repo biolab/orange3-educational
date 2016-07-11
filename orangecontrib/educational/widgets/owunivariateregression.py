@@ -58,7 +58,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.comboBoxAttributesX.setSizePolicy(
             QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
         self.comboBoxAttributesX.setModel(self.x_var_model)
-        gui.doubleSpin(
+        self.expansion_spin = gui.doubleSpin(
             gui.indentedBox(box),
             self, "polynomialexpansion", 0, 10,
             label="Polynomial expansion:", callback=self.apply)
@@ -108,8 +108,6 @@ class OWUnivariateRegression(OWBaseLearner):
         self.report_plot(self.plot)
         if caption:
             self.report_caption(caption)
-
-
 
     def clear(self):
         self.data = None
