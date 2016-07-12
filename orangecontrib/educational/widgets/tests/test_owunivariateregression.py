@@ -3,7 +3,7 @@ from orangecontrib.educational.widgets.owunivariateregression import OWUnivariat
 from Orange.data.table import Table
 from Orange.regression import LinearRegressionLearner
 
-class TestOWKmeans(GuiTest):
+class TestOWUnivariateRegression(GuiTest):
 
     def setUp(self):
         self.widget = OWUnivariateRegression()
@@ -54,6 +54,7 @@ class TestOWKmeans(GuiTest):
 
     def test_clear_plot(self):
         self.widget.set_data(self.data)
+        self.widget.apply()
         self.widget.clear_plot()
 
         self.assertEqual(self.widget.plot_item, None)
