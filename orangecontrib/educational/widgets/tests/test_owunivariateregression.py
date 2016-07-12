@@ -2,6 +2,7 @@ from Orange.widgets.tests.base import GuiTest
 from orangecontrib.educational.widgets.owunivariateregression import OWUnivariateRegression
 from Orange.data.table import Table
 from Orange.regression import LinearRegressionLearner, RandomForestRegressionLearner
+from Orange.preprocess.preprocess import Normalize
 
 class TestOWUnivariateRegression(GuiTest):
 
@@ -133,6 +134,7 @@ class TestOWUnivariateRegression(GuiTest):
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
         self.widget.set_data(None)
+        self.widget.apply()
         # TODO: output will be checked when it available in GuiTest
 
         # check if function does not change plots that are None according to test_set_data
@@ -151,3 +153,8 @@ class TestOWUnivariateRegression(GuiTest):
 
         self.assertNotEqual(self.widget.plot_item, None)
         self.assertNotEqual(self.widget.scatterplot_item, None)
+
+        self.widget.set_preprocessor(Normalize())
+        self.assertNotEqual(self.widget.plot_item, None)
+        self.assertNotEqual(self.widget.scatterplot_item, None)
+
