@@ -7,7 +7,8 @@ from orangecontrib.educational.widgets.utils.polynomialexpansion import Polynomi
 from PyQt4.QtGui import QSizePolicy
 from os import path
 from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter
-
+from orangecontrib.educational.widgets.utils.contour import Contour
+from scipy.interpolate import splprep, splev
 
 class Scatterplot(highcharts.Highchart):
     """
@@ -94,7 +95,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     learner1 = None
     default_preprocessor = PolynomialTransform
 
-    learner_name = settings.Setting("Univariate Classification")
+    learner_name = settings.Setting("Polynomial Classification")
 
     # selected attributes in chart
     attr_x = settings.Setting('')
@@ -104,7 +105,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 20
+    grid_size = 25
     colors = ['#2f7ed8', '#D32525']
 
 
@@ -231,7 +232,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         options = dict(series=[])
 
         line_series = self.plot_line(min_x, max_x, min_y, max_y)
-        options['series'].append(line_series)
+        options['series'] += line_series
 
         classes = [0, 1]
 
@@ -241,6 +242,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                    zIndex=10,
                                    color=self.colors[_class],
                                    showInLegend=False) for _class in [0, 1]]
+
 
         # highcharts parameters
         kwargs = dict(
@@ -283,6 +285,7 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
+
         xv, yv = np.meshgrid(x, y)
         attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
 
@@ -291,12 +294,50 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.probabilities_grid = model(attr_data, 1)[:, 1].reshape(xv.shape)
             # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
 
-        return dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
+        series = []
+
+        contour = Contour(xv, yv, self.probabilities_grid)
+        contour_lines = contour.contours(np.arange(0, 1, 0.1))
+
+        for key, value in contour_lines.items():
+            for line in value:
+                if len(line) > 3:  # if less than 3 line can not be interpolated
+                    tck, u = splprep([list(x) for x in zip(*reversed(line))], s=1)
+                    new_int = np.arange(0, 1.01, 0.01)
+                    interpolated_line = np.array(splev(new_int, tck)).T.tolist()
+                else:
+                    interpolated_line = line
+
+                series.append(dict(data=self.labeled(interpolated_line),
+                                   color="#aaaaaa",
+                                   type="spline",
+                                   lineWidth=0.5,
+                                   showInLegend=False,
+                                   marker=dict(enabled=False),
+                                   name="%g" % round(key, 2),
+                                   enableMouseTracking=False
+                                   ))
+
+        return [dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
                           for k in range(yv.shape[1])],
                         grid_width=self.grid_size,
-                        type="contour")
+                        type="contour")] + series
 
-
+    @staticmethod
+    def labeled(data):
+        point = 1  # we will add this label on the first point
+        data[point] = dict(
+            x=data[point][0],
+            y=data[point][1],
+            dataLabels=dict(
+                enabled=True,
+                format="{series.name}",
+                style=dict(
+                    fontWeight="normal",
+                    color="#aaaaaa",
+                    textShadow=False
+                )))
+        return data
 
     def concat_x_y(self):
         """
