@@ -101,6 +101,8 @@ class OWPolyinomialClassification(OWBaseLearner):
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
     degree = settings.Setting(1)
+    contours_enabled = settings.Setting(True)
+    contour_step = settings.Setting(0.1)
 
     graph_name = 'scatter'
 
@@ -114,22 +116,38 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.preprocessors = []
 
         # options box
-        self.optionsBox = gui.widgetBox(self.controlArea, "Options")
-        self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
+        self.options_box = gui.widgetBox(self.controlArea, "Options")
+        self.cbx = gui.comboBox(self.options_box, self, 'attr_x',
                                 label='X:',
                                 orientation='horizontal',
                                 callback=self.refresh,
                                 sendSelectedValue=True)
-        self.cby = gui.comboBox(self.optionsBox, self, 'attr_y',
+        self.cby = gui.comboBox(self.options_box, self, 'attr_y',
                                 label='Y:',
                                 orientation='horizontal',
                                 callback=self.refresh,
                                 sendSelectedValue=True)
-        self.degreeSpin = gui.spin(self.optionsBox, self, 'degree',
+        self.degree_spin = gui.spin(self.options_box, self, 'degree',
                  minv=1, maxv=5, step=1, label='Polynomial expansion:',  # how much to limit
                  callback=self.degree_changed)
         self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
+
+        self.plot_properties_box = gui.widgetBox(self.controlArea, "Plot Properties")
+        self.contours_enabled_checkbox = gui.checkBox(self.plot_properties_box, self, 'contours_enabled',
+                                            label="Show contours",
+                                            callback=self.replot)
+        self.contour_step_slider = gui.hSlider(self.plot_properties_box,
+                                               self,
+                                               'contour_step',
+                                               minValue=0.05,
+                                               maxValue=0.51,
+                                               step=0.05,
+                                               intOnly=False,
+                                               createLabel=True,
+                                               labelFormat="%.2f",
+                                               label='Contour step:',
+                                               callback=self.replot)
 
         gui.rubber(self.controlArea)
 
@@ -295,28 +313,31 @@ class OWPolyinomialClassification(OWBaseLearner):
             # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
 
         series = []
+        if self.contours_enabled:
 
-        contour = Contour(xv, yv, self.probabilities_grid)
-        contour_lines = contour.contours(np.arange(0, 1, 0.1))
+            contour = Contour(xv, yv, self.probabilities_grid)
+            contour_lines = contour.contours(np.hstack(
+                (np.arange(0.5, 0, - self.contour_step)[::-1],
+                np.arange(0.5 + self.contour_step, 1, self.contour_step))))
 
-        for key, value in contour_lines.items():
-            for line in value:
-                if len(line) > 3:  # if less than 3 line can not be interpolated
-                    tck, u = splprep([list(x) for x in zip(*reversed(line))], s=1)
-                    new_int = np.arange(0, 1.01, 0.01)
-                    interpolated_line = np.array(splev(new_int, tck)).T.tolist()
-                else:
-                    interpolated_line = line
+            for key, value in contour_lines.items():
+                for line in value:
+                    if len(line) > 3:  # if less than 3 line can not be interpolated
+                        tck, u = splprep([list(x) for x in zip(*reversed(line))], s=1)
+                        new_int = np.arange(0, 1.01, 0.01)
+                        interpolated_line = np.array(splev(new_int, tck)).T.tolist()
+                    else:
+                        interpolated_line = line
 
-                series.append(dict(data=self.labeled(interpolated_line),
-                                   color="#aaaaaa",
-                                   type="spline",
-                                   lineWidth=0.5,
-                                   showInLegend=False,
-                                   marker=dict(enabled=False),
-                                   name="%g" % round(key, 2),
-                                   enableMouseTracking=False
-                                   ))
+                    series.append(dict(data=self.labeled(interpolated_line),
+                                       color="#aaaaaa",
+                                       type="spline",
+                                       lineWidth=0.5,
+                                       showInLegend=False,
+                                       marker=dict(enabled=False),
+                                       name="%g" % round(key, 2),
+                                       enableMouseTracking=False
+                                       ))
 
         return [dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
                           for k in range(yv.shape[1])],
