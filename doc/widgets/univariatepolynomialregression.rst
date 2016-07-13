@@ -1,5 +1,5 @@
-Univariate Polynomial Regression
-================================
+Polynomial Regression
+=====================
 
 .. figure:: icons/polynomialregression.png
 

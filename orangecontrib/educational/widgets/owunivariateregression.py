@@ -18,7 +18,7 @@ from Orange.canvas import report
 
 
 class OWUnivariateRegression(OWBaseLearner):
-    name = "Univariate Polynomial Regression"
+    name = "Polynomial Regression"
     description = "Univariate regression with polynomial expansion."
     icon = "icons/UnivariateRegression.svg"
 
