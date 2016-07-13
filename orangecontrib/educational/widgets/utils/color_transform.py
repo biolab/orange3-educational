@@ -1,4 +1,4 @@
-from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
+from colorsys import rgb_to_hls, hls_to_rgb
 
 
 def rgb_hash_brighter(hash, percent_brighter):

@@ -33,10 +33,15 @@ class TestKmeans(unittest.TestCase):
         self.assertFalse(self.kmeans.converged)
 
         # check if false every not completed step
-        for i in range(100):
+        for i in range(self.kmeans.max_iter // 2 + 1):
             self.kmeans.step()
             self.kmeans.step()
             self.assertFalse(self.kmeans.converged)
+
+        # it converged because of max iter
+        self.kmeans.step()
+        self.assertTrue(self.kmeans.converged)
+
 
     def test_centroids_belonging_points(self):
         centroids = [[5.2, 3.6]]
