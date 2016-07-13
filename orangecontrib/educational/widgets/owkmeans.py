@@ -510,7 +510,7 @@ class OWKmeans(OWWidget):
         """
         Function called when user click in graph. Centroid have to be added.
         """
-        if self.k_means is not None:
+        if self.k_means is not None and self.data is not None:
             self.k_means.add_centroids([x, y])
             self.number_of_clusters += 1
             self.replot()
