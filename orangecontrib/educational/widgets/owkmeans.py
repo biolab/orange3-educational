@@ -61,6 +61,9 @@ class Scatterplot(highcharts.Highchart):
 
     prew_time = 0
 
+    # to make unit tesest
+    count_replots = 0
+
     def __init__(self, click_callback, drop_callback, **kwargs):
 
         # read javascript for drag and drop
@@ -79,6 +82,10 @@ class Scatterplot(highcharts.Highchart):
 
         self.click_callback = click_callback
         self.drop_callback = drop_callback
+
+    def chart(self, *args, **kwargs):
+        self.count_replots += 1
+        super(Scatterplot, self).chart(*args, **kwargs)
 
     @pyqtSlot(float, float)
     def chart_clicked(self, x, y):
@@ -478,6 +485,8 @@ class OWKmeans(OWWidget):
         """
         Function that change number of clusters if required
         """
+        if self.data is None:
+            return
         if self.number_of_clusters > len(self.data):
             # if too less data for clusters number
             self.warning(2, "Please provide at least number of points equal to "

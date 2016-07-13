@@ -11,13 +11,32 @@ class TestKmeans(unittest.TestCase):
         new_domain = Domain(self.data.domain.attributes[:2])
         self.data = Table(new_domain, self.data)
         # self.centroids = [[5.2, 3.1], [6.5, 3], [7, 4]]
-        self.kmeans = Kmeans(self.data, centroids=None)
+        self.kmeans = Kmeans(self.data)
 
     def test_k(self):
         centroids = [[5.2, 3.1], [6.5, 3], [7, 4]]
         self.kmeans.add_centroids(centroids)
         self.assertEqual(self.kmeans.k, 3)
         self.assertEqual(self.kmeans.k, len(self.kmeans.centroids))
+
+    def test_converged(self):
+        centroids = [[5.2, 3.1], [6.5, 3], [7, 4]]
+        self.kmeans.add_centroids(centroids)
+        self.assertFalse(self.kmeans.converged)
+
+        self.kmeans.step()
+        self.assertFalse(self.kmeans.converged)  # step not complete so false every odd state
+
+        self.kmeans.step()
+        # it is even step so maybe converged but it depends on example unable to test
+        self.kmeans.step()
+        self.assertFalse(self.kmeans.converged)
+
+        # check if false every not completed step
+        for i in range(100):
+            self.kmeans.step()
+            self.kmeans.step()
+            self.assertFalse(self.kmeans.converged)
 
     def test_centroids_belonging_points(self):
         centroids = [[5.2, 3.6]]
@@ -165,3 +184,10 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.move_centroid(2, 3.2, 3.4)
         self.assertEqual(self.kmeans.centroids_moved, False)
         self.assertEqual(self.kmeans.step_no, 2)
+
+    def test_set_list(self):
+        self.assertEqual(self.kmeans.set_list([], 2, 1), [None, None, 1])  # test adding Nones if list too short
+        self.assertEqual(self.kmeans.set_list([2], 2, 1), [2, None, 1])  # test adding Nones if list too short
+        self.assertEqual(self.kmeans.set_list([2, 1], 2, 1), [2, 1, 1])  # adding to end
+        self.assertEqual(self.kmeans.set_list([2, 1], 1, 3), [2, 3])  # changing the element in the last place
+        self.assertEqual(self.kmeans.set_list([2, 1, 3], 1, 3), [2, 3, 3])  # changing the element in the middle place
