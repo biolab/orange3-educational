@@ -245,6 +245,9 @@ class OWUnivariateRegression(OWBaseLearner):
         else:
             self.send("Coefficients", None)
 
+    def add_bottom_buttons(self):
+        return
+
 
 
 if __name__ == "__main__":
