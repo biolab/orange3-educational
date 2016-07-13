@@ -183,22 +183,19 @@ class OWUnivariateRegression(OWBaseLearner):
         self.plotview.replot()
 
     def apply(self):
-        learner = self.learner
+        degree = int(self.polynomialexpansion)
+        learner = self.LEARNER(preprocessors=self.preprocessors,
+                               degree=degree,
+                               learner=LinearRegressionLearner() if self.learner is None
+                               else self.learner)
+        learner.name = self.learner_name
         predictor = None
 
         if self.data is not None:
-
-            degree = int(self.polynomialexpansion)
-            learner = self.LEARNER(preprocessors=self.preprocessors,
-                                   degree=degree,
-                                   learner=LinearRegressionLearner() if self.learner is None
-                                    else learner)
-
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
             data_table = Table(Domain([attributes], class_vars=[class_var]), self.data)
 
-            learner.name = self.learner_name
             predictor = learner(data_table)
 
             preprocessed_data = data_table
