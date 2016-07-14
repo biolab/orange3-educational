@@ -1,4 +1,4 @@
-from Orange.data import Table, ContinuousVariable, Table, Domain
+from Orange.data import ContinuousVariable, Table, Domain, StringVariable
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
@@ -9,60 +9,17 @@ from os import path
 from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter
 from orangecontrib.educational.widgets.utils.contour import Contour
 from scipy.interpolate import splprep, splev
+import copy
+
 
 class Scatterplot(highcharts.Highchart):
     """
     Scatterplot extends Highchart and just defines some sane defaults:
-    * enables scroll-wheel zooming,
-    * enables rectangle (+ individual point) selection,
-    * sets the chart type to 'scatter' (could also be 'bubble' or as
-      appropriate; Se Highcharts JS docs)
-    * sets the selection callback. The callback is passed a list (array)
-      of indices of selected points for each data series the chart knows
-      about.
+    * disable scroll-wheel zooming,
+    * disable all points selection
+    * set cursor for series to move
+    * adds javascript for contour
     """
-
-    paint_function = """
-        paint_function = function() {
-            console.log("a");
-            $('#belowPath').remove()
-            $('#abovePath').remove()
-
-            var series = chart.series[0];
-            var path = [];
-
-            series.data.forEach(function(element) {
-                path.push(element.plotX + chart.plotLeft);
-                path.push(element.plotY + chart.plotTop);
-            });
-
-            var path_above = ['M', chart.plotLeft, chart.plotTop, 'L']
-                .concat(path)
-                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop]);
-
-            var path_below = ['M', chart.plotLeft, chart.plotTop + chart.plotHeight, 'L']
-                .concat(path)
-                .concat([chart.plotLeft + chart.plotWidth, chart.plotTop + chart.plotHeight]);
-
-            chart.renderer.path(path_above)
-                .attr({
-                    stroke: "none",
-                    fill: chart.series[1].color,
-                    'fill-opacity': 0.2,
-                    zIndex: 0.5,
-                    id: "abovePath"
-                }).add();
-
-            chart.renderer.path(path_below)
-                .attr({
-                    stroke: "none",
-                    fill: chart.series[2].color,
-                    'fill-opacity': 0.2,
-                    zIndex: 0.5,
-                    id: "belowPath"
-                }).add();
-        }
-        """
 
     def __init__(self, **kwargs):
         with open(path.join(path.dirname(__file__), 'resources', 'highcharts-contour.js'), 'r') as f:
@@ -78,7 +35,7 @@ class Scatterplot(highcharts.Highchart):
 
 class OWPolyinomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
-    description = "a"  #TODO: description
+    description = "Widget that demonstrates classification in two classes with polynomial expansion of attributes."
     icon = "icons/mywidget.svg"
     want_main_area = True
     resizing_enabled = True
@@ -86,18 +43,21 @@ class OWPolyinomialClassification(OWBaseLearner):
     # inputs and outputs
     inputs = [("Data", Table, "set_data"),
               ("Learner", Learner, "set_learner")]
+    outputs = [("Coefficients", Table)]
 
+    # data attributes
     data = None
     selected_data = None
     probabilities_grid = None
 
+    # learners
     LEARNER = LogisticRegressionLearner
-    learner1 = None
+    learner_other = None
     default_preprocessor = PolynomialTransform
 
     learner_name = settings.Setting("Polynomial Classification")
 
-    # selected attributes in chart
+    # widget properties
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
     degree = settings.Setting(1)
@@ -107,13 +67,10 @@ class OWPolyinomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 25
-    colors = ['#2f7ed8', '#D32525']
-
+    grid_size = 20
+    colors = ['#2f7ed8', '#D32525']  # colors taken from highcharts.options.colors
 
     def add_main_layout(self):
-
-        self.preprocessors = []
 
         # options box
         self.options_box = gui.widgetBox(self.controlArea, "Options")
@@ -128,15 +85,19 @@ class OWPolyinomialClassification(OWBaseLearner):
                                 callback=self.refresh,
                                 sendSelectedValue=True)
         self.degree_spin = gui.spin(self.options_box, self, 'degree',
-                 minv=1, maxv=5, step=1, label='Polynomial expansion:',  # how much to limit
-                 callback=self.degree_changed)
+                                    minv=1,
+                                    maxv=5,
+                                    step=1,
+                                    label='Polynomial expansion:',  # how much to limit
+                                    callback=self.degree_changed)
         self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
 
+        # plot properties box
         self.plot_properties_box = gui.widgetBox(self.controlArea, "Plot Properties")
         self.contours_enabled_checkbox = gui.checkBox(self.plot_properties_box, self, 'contours_enabled',
-                                            label="Show contours",
-                                            callback=self.replot)
+                                                      label="Show contours",
+                                                      callback=self.replot)
         self.contour_step_slider = gui.hSlider(self.plot_properties_box,
                                                self,
                                                'contour_step',
@@ -151,7 +112,7 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         gui.rubber(self.controlArea)
 
-        # plot
+        # chart
         self.scatter = Scatterplot(Axis_gridLineWidth=0,
                                    yAxis_gridLineWidth=0,
                                    title_text='',
@@ -161,9 +122,17 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
 
+        self.init_learner()
+
     def set_learner(self, learner):
-        self.learner1 = learner if learner is not None else self.LEARNER(preprocessors=self.preprocessors)
-        self.change_features()
+        self.learner_other = learner
+        print(self.learner_other)
+        self.init_learner()
+
+    def set_preprocessor(self, preprocessor):
+        """Add user-set preprocessors before the default, mandatory ones"""
+        self.preprocessors = ((preprocessor,) if preprocessor else ())
+        self.init_learner()
 
     def set_data(self, data):
         """
@@ -210,13 +179,16 @@ class OWPolyinomialClassification(OWBaseLearner):
             init_combos()
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
-            self.change_features()
+            self.apply()
+
+    def init_learner(self):
+        self.learner = copy.deepcopy(self.learner_other) or self.LEARNER()
+        self.learner.preprocessors = (self.preprocessors or []) + (self.learner.preprocessors or []) \
+                                     + [self.default_preprocessor(self.degree)]
+        self.apply()
 
     def degree_changed(self):
-        if self.learner1 is None:
-            self.learner1 = self.LEARNER()
-        self.learner1.preprocessors = self.preprocessors + [self.default_preprocessor(self.degree)]
-        self.replot()
+        self.init_learner()
 
     def set_empty_plot(self):
         self.scatter.clear()
@@ -226,14 +198,13 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.change_features()
 
     def change_features(self):
-
-        self.selected_data = self.concat_x_y()
         self.replot()
 
     def replot(self):
         """
         This function performs complete replot of the graph without animation
         """
+        self.selected_data = self.concat_x_y()
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
         data_y = [v[0] for v in self.data[:, attr_y]]
@@ -291,15 +262,13 @@ class OWPolyinomialClassification(OWBaseLearner):
                 max=1
             ))
 
-    
+
         # plot
         self.scatter.chart(options, **kwargs)
         # self.scatter.evalJS("chart.redraw()")
 
     def plot_line(self, x_from, x_to, y_from, y_to):
-        if self.learner1 is None:
-            self.learner1 = self.LEARNER(preprocessors=self.preprocessors + [self.default_preprocessor(self.degree)])
-        model = self.learner1(self.selected_data)
+        model = self.learner(self.selected_data)
 
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
@@ -339,6 +308,9 @@ class OWPolyinomialClassification(OWBaseLearner):
                                        enableMouseTracking=False
                                        ))
 
+        # print(x_from, x_to, y_from, y_to)
+
+
         return [dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
                           for k in range(yv.shape[1])],
                         grid_width=self.grid_size,
@@ -374,3 +346,43 @@ class OWPolyinomialClassification(OWBaseLearner):
         x = np.column_stack(cols)
         domain = Domain([attr_x, attr_y], self.data.domain.class_var)
         return Table(domain, x, self.data.Y)
+
+    def apply(self):
+        """Applies leaner and sends new model."""
+        self.send_learner()
+        self.update_model()
+        self.send_coefficients()
+        if self.data is not None:
+            self.replot()
+
+    def send_learner(self):
+        self.learner.name = self.learner_name
+        self.send("Learner", self.learner)
+
+    def update_model(self):
+        if self.data is not None:
+            self.model = self.learner(self.data)
+            self.model.name = self.learner_name
+            self.model.instances = self.data
+
+        self.send(self.OUTPUT_MODEL_NAME, self.model)
+
+    def send_coefficients(self):
+        # Send model coefficents
+        model = None
+        if self.model is not None:
+            model = self.model
+            if hasattr(model, "model"):
+                model = model.model
+            elif hasattr(model, "skl_model"):
+                model = model.skl_model
+        if model is not None and hasattr(model, "coef_"):
+            domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
+                            metas=[StringVariable("name")])
+            coefficients = model.intercept_.tolist()  + model.coef_[0].tolist()
+            names = [x for x in range(len(coefficients))]
+            coefficients_table = Table(domain, list(zip(coefficients, names)))
+            print(coefficients_table)
+            self.send("Coefficients", coefficients_table)
+        else:
+            self.send("Coefficients", None)
