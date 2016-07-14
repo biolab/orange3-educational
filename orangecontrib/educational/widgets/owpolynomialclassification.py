@@ -14,7 +14,7 @@ import copy
 
 class Scatterplot(highcharts.Highchart):
     """
-    Scatterplot extends Highchart and just defines some sane defaults:
+    Scatterplot extends Highchart and just defines some defaults:
     * disable scroll-wheel zooming,
     * disable all points selection
     * set cursor for series to move
@@ -36,7 +36,7 @@ class Scatterplot(highcharts.Highchart):
 class OWPolyinomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
     description = "Widget that demonstrates classification in two classes with polynomial expansion of attributes."
-    icon = "icons/mywidget.svg"
+    icon = "icons/polyclassification.svg"
     want_main_area = True
     resizing_enabled = True
 
@@ -77,19 +77,19 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.cbx = gui.comboBox(self.options_box, self, 'attr_x',
                                 label='X:',
                                 orientation='horizontal',
-                                callback=self.refresh,
+                                callback=self.apply,
                                 sendSelectedValue=True)
         self.cby = gui.comboBox(self.options_box, self, 'attr_y',
                                 label='Y:',
                                 orientation='horizontal',
-                                callback=self.refresh,
+                                callback=self.apply,
                                 sendSelectedValue=True)
         self.degree_spin = gui.spin(self.options_box, self, 'degree',
                                     minv=1,
                                     maxv=5,
                                     step=1,
-                                    label='Polynomial expansion:',  # how much to limit
-                                    callback=self.degree_changed)
+                                    label='Polynomial expansion:',
+                                    callback=self.init_learner)
         self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
 
@@ -125,12 +125,16 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.init_learner()
 
     def set_learner(self, learner):
+        """
+        Function is sets learner when learner is changed on input
+        """
         self.learner_other = learner
-        print(self.learner_other)
         self.init_learner()
 
     def set_preprocessor(self, preprocessor):
-        """Add user-set preprocessors before the default, mandatory ones"""
+        """
+        Function adds preprocessor when it changed on input
+        """
         self.preprocessors = ((preprocessor,) if preprocessor else ())
         self.init_learner()
 
@@ -138,8 +142,11 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function receives data from input and init part of widget if data are ok. Otherwise set empty plot and notice
         user about that
-        :param data: input data
-        :type data: Orange.data.Table or None
+
+        Parameters
+        ----------
+        data : Table
+            Input data
         """
         self.data = data
 
@@ -158,7 +165,6 @@ class OWPolyinomialClassification(OWBaseLearner):
                     self.cby.addItem(gui.attributeIconDict[var], var.name)
 
         self.warning(1)  # remove warning about too less continuous attributes if exists
-        self.warning(2)  # remove warning about not enough data
 
         if data is None or len(data) == 0:
             reset_combos()
@@ -182,27 +188,23 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.apply()
 
     def init_learner(self):
+        """
+        Function init learner and add preprocessors to learner
+        """
         self.learner = copy.deepcopy(self.learner_other) or self.LEARNER()
         self.learner.preprocessors = (self.preprocessors or []) + (self.learner.preprocessors or []) \
                                      + [self.default_preprocessor(self.degree)]
         self.apply()
 
-    def degree_changed(self):
-        self.init_learner()
-
     def set_empty_plot(self):
+        """
+        Function inits empty plot
+        """
         self.scatter.clear()
-
-    def refresh(self):
-        if self.data is not None:
-            self.change_features()
-
-    def change_features(self):
-        self.replot()
 
     def replot(self):
         """
-        This function performs complete replot of the graph without animation
+        This function performs complete replot of the graph
         """
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
@@ -216,14 +218,12 @@ class OWPolyinomialClassification(OWBaseLearner):
         min_x, max_x = min_x - 0.03 * diff_x, max_x + 0.03 * diff_x
         min_y, max_y = min_y - 0.03 * diff_y, max_y + 0.03 * diff_y
 
-       # plot centroids
         options = dict(series=[])
 
-        line_series = self.plot_gradient_and_contour(min_x, max_x, min_y, max_y)
-        options['series'] += line_series
+        # gradient and contour
+        options['series'] += self.plot_gradient_and_contour(min_x, max_x, min_y, max_y)
 
-        classes = [0, 1]
-
+        # data points
         options['series'] += [dict(data=[list(p.attributes())
                                             for p in self.selected_data if int(p.get_class()) == _class],
                                    type="scatter",
@@ -252,9 +252,9 @@ class OWPolyinomialClassification(OWBaseLearner):
                                 (self.attr_x, self.attr_y),
             colorAxis=dict(
                 stops=[
-                [0, rgb_hash_brighter(self.colors[0], 30)],
+                [0, rgb_hash_brighter(self.colors[0], 40)],
                 [0.5, '#ffffff'],
-                [1, rgb_hash_brighter(self.colors[1], 30)]],
+                [1, rgb_hash_brighter(self.colors[1], 40)]],
                 tickInterval=0.2,
                 min=0,
                 max=1
@@ -263,6 +263,26 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.scatter.chart(options, **kwargs)
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
+        """
+        Function constructs series for gradient and contour
+
+        Parameters
+        ----------
+        x_from : float
+            Min grid x value
+        x_to : float
+            Max grid x value
+        y_from : float
+            Min grid y value
+        y_to : float
+            Max grid y value
+
+        Returns
+        -------
+        list
+            List containing series with background gradient and contour
+        """
+
         # grid for gradient
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
@@ -279,12 +299,18 @@ class OWPolyinomialClassification(OWBaseLearner):
         return self.plot_gradient(xv, yv) + (self.plot_contour(xv, yv) if self.contours_enabled else [])
 
     def plot_gradient(self, x, y):
+        """
+        Function constructs background gradient
+        """
         return [dict(data=[[x[j, k], y[j, k], self.probabilities_grid[j, k]] for j in range(len(x))
                           for k in range(y.shape[1])],
                         grid_width=self.grid_size,
                         type="contour")]
 
     def plot_contour(self, x, y):
+        """
+        Function constructs contour lines
+        """
         contour = Contour(x, y, self.probabilities_grid)
         contour_lines = contour.contours(
             np.hstack(
@@ -314,6 +340,9 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     @staticmethod
     def labeled(data):
+        """
+        Function labels data with contour levels
+        """
         point = 1  # we will add this label on the first point
         data[point] = dict(
             x=data[point][0],
@@ -331,8 +360,11 @@ class OWPolyinomialClassification(OWBaseLearner):
     def concat_x_y(self):
         """
         Function takes two selected columns from data table and merge them in new Orange.data.Table
-        :return: table with selected columns
-        :type: Orange.data.Table
+
+        Returns
+        -------
+        Table
+            Table with selected columns
         """
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         cols = []
@@ -344,7 +376,9 @@ class OWPolyinomialClassification(OWBaseLearner):
         return Table(domain, x, self.data.Y)
 
     def apply(self):
-        """Applies leaner and sends new model."""
+        """
+        Applies leaner and sends new model and coefficients
+        """
         self.send_learner()
         self.update_model()
         self.send_coefficients()
@@ -352,10 +386,16 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.replot()
 
     def send_learner(self):
+        """
+        Function sends learner on widget's output
+        """
         self.learner.name = self.learner_name
         self.send("Learner", self.learner)
 
     def update_model(self):
+        """
+        Function sends model on widget's output
+        """
         if self.data is not None:
             self.selected_data = self.concat_x_y()
             self.model = self.learner(self.selected_data)
@@ -365,7 +405,9 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.send(self.OUTPUT_MODEL_NAME, self.model)
 
     def send_coefficients(self):
-        # Send model coefficents
+        """
+        Function sends coefficients on widget's output if model has them
+        """
         model = None
         if self.model is not None:
             model = self.model
