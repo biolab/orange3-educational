@@ -204,7 +204,6 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph without animation
         """
-        self.selected_data = self.concat_x_y()
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
         data_y = [v[0] for v in self.data[:, attr_y]]
@@ -220,7 +219,7 @@ class OWPolyinomialClassification(OWBaseLearner):
        # plot centroids
         options = dict(series=[])
 
-        line_series = self.plot_line(min_x, max_x, min_y, max_y)
+        line_series = self.plot_gradient_and_contour(min_x, max_x, min_y, max_y)
         options['series'] += line_series
 
         classes = [0, 1]
@@ -231,7 +230,6 @@ class OWPolyinomialClassification(OWBaseLearner):
                                    zIndex=10,
                                    color=self.colors[_class],
                                    showInLegend=False) for _class in [0, 1]]
-
 
         # highcharts parameters
         kwargs = dict(
@@ -262,59 +260,57 @@ class OWPolyinomialClassification(OWBaseLearner):
                 max=1
             ))
 
-
-        # plot
         self.scatter.chart(options, **kwargs)
-        # self.scatter.evalJS("chart.redraw()")
 
-    def plot_line(self, x_from, x_to, y_from, y_to):
-        model = self.learner(self.selected_data)
-
+    def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
+        # grid for gradient
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
-
         xv, yv = np.meshgrid(x, y)
-        attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
 
+        # parameters to predict from grid
+        attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
         attr_data = Table(self.selected_data.domain, attr, np.array([[None]] * len(attr)))
 
-        self.probabilities_grid = model(attr_data, 1)[:, 1].reshape(xv.shape)
-            # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
+        # results
+        self.probabilities_grid = self.model(attr_data, 1)[:, 1].reshape(xv.shape)
+        # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
+
+        return self.plot_gradient(xv, yv) + (self.plot_contour(xv, yv) if self.contours_enabled else [])
+
+    def plot_gradient(self, x, y):
+        return [dict(data=[[x[j, k], y[j, k], self.probabilities_grid[j, k]] for j in range(len(x))
+                          for k in range(y.shape[1])],
+                        grid_width=self.grid_size,
+                        type="contour")]
+
+    def plot_contour(self, x, y):
+        contour = Contour(x, y, self.probabilities_grid)
+        contour_lines = contour.contours(
+            np.hstack(
+                (np.arange(0.5, 0, - self.contour_step)[::-1],  # we want to have contour for 0.5
+                 np.arange(0.5 + self.contour_step, 1, self.contour_step))))
 
         series = []
-        if self.contours_enabled:
+        for key, value in contour_lines.items():
+            for line in value:
+                if len(line) > 3:  # if less than 3 line can not be interpolated
+                    tck, u = splprep([list(x) for x in zip(*reversed(line))], s=1)
+                    new_int = np.arange(0, 1.01, 0.01)
+                    interpolated_line = np.array(splev(new_int, tck)).T.tolist()
+                else:
+                    interpolated_line = line
 
-            contour = Contour(xv, yv, self.probabilities_grid)
-            contour_lines = contour.contours(np.hstack(
-                (np.arange(0.5, 0, - self.contour_step)[::-1],
-                np.arange(0.5 + self.contour_step, 1, self.contour_step))))
-
-            for key, value in contour_lines.items():
-                for line in value:
-                    if len(line) > 3:  # if less than 3 line can not be interpolated
-                        tck, u = splprep([list(x) for x in zip(*reversed(line))], s=1)
-                        new_int = np.arange(0, 1.01, 0.01)
-                        interpolated_line = np.array(splev(new_int, tck)).T.tolist()
-                    else:
-                        interpolated_line = line
-
-                    series.append(dict(data=self.labeled(interpolated_line),
-                                       color="#aaaaaa",
-                                       type="spline",
-                                       lineWidth=0.5,
-                                       showInLegend=False,
-                                       marker=dict(enabled=False),
-                                       name="%g" % round(key, 2),
-                                       enableMouseTracking=False
-                                       ))
-
-        # print(x_from, x_to, y_from, y_to)
-
-
-        return [dict(data=[[xv[j, k], yv[j, k], self.probabilities_grid[j, k]] for j in range(len(xv))
-                          for k in range(yv.shape[1])],
-                        grid_width=self.grid_size,
-                        type="contour")] + series
+                series.append(dict(data=self.labeled(interpolated_line),
+                                   color="#aaaaaa",
+                                   type="spline",
+                                   lineWidth=0.5,
+                                   showInLegend=False,
+                                   marker=dict(enabled=False),
+                                   name="%g" % round(key, 2),
+                                   enableMouseTracking=False
+                                   ))
+        return series
 
     @staticmethod
     def labeled(data):
@@ -361,7 +357,8 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     def update_model(self):
         if self.data is not None:
-            self.model = self.learner(self.data)
+            self.selected_data = self.concat_x_y()
+            self.model = self.learner(self.selected_data)
             self.model.name = self.learner_name
             self.model.instances = self.data
 
@@ -382,7 +379,6 @@ class OWPolyinomialClassification(OWBaseLearner):
             coefficients = model.intercept_.tolist()  + model.coef_[0].tolist()
             names = [x for x in range(len(coefficients))]
             coefficients_table = Table(domain, list(zip(coefficients, names)))
-            print(coefficients_table)
             self.send("Coefficients", coefficients_table)
         else:
             self.send("Coefficients", None)
