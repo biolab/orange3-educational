@@ -35,25 +35,26 @@ class Contour:
         return contours
 
     def find_contours(self, threshold):
+        print(threshold)
         contours = []
         bitmap = (self.z > threshold).astype(int)
         self.visited = np.zeros(self.z.shape, dtype=bool)
         # check if contour start on edge (they have to touches the edge)
         for i in range(bitmap.shape[0] - 1):
             # left
-            if self.corner_idx(bitmap[i:i+2, 0:2]) in [3, 5, 7] and not self.visited[i, 0]:
+            if self.corner_idx(bitmap[i:i+2, 0:2]) in [1, 3, 5, 7] and not self.visited[i, 0]:
                 contours.append(self.find_contour_path(bitmap, i, 0))
             # right
-            if self.corner_idx(bitmap[i:i+2, bitmap.shape[1]-2:bitmap.shape[1]]) in [4, 12, 13] \
+            if self.corner_idx(bitmap[i:i+2, bitmap.shape[1]-2:bitmap.shape[1]]) in [4, 5, 12, 13] \
                     and not self.visited[i, bitmap.shape[1]-2]:
                 contours.append(self.find_contour_path(bitmap, i, bitmap.shape[1]-2))
 
         for j in range(bitmap.shape[1] - 1):
             # top
-            if self.corner_idx(bitmap[0:2, j:j+2]) in [9, 10, 11] and not self.visited[0, j]:
+            if self.corner_idx(bitmap[0:2, j:j+2]) in [8, 9, 10, 11] and not self.visited[0, j]:
                 contours.append(self.find_contour_path(bitmap, 0, j))
             # bottom
-            if self.corner_idx(bitmap[bitmap.shape[0]-2:bitmap.shape[0], j:j+2]) in [6, 10, 14] \
+            if self.corner_idx(bitmap[bitmap.shape[0]-2:bitmap.shape[0], j:j+2]) in [2, 6, 10, 14] \
                     and not self.visited[bitmap.shape[0]-2, j]:
                 contours.append(self.find_contour_path(bitmap, bitmap.shape[0]-2, j))
 
