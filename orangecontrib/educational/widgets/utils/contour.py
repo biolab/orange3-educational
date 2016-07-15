@@ -69,15 +69,14 @@ class Contour:
         path = [self.to_real_coordinate(self.start_point(bitmap[i:i+2, j:j+2], np.array([i, j])).tolist())]
 
         previous_position = None
-        while 0 <= i < bitmap.shape[0] - 1 and 0 <= j < bitmap.shape[1] - 1:
-            self.visited[i, j] = True
+        while 0 <= i < bitmap.shape[0] - 1 \
+                and 0 <= j < bitmap.shape[1] - 1\
+                and not self.visited[i, j]:  # if visited true then cycle
             new_p = (self.new_point(bitmap[i:i+2, j:j+2], np.array(previous_position), np.array([i, j]))).tolist()
-            if new_p in path:
-                path.append(self.to_real_coordinate(new_p)) # finish the cycle
-                break  # we reached a cycle
             path.append(self.to_real_coordinate(new_p))
 
             previous_position = [i, j]
+            self.visited[i, j] = True
             i, j = self.new_position(bitmap[i:i+2, j:j+2], np.array(previous_position), np.array([i, j])).tolist()
         return path
 

@@ -30,8 +30,6 @@ class Scatterplot(highcharts.Highchart):
                          enable_select='',
                          plotOptions_series_cursor="move",
                          javascript=contour_js,
-                         plotOptions_contour_colsize=0.01,
-                         plotOptions_contour_rowsize=0.01,
                          **kwargs)
 
 
@@ -71,6 +69,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     # settings
     grid_size = 20
     colors = ['#2f7ed8', '#D32525']  # colors taken from highcharts.options.colors
+    contour_color = "#1f1f1f"
 
     def add_main_layout(self):
 
@@ -117,8 +116,24 @@ class OWPolyinomialClassification(OWBaseLearner):
         # chart
         self.scatter = Scatterplot(Axis_gridLineWidth=0,
                                    yAxis_gridLineWidth=0,
+                                   yAxis_startOnTick=False,
+                                   yAxis_endOnTick= False,
+                                   xAxis_startOnTick=False,
+                                   xAxis_endOnTick= False,
+                                   xAxis_lineWidth=0,
+                                   yAxis_lineWidth=0,
+                                   yAxis_tickWidth=1,
                                    title_text='',
                                    tooltip_shared=False,
+                                   colorAxis=dict(
+                                       stops=[
+                                           [0, rgb_hash_brighter(self.colors[0], 50)],
+                                           [0.5, '#ffffff'],
+                                           [1, rgb_hash_brighter(self.colors[1], 50)]],
+                                       tickInterval=0.2,
+                                       min=0,
+                                       max=1
+                                   ),
                                    debug=True)  # TODO: set false when end of development
         # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
@@ -193,7 +208,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function init learner and add preprocessors to learner
         """
-        self.learner = copy.deepcopy(self.learner_other) or self.LEARNER()
+        self.learner = copy.deepcopy(self.learner_other) or self.LEARNER(penalty='l2', C=100)
         self.learner.preprocessors = (self.preprocessors or []) + (self.learner.preprocessors or []) \
                                      + [self.default_preprocessor(self.degree)]
         self.apply()
@@ -215,8 +230,8 @@ class OWPolyinomialClassification(OWBaseLearner):
         max_x = max(data_x)
         min_y = min(data_y)
         max_y = max(data_y)
-        diff_x = max_x - min_x
-        diff_y = max_y - min_y
+        diff_x = (max_x - min_x) if abs(max_x - min_x) > 0.001 else 0.1  # just in cas that diff is 0
+        diff_y = (max_y - min_y) if abs(max_y - min_y) > 0.001 else 0.1
         min_x, max_x = min_x - 0.03 * diff_x, max_x + 0.03 * diff_x
         min_y, max_y = min_y - 0.03 * diff_y, max_y + 0.03 * diff_y
 
@@ -241,26 +256,13 @@ class OWPolyinomialClassification(OWBaseLearner):
             xAxis_max=max_x,
             yAxis_min=min_y,
             yAxis_max=max_y,
-            yAxis_startOnTick=False,
-            yAxis_endOnTick= False,
-            xAxis_startOnTick=False,
-            xAxis_endOnTick= False,
-            xAxis_lineWidth=0,
-            yAxis_lineWidth=0,
-            yAxis_tickWidth=1,
+
+            plotOptions_contour_colsize=(max_y- min_y) / 1000,
+            plotOptions_contour_rowsize=(max_x - min_x) / 1000,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
-                                (self.attr_x, self.attr_y),
-            colorAxis=dict(
-                stops=[
-                [0, rgb_hash_brighter(self.colors[0], 40)],
-                [0.5, '#ffffff'],
-                [1, rgb_hash_brighter(self.colors[1], 40)]],
-                tickInterval=0.2,
-                min=0,
-                max=1
-            ))
+                                (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
 
@@ -330,7 +332,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                     interpolated_line = line
 
                 series.append(dict(data=self.labeled(interpolated_line),
-                                   color="#aaaaaa",
+                                   color=self.contour_color,
                                    type="spline",
                                    lineWidth=0.5,
                                    showInLegend=False,
@@ -354,7 +356,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                 format="{series.name}",
                 style=dict(
                     fontWeight="normal",
-                    color="#aaaaaa",
+                    color=OWPolyinomialClassification.contour_color,
                     textShadow=False
                 )))
         return data
