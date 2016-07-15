@@ -30,6 +30,8 @@ class Scatterplot(highcharts.Highchart):
                          enable_select='',
                          plotOptions_series_cursor="move",
                          javascript=contour_js,
+                         plotOptions_contour_colsize=0.01,
+                         plotOptions_contour_rowsize=0.01,
                          **kwargs)
 
 
@@ -98,16 +100,16 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.contours_enabled_checkbox = gui.checkBox(self.plot_properties_box, self, 'contours_enabled',
                                                       label="Show contours",
                                                       callback=self.replot)
-        self.contour_step_slider = gui.hSlider(self.plot_properties_box,
+        self.contour_step_slider = gui.spin(self.plot_properties_box,
                                                self,
                                                'contour_step',
-                                               minValue=0.05,
-                                               maxValue=0.51,
+                                               minv=0.05,
+                                               maxv=0.50,
                                                step=0.05,
-                                               intOnly=False,
-                                               createLabel=True,
-                                               labelFormat="%.2f",
+
                                                label='Contour step:',
+                                            decimals=2,
+                                            spinType=float,
                                                callback=self.replot)
 
         gui.rubber(self.controlArea)
@@ -424,3 +426,7 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.send("Coefficients", coefficients_table)
         else:
             self.send("Coefficients", None)
+
+    def add_bottom_buttons(self):
+        box = gui.hBox(self.controlArea, True)
+        box.layout().addWidget(self.report_button)
