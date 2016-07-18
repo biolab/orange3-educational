@@ -40,6 +40,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     icon = "icons/polyclassification.svg"
     want_main_area = True
     resizing_enabled = True
+    send_report = True
 
     # inputs and outputs
     inputs = [("Data", Table, "set_data"),
@@ -268,7 +269,6 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         self.scatter.chart(options, **kwargs)
         elapsed_time = time.time() - start_time
-        print(elapsed_time)
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -320,14 +320,13 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function constructs contour lines
         """
-        start_time = time.time()
+
         contour = Contour(x, y, self.probabilities_grid)
         contour_lines = contour.contours(
             np.hstack(
                 (np.arange(0.5, 0, - self.contour_step)[::-1],  # we want to have contour for 0.5
                  np.arange(0.5 + self.contour_step, 1, self.contour_step))))
-        elapsed_time = time.time() - start_time
-        print("cont", elapsed_time)
+
         series = []
         for key, value in contour_lines.items():
             for line in value:
@@ -347,7 +346,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     @staticmethod
     def blur_grid(grid):
         filtered = gaussian_filter(grid, sigma=1)
-        filtered[grid == 0.5] = 0.5
+        filtered[(grid > 0.45) & (grid < 0.55)] = grid[(grid > 0.45) & (grid < 0.55)]
         return filtered
 
     @staticmethod
@@ -438,5 +437,4 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.send("Coefficients", None)
 
     def add_bottom_buttons(self):
-        box = gui.hBox(self.controlArea, True)
-        box.layout().addWidget(self.report_button)
+        pass
