@@ -1,4 +1,3 @@
-import time
 from Orange.data import ContinuousVariable, Table, Domain, StringVariable
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
@@ -68,6 +67,8 @@ class OWPolyinomialClassification(OWBaseLearner):
     data = None
     selected_data = None
     probabilities_grid = None
+    xv = None
+    yv = None
 
     # learners
     LEARNER = LogisticRegressionLearner
@@ -89,6 +90,16 @@ class OWPolyinomialClassification(OWBaseLearner):
     grid_size = 30
     colors = ['#2f7ed8', '#D32525']  # colors taken from highcharts.options.colors
     contour_color = "#1f1f1f"
+
+    # layout elements
+    options_box = None
+    cbx = None
+    cby = None
+    degree_spin = None
+    plot_properties_box = None
+    contours_enabled_checkbox = None
+    contour_step_slider = None
+    scatter = None
 
     def add_main_layout(self):
 
@@ -119,16 +130,16 @@ class OWPolyinomialClassification(OWBaseLearner):
                                                       label="Show contours",
                                                       callback=self.plot_contour)
         self.contour_step_slider = gui.spin(self.plot_properties_box,
-                                               self,
-                                               'contour_step',
-                                               minv=0.05,
-                                               maxv=0.50,
-                                               step=0.05,
+                                            self,
+                                            'contour_step',
+                                            minv=0.05,
+                                            maxv=0.50,
+                                            step=0.05,
 
-                                               label='Contour step:',
+                                            label='Contour step:',
                                             decimals=2,
                                             spinType=float,
-                                               callback=self.plot_contour)
+                                            callback=self.plot_contour)
 
         gui.rubber(self.controlArea)
 
@@ -136,9 +147,9 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.scatter = Scatterplot(Axis_gridLineWidth=0,
                                    yAxis_gridLineWidth=0,
                                    yAxis_startOnTick=False,
-                                   yAxis_endOnTick= False,
+                                   yAxis_endOnTick=False,
                                    xAxis_startOnTick=False,
-                                   xAxis_endOnTick= False,
+                                   xAxis_endOnTick=False,
                                    xAxis_lineWidth=0,
                                    yAxis_lineWidth=0,
                                    yAxis_tickWidth=1,
@@ -228,8 +239,9 @@ class OWPolyinomialClassification(OWBaseLearner):
         Function init learner and add preprocessors to learner
         """
         self.learner = copy.deepcopy(self.learner_other) or self.LEARNER(penalty='l2', C=1e10)
-        self.learner.preprocessors = (self.preprocessors or []) + (self.learner.preprocessors or []) \
-                                     + [self.default_preprocessor(self.degree)]
+        self.learner.preprocessors = ((self.preprocessors or []) +
+                                      (self.learner.preprocessors or []) +
+                                      [self.default_preprocessor(self.degree)])
         self.apply()
 
     def set_empty_plot(self):
@@ -242,7 +254,6 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph
         """
-        start_time = time.time()
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
         data_y = [v[0] for v in self.data[:, attr_y]]
@@ -262,7 +273,7 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         # data points
         options['series'] += [dict(data=[list(p.attributes())
-                                            for p in self.selected_data if int(p.get_class()) == _class],
+                                         for p in self.selected_data if int(p.get_class()) == _class],
                                    type="scatter",
                                    zIndex=10,
                                    color=self.colors[_class],
@@ -277,7 +288,7 @@ class OWPolyinomialClassification(OWBaseLearner):
             yAxis_min=min_y,
             yAxis_max=max_y,
 
-            plotOptions_contour_colsize=(max_y- min_y) / 1000,
+            plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
@@ -329,9 +340,9 @@ class OWPolyinomialClassification(OWBaseLearner):
         Function constructs background gradient
         """
         return [dict(data=[[x[j, k], y[j, k], grid[j, k]] for j in range(len(x))
-                          for k in range(y.shape[1])],
-                        grid_width=self.grid_size,
-                        type="contour")]
+                           for k in range(y.shape[1])],
+                     grid_width=self.grid_size,
+                     type="contour")]
 
     def plot_contour(self):
         """
@@ -447,7 +458,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         if model is not None and hasattr(model, "coef_"):
             domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
                             metas=[StringVariable("name")])
-            coefficients = model.intercept_.tolist()  + model.coef_[0].tolist()
+            coefficients = model.intercept_.tolist() + model.coef_[0].tolist()
             names = [x for x in range(len(coefficients))]
             coefficients_table = Table(domain, list(zip(coefficients, names)))
             self.send("Coefficients", coefficients_table)
