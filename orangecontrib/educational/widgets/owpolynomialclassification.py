@@ -33,6 +33,21 @@ class Scatterplot(highcharts.Highchart):
                          javascript=contour_js,
                          **kwargs)
 
+    def remove_contours(self):
+        self.evalJS("""
+            for(i=0;i<chart.series.length;i++){
+                if(chart.series[i].type == "spline")
+                    chart.series[i].remove();
+            }""")
+
+    def add_series(self, series):
+        for i, s in enumerate(series):
+            self.exposeObject('series%d' % i, series[i])
+            self.evalJS("chart.addSeries(series%d, false);" % i)
+        self.evalJS("chart.redraw();")
+
+
+
 
 class OWPolyinomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
@@ -100,7 +115,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.plot_properties_box = gui.widgetBox(self.controlArea, "Plot Properties")
         self.contours_enabled_checkbox = gui.checkBox(self.plot_properties_box, self, 'contours_enabled',
                                                       label="Show contours",
-                                                      callback=self.replot)
+                                                      callback=self.plot_contour)
         self.contour_step_slider = gui.spin(self.plot_properties_box,
                                                self,
                                                'contour_step',
@@ -268,7 +283,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
-        elapsed_time = time.time() - start_time
+        self.plot_contour()
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -294,18 +309,18 @@ class OWPolyinomialClassification(OWBaseLearner):
         # grid for gradient
         x = np.linspace(x_from, x_to, self.grid_size)
         y = np.linspace(y_from, y_to, self.grid_size)
-        xv, yv = np.meshgrid(x, y)
+        self.xv, self.yv = np.meshgrid(x, y)
 
         # parameters to predict from grid
-        attr = np.hstack((xv.reshape((-1, 1)), yv.reshape((-1, 1))))
+        attr = np.hstack((self.xv.reshape((-1, 1)), self.yv.reshape((-1, 1))))
         attr_data = Table(self.selected_data.domain, attr, np.array([[None]] * len(attr)))
 
         # results
-        self.probabilities_grid = self.model(attr_data, 1)[:, 1].reshape(xv.shape)
+        self.probabilities_grid = self.model(attr_data, 1)[:, 1].reshape(self.xv.shape)
 
         blurred = self.blur_grid(self.probabilities_grid)
 
-        return self.plot_gradient(xv, yv, blurred) + (self.plot_contour(xv, yv) if self.contours_enabled else [])
+        return self.plot_gradient(self.xv, self.yv, blurred)
 
     def plot_gradient(self, x, y, grid):
         """
@@ -316,32 +331,32 @@ class OWPolyinomialClassification(OWBaseLearner):
                         grid_width=self.grid_size,
                         type="contour")]
 
-    def plot_contour(self, x, y):
+    def plot_contour(self):
         """
         Function constructs contour lines
         """
+        self.scatter.remove_contours()
+        if self.contours_enabled:
+            contour = Contour(self.xv, self.yv, self.probabilities_grid)
+            contour_lines = contour.contours(
+                np.hstack(
+                    (np.arange(0.5, 0, - self.contour_step)[::-1],  # we want to have contour for 0.5
+                     np.arange(0.5 + self.contour_step, 1, self.contour_step))))
 
-        contour = Contour(x, y, self.probabilities_grid)
-        contour_lines = contour.contours(
-            np.hstack(
-                (np.arange(0.5, 0, - self.contour_step)[::-1],  # we want to have contour for 0.5
-                 np.arange(0.5 + self.contour_step, 1, self.contour_step))))
+            series = []
+            for key, value in contour_lines.items():
+                for line in value:
 
-        series = []
-        for key, value in contour_lines.items():
-            for line in value:
-
-                series.append(dict(data=self.labeled(line),
-                                   color=self.contour_color,
-                                   type="spline",
-                                   lineWidth=0.5,
-                                   showInLegend=False,
-                                   marker=dict(enabled=False),
-                                   name="%g" % round(key, 2),
-                                   enableMouseTracking=False
-                                   ))
-
-        return series
+                    series.append(dict(data=self.labeled(line),
+                                       color=self.contour_color,
+                                       type="spline",
+                                       lineWidth=0.5,
+                                       showInLegend=False,
+                                       marker=dict(enabled=False),
+                                       name="%g" % round(key, 2),
+                                       enableMouseTracking=False
+                                       ))
+            self.scatter.add_series(series)
 
     @staticmethod
     def blur_grid(grid):
