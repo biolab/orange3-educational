@@ -1,3 +1,4 @@
+import time
 from Orange.data import ContinuousVariable, Table, Domain, StringVariable
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
@@ -8,7 +9,7 @@ from PyQt4.QtGui import QSizePolicy
 from os import path
 from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter
 from orangecontrib.educational.widgets.utils.contour import Contour
-from scipy.interpolate import splprep, splev
+from scipy.ndimage.filters import gaussian_filter
 import copy
 
 
@@ -67,7 +68,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 20
+    grid_size = 30
     colors = ['#2f7ed8', '#D32525']  # colors taken from highcharts.options.colors
     contour_color = "#1f1f1f"
 
@@ -208,7 +209,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function init learner and add preprocessors to learner
         """
-        self.learner = copy.deepcopy(self.learner_other) or self.LEARNER(penalty='l2', C=100)
+        self.learner = copy.deepcopy(self.learner_other) or self.LEARNER(penalty='l2', C=1e10)
         self.learner.preprocessors = (self.preprocessors or []) + (self.learner.preprocessors or []) \
                                      + [self.default_preprocessor(self.degree)]
         self.apply()
@@ -223,6 +224,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph
         """
+        start_time = time.time()
         attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
         data_y = [v[0] for v in self.data[:, attr_y]]
@@ -265,6 +267,8 @@ class OWPolyinomialClassification(OWBaseLearner):
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
+        elapsed_time = time.time() - start_time
+        print(elapsed_time)
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -298,15 +302,16 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         # results
         self.probabilities_grid = self.model(attr_data, 1)[:, 1].reshape(xv.shape)
-        # take probabilities for second class (column 1), to have class 0 prob 0 and class 1 prob 1
 
-        return self.plot_gradient(xv, yv) + (self.plot_contour(xv, yv) if self.contours_enabled else [])
+        blurred = self.blur_grid(self.probabilities_grid)
 
-    def plot_gradient(self, x, y):
+        return self.plot_gradient(xv, yv, blurred) + (self.plot_contour(xv, yv) if self.contours_enabled else [])
+
+    def plot_gradient(self, x, y, grid):
         """
         Function constructs background gradient
         """
-        return [dict(data=[[x[j, k], y[j, k], self.probabilities_grid[j, k]] for j in range(len(x))
+        return [dict(data=[[x[j, k], y[j, k], grid[j, k]] for j in range(len(x))
                           for k in range(y.shape[1])],
                         grid_width=self.grid_size,
                         type="contour")]
@@ -315,23 +320,19 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function constructs contour lines
         """
+        start_time = time.time()
         contour = Contour(x, y, self.probabilities_grid)
         contour_lines = contour.contours(
             np.hstack(
                 (np.arange(0.5, 0, - self.contour_step)[::-1],  # we want to have contour for 0.5
                  np.arange(0.5 + self.contour_step, 1, self.contour_step))))
-
+        elapsed_time = time.time() - start_time
+        print("cont", elapsed_time)
         series = []
         for key, value in contour_lines.items():
             for line in value:
-                if len(line) > 3:  # if less than 3 line can not be interpolated
-                    tck, u = splprep([list(x) for x in zip(*reversed(line))], s=1)
-                    new_int = np.arange(0, 1.01, 0.01)
-                    interpolated_line = np.array(splev(new_int, tck)).T.tolist()
-                else:
-                    interpolated_line = line
 
-                series.append(dict(data=self.labeled(interpolated_line),
+                series.append(dict(data=self.labeled(line),
                                    color=self.contour_color,
                                    type="spline",
                                    lineWidth=0.5,
@@ -340,7 +341,14 @@ class OWPolyinomialClassification(OWBaseLearner):
                                    name="%g" % round(key, 2),
                                    enableMouseTracking=False
                                    ))
+
         return series
+
+    @staticmethod
+    def blur_grid(grid):
+        filtered = gaussian_filter(grid, sigma=1)
+        filtered[grid == 0.5] = 0.5
+        return filtered
 
     @staticmethod
     def labeled(data):

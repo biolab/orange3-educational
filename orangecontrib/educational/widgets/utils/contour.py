@@ -5,20 +5,30 @@ class Contour:
 
     # look corners table from https://en.wikipedia.org/wiki/Marching_squares#Isoline
     # corners table is coded as move in clockwise direction
-    corners = {
-        1: {"to": [1, 0.5], "from": [0.5, 0]},   # D
-        2: {"to": [0.5, 1], "from": [1, 0.5]},   # R
-        3: {"to": [0.5, 1], "from": [0.5, 0]},   # R
-        4: {"to": [0, 0.5], "from": [0.5, 1]},   # U
-        6: {"to": [0, 0.5], "from": [1, 0.5]},   # U
-        7: {"to": [0, 0.5], "from": [0.5, 0]},   # U
-        8: {"to": [0.5, 0], "from": [0, 0.5]},   # L
-        9: {"to": [1, 0.5], "from": [0, 0.5]},   # D
-        11: {"to": [0.5, 1], "from": [0, 0.5]},  # R
-        12: {"to": [0.5, 0], "from": [0.5, 1]},  # L
-        13: {"to": [1, 0.5], "from": [0.5, 1]},  # D
-        14: {"to": [0.5, 0], "from": [1, 0.5]}   # L
+    moves = {
+        1: {"to": [1, 0], "from": [0, -1]},   # D
+        2: {"to": [0, 1], "from": [1, 0]},   # R
+        3: {"to": [0, 1], "from": [0, -1]},   # R
+        4: {"to": [-1, 0], "from": [0, 1]},   # U
+        6: {"to": [-1, 0], "from": [1, 0]},   # U
+        7: {"to": [-1, 0], "from": [0, -1]},   # U
+        8: {"to": [0, -1], "from": [-1, 0]},   # L
+        9: {"to": [1, 0], "from": [-1, 0]},   # D
+        11: {"to": [0, 1], "from": [-1, 0]},  # R
+        12: {"to": [0, -1], "from": [0, 1]},  # L
+        13: {"to": [1, 0], "from": [0, 1]},  # D
+        14: {"to": [0, -1], "from": [1, 0]}   # L
     }
+
+    moves_up = [4, 6, 7]
+    moves_down = [1, 9, 13]
+    moves_left = [8, 12, 14]
+    moves_right = [2, 3, 11]
+
+    from_up = [8, 9, 11]
+    from_down = [2, 6, 14]
+    from_left = [1, 3, 7]
+    from_right = [4, 12, 13]
 
     def __init__(self, x, y, z):
         self.x = np.array(x)
@@ -35,7 +45,6 @@ class Contour:
         return contours
 
     def find_contours(self, threshold):
-        print(threshold)
         contours = []
         bitmap = (self.z > threshold).astype(int)
         self.visited = np.zeros(self.z.shape, dtype=bool)
@@ -43,36 +52,37 @@ class Contour:
         for i in range(bitmap.shape[0] - 1):
             # left
             if self.corner_idx(bitmap[i:i+2, 0:2]) in [1, 3, 5, 7] and not self.visited[i, 0]:
-                contours.append(self.find_contour_path(bitmap, i, 0))
+                contours.append(self.find_contour_path(bitmap, i, 0, threshold))
             # right
             if self.corner_idx(bitmap[i:i+2, bitmap.shape[1]-2:bitmap.shape[1]]) in [4, 5, 12, 13] \
                     and not self.visited[i, bitmap.shape[1]-2]:
-                contours.append(self.find_contour_path(bitmap, i, bitmap.shape[1]-2))
+                contours.append(self.find_contour_path(bitmap, i, bitmap.shape[1]-2, threshold))
 
         for j in range(bitmap.shape[1] - 1):
             # top
             if self.corner_idx(bitmap[0:2, j:j+2]) in [8, 9, 10, 11] and not self.visited[0, j]:
-                contours.append(self.find_contour_path(bitmap, 0, j))
+                contours.append(self.find_contour_path(bitmap, 0, j, threshold))
             # bottom
             if self.corner_idx(bitmap[bitmap.shape[0]-2:bitmap.shape[0], j:j+2]) in [2, 6, 10, 14] \
                     and not self.visited[bitmap.shape[0]-2, j]:
-                contours.append(self.find_contour_path(bitmap, bitmap.shape[0]-2, j))
+                contours.append(self.find_contour_path(bitmap, bitmap.shape[0]-2, j, threshold))
 
-        for i in range(bitmap.shape[0] - 1):
-            for j in range(bitmap.shape[1] - 1):
+        nonzero_lines = np.nonzero(bitmap.shape[1] - 1 - np.sum(bitmap[:-1, :], axis=0))[0].tolist()
+        for i in nonzero_lines:
+            for j in range(0, bitmap.shape[1] - 1, 2):
                 if self.corner_idx(bitmap[i:i+2, j:j+2]) not in [0, 15] and not self.visited[i, j]:
-                    contours.append(self.find_contour_path(bitmap, i, j))
+                    contours.append(self.find_contour_path(bitmap, i, j, threshold))
         return contours
 
-    def find_contour_path(self, bitmap, start_i, start_j):
+    def find_contour_path(self, bitmap, start_i, start_j, threshold):
         i, j = start_i, start_j
-        path = [self.to_real_coordinate(self.start_point(bitmap[i:i+2, j:j+2], np.array([i, j])).tolist())]
+        path = [self.to_real_coordinate(self.start_point(bitmap[i:i+2, j:j+2], np.array([i, j]), threshold).tolist())]
 
         previous_position = None
         while 0 <= i < bitmap.shape[0] - 1 \
                 and 0 <= j < bitmap.shape[1] - 1\
                 and not self.visited[i, j]:  # if visited true then cycle
-            new_p = (self.new_point(bitmap[i:i+2, j:j+2], np.array(previous_position), np.array([i, j]))).tolist()
+            new_p = (self.new_point(bitmap[i:i+2, j:j+2], previous_position, np.array([i, j]), threshold)).tolist()
             path.append(self.to_real_coordinate(new_p))
 
             previous_position = [i, j]
@@ -88,29 +98,66 @@ class Contour:
                 self.y[y_idx, x_idx] + ((point[0] % 1) * (self.y[y_idx + 1, x_idx] - self.y[y_idx, x_idx])
                 if y_idx + 1 < self.x.shape[0] else 0)]
 
-    @classmethod
-    def new_point(cls, sq, previous, position):
-        con_idx = cls.corner_idx(sq)
+    def new_point(self, sq, previous, position, threshold):
+        con_idx = self.corner_idx(sq)
         if con_idx == 5:
-            if previous is None:
-                return position + np.array([0 if position[1] == 0 else 1, 0.5])  # on left edge 0 every time, same right
-            return position + np.array([(0 if previous[1] + 1 == position[1] else 1), 0.5])
+            goes_top = ((previous is None and position[1] == 0)
+                        or (previous is not None and (previous[1] + 1 == position[1])))
+            heat_from = self.z[position[0] + (0 if goes_top else 1), position[1]]
+            heat_to =  self.z[position[0] + (0 if goes_top else 1), position[1] + 1]
+            return position + np.array(
+                [(0 if goes_top else 1),
+                 self.triangulate(threshold, heat_from, heat_to)])
         elif con_idx == 10:
-            if previous is None:
-                return position + np.array([0.5, 1 if position[0] == 0 else 0])  # on top edge 1 every time, same bottom
-            return position + np.array([0.5, (1 if previous is None or previous[0] + 1 == position[0] else 0)])
+            goes_right = ((previous is None and position[0] == 0) or
+                          (previous is not None and  (previous[0] + 1 == position[0])))
+            heat_from = self.z[position[0], position[1] + (1 if goes_right else 0)]
+            heat_to =  self.z[position[0] + 1, position[1] + (1 if goes_right else 0)]
+            return position + np.array(
+                [self.triangulate(threshold, heat_from, heat_to),
+                 (1 if goes_right else 0)])
         else:
-            return position + np.array(cls.corners[con_idx]['to'])
+            move_dimension = 0 if self.moves[con_idx]['to'][0] == 0 else 1
+            pos = (position + np.array(self.moves[con_idx]['to']).clip(min=0)).astype(float)
+            heat_from = self.z[
+                (position[0] + 1 if con_idx in self.moves_down else position[0]),
+                (position[1] + 1 if con_idx in self.moves_right else position[1])]
+            heat_to = self.z[
+                (position[0] if con_idx in self.moves_up else position[0] + 1),
+                (position[1] if con_idx in self.moves_left else position[1] + 1)]
+            pos[move_dimension] += self.triangulate(threshold, heat_from, heat_to)
+            return pos
 
-    @classmethod
-    def start_point(cls, sq, position):
-        con_idx = cls.corner_idx(sq)
+    @staticmethod
+    def triangulate(threshold, heat_from, heat_to):
+        return ((threshold - heat_from) / (heat_to - heat_from)) \
+                if heat_from < heat_to else \
+                (1 - (threshold - heat_to) / (heat_from - heat_to))
+
+    def start_point(self, sq, position, threshold):
+        con_idx = self.corner_idx(sq)
         if con_idx == 5:
-            return position + np.array([0.5 , 0 if position[1] == 0 else 1])  # on left edge 0 every time, same right
+            from_left = position[1] == 0
+            heat_from = self.z[position[0], position[1] + (0 if from_left else 1)]
+            heat_to =  self.z[position[0] + 1, position[1] + (0 if from_left else 1)]
+            return position + np.array([self.triangulate(threshold,heat_from, heat_to),
+                                        0 if from_left  else 1])  # on left edge 0 every time, same right
         elif con_idx == 10:
-            return position + np.array([0 if position[0] == 0 else 1, 0.5])  # on top edge 1 every time, same bottom
+            from_top = position[0] == 0
+            heat_from = self.z[position[0] + (0 if from_top else 1), position[1]]
+            heat_to =  self.z[position[0] + (0 if from_top else 1), position[1] + 1]
+            return position + np.array([0 if from_top else 1, 0.5])  # on top edge 1 every time, same bottom
         else:
-            return position + np.array(cls.corners[con_idx]['from'])
+            move_dimension = 0 if self.moves[con_idx]['from'][0] == 0 else 1
+            pos = (position + np.array(self.moves[con_idx]['from']).clip(min=0)).astype(float)
+            heat_from = self.z[
+                (position[0] + 1 if con_idx in self.from_down else position[0]),
+                (position[1] + 1 if con_idx in self.from_right else position[1])]
+            heat_to = self.z[
+                (position[0] if con_idx in self.from_up else position[0] + 1),
+                (position[1] if con_idx in self.from_left else position[1] + 1)]
+            pos[move_dimension] += self.triangulate(threshold, heat_from, heat_to)
+            return pos
 
     @classmethod
     def new_position(cls, sq, previous, position):
@@ -120,9 +167,7 @@ class Contour:
         elif con_idx == 10:
             return position + np.array([0, (1 if previous is None or previous[0] + 1 == position[0] else -1)])
         else:
-            return position - (np.array(cls.corners[con_idx]['to']) == 0).astype(int)\
-                   + (np.array(cls.corners[con_idx]['to']) == 1).astype(int)
-            # move in position up/left if 0 in array or right/down if 1
+            return position + cls.moves[con_idx]['to']
 
     @staticmethod
     def corner_idx(sq):
