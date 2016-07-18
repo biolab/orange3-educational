@@ -36,6 +36,7 @@ class OWUnivariateRegression(OWBaseLearner):
     y_var_index = settings.ContextSetting(1)
 
     want_main_area = True
+    graph_name = 'Regression graph'
 
     def add_main_layout(self):
 
@@ -246,7 +247,7 @@ class OWUnivariateRegression(OWBaseLearner):
             self.send("Coefficients", None)
 
     def add_bottom_buttons(self):
-        return
+        pass
 
 
 
