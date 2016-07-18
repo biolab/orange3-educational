@@ -12,6 +12,7 @@ Widgets
    :maxdepth: 1
 
    widgets/kmeans
+   widgets/univariatepolynomialregression
 
 Indices and tables
 ==================
