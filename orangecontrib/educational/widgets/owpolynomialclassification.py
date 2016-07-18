@@ -35,18 +35,20 @@ class Scatterplot(highcharts.Highchart):
 
     def remove_contours(self):
         self.evalJS("""
-            for(i=0;i<chart.series.length;i++){
+            for(i=chart.series.length - 1; i >= 0; i--){
                 if(chart.series[i].type == "spline")
-                    chart.series[i].remove();
+                {
+                    chart.series[i].remove(false);
+                }
             }""")
 
     def add_series(self, series):
         for i, s in enumerate(series):
             self.exposeObject('series%d' % i, series[i])
             self.evalJS("chart.addSeries(series%d, false);" % i)
+
+    def redraw_series(self):
         self.evalJS("chart.redraw();")
-
-
 
 
 class OWPolyinomialClassification(OWBaseLearner):
@@ -126,7 +128,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                                label='Contour step:',
                                             decimals=2,
                                             spinType=float,
-                                               callback=self.replot)
+                                               callback=self.plot_contour)
 
         gui.rubber(self.controlArea)
 
@@ -357,6 +359,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                        enableMouseTracking=False
                                        ))
             self.scatter.add_series(series)
+        self.scatter.redraw_series()
 
     @staticmethod
     def blur_grid(grid):
