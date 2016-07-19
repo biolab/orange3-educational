@@ -373,10 +373,11 @@ class OWPolyinomialClassification(OWBaseLearner):
                      np.arange(0.5 + self.contour_step, 1, self.contour_step))))
 
             series = []
+            count = 0
             for key, value in contour_lines.items():
                 for line in value:
 
-                    series.append(dict(data=self.labeled(line),
+                    series.append(dict(data=self.labeled(line, count),
                                        color=self.contour_color,
                                        type="spline",
                                        lineWidth=0.5,
@@ -385,6 +386,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                        name="%g" % round(key, 2),
                                        enableMouseTracking=False
                                        ))
+                    count += 1
             self.scatter.add_series(series)
         self.scatter.redraw_series()
 
@@ -395,11 +397,12 @@ class OWPolyinomialClassification(OWBaseLearner):
         return filtered
 
     @staticmethod
-    def labeled(data):
+    def labeled(data, no):
         """
         Function labels data with contour levels
         """
-        point = 1  # we will add this label on the first point
+        point = (no * 5) % len(data)  # we will add this label on the first point
+        point = point + (1 if point == 0 else 0)
         data[point] = dict(
             x=data[point][0],
             y=data[point][1],
