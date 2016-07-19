@@ -179,3 +179,107 @@ class TestOWKmeans(GuiTest):
 
         np.testing.assert_equal(before_centroids, after_centroids)
         np.testing.assert_equal(before_clusters, after_clusters)
+
+    def test_restart(self):
+        self.widget.set_data(self.data)
+        kmeans_before = self.widget.k_means
+        self.widget.restart_button.click()
+
+        # check if instantiated new k-means
+        self.assertNotEqual(self.widget.k_means, kmeans_before)
+        self.assertEqual(self.widget.k_means.step_no, 0)
+        self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
+
+    def test_button_text_change(self):
+        self.widget.set_data(self.data)
+        self.widget.centroid_numbers_spinner.setValue(4)
+        self.widget.button_text_change()
+        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step2"])
+        self.assertEqual(self.widget.step_back_button.isEnabled(), False)
+
+        self.widget.step_button.click()
+        self.widget.button_text_change()
+        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step1"])
+        self.assertEqual(self.widget.step_back_button.isEnabled(), True)
+
+        self.widget.auto_play_button.click()
+        self.widget.button_text_change()
+        self.assertEqual(self.widget.step_back_button.isEnabled(), False)
+        self.widget.auto_play_button.click()  # stop autoplay
+        self.widget.button_text_change()
+        self.assertEqual(self.widget.step_back_button.isEnabled(), True)
+
+    def test_replot(self):
+        self.widget.replot()
+        self.assertEqual(self.widget.scatter.count_replots, 1)  # 1 because graph cleaned on the beginning
+        self.widget.set_data(self.data)
+        self.assertEqual(self.widget.scatter.count_replots, 2)
+        self.widget.step_button.click()
+        self.assertEqual(self.widget.scatter.count_replots, 2)
+        # still 2 because just centroids moved not complete replot
+
+        self.widget.lines_checkbox.nextCheckState()
+        self.assertEqual(self.widget.scatter.count_replots, 3)
+
+        self.widget.step_button.click()
+        self.assertEqual(self.widget.scatter.count_replots, 4)  # complete replot because it is cluster change
+
+        self.widget.step_button.click()
+        self.assertEqual(self.widget.scatter.count_replots, 4)  # just move centroids
+
+    def test_number_of_clusters_change(self):
+        # provide less data than clusters to check if k-menas initiated after that
+        self.widget.centroid_numbers_spinner.setValue(5)
+        self.widget.set_data(self.data[:3])
+        self.widget.centroid_numbers_spinner.setValue(1)
+        self.assertNotEqual(self.widget.k_means, None)
+
+        self.widget.set_data(self.data)
+        self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
+        self.widget.centroid_numbers_spinner.setValue(1)  # ok if number of clusters unchanged
+        self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
+        self.widget.centroid_numbers_spinner.setValue(5)
+        self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
+        self.widget.centroid_numbers_spinner.setValue(3)
+        self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
+
+    def test_send_data(self):
+        self.widget.send_data()
+        # some test will be added after output check enabled in testGui
+
+    def test_replot_series(self):
+        self.widget.set_data(self.data)
+        self.assertEqual(self.widget.scatter.count_replots, 2)
+        self.widget.replot_series()
+        self.assertEqual(self.widget.scatter.count_replots, 2)
+        # still 2 because just centroids moved not complete replot
+
+        self.widget.replot_series()
+        self.assertEqual(self.widget.scatter.count_replots, 2)
+
+        self.widget.lines_checkbox.nextCheckState()
+        self.widget.replot_series()
+        self.assertEqual(self.widget.scatter.count_replots, 3)  # 3 because of nextState
+
+        self.widget.replot_series()
+        self.assertEqual(self.widget.scatter.count_replots, 3)
+
+    def test_scatter_chart_clicked(self):
+        self.widget.set_data(self.data)
+        self.widget.centroid_numbers_spinner.setValue(1)
+        self.widget.scatter.chart_clicked(1, 2)
+
+        self.assertEqual(self.widget.k_means.k, 2)
+
+        self.widget.set_data(None)
+        self.widget.scatter.chart_clicked(1, 2)
+        self.assertEqual(self.widget.k_means.k, 2)  # no changes when no data
+
+    def test_scatter_point_dropped(self):
+        self.widget.set_data(self.data)
+        self.widget.centroid_numbers_spinner.setValue(1)
+        self.widget.scatter.point_dropped(0, 1, 2)
+
+        self.assertEqual(self.widget.k_means.k, 1)
+
+        self.assertEqual(self.widget.k_means.centroids[0].tolist(), [1, 2])

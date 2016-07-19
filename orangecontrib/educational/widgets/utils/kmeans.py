@@ -43,10 +43,16 @@ class Kmeans:
         """
         Function check if algorithm already converged
         """
-        if len(self.centroids_history) == 0 or len(self.centroids) != len(self.centroids_history[-1]):
+        if len(self.centroids_history) <= 1 or len(self.centroids) != len(self.centroids_history[-1])\
+                or not self.step_completed:
             return False
-        dist = (np.sum(np.sqrt(np.sum(np.power((self.centroids - self.centroids_history[-1]), 2), axis=1))) /
-                len(self.centroids))
+        dist = (np.sum(
+            np.sqrt(np.sum(
+                np.power(
+                    (self.centroids - self.centroids_history[self.step_no - 2]),
+                    2),
+                axis=1))) / len(self.centroids))
+
         return dist < self.threshold or self.step_no > self.max_iter
 
     @property
