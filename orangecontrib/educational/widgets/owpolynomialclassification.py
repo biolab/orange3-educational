@@ -132,7 +132,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         self.contour_step_slider = gui.spin(self.plot_properties_box,
                                             self,
                                             'contour_step',
-                                            minv=0.05,
+                                            minv=0.10,
                                             maxv=0.50,
                                             step=0.05,
 
