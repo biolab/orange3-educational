@@ -1,4 +1,4 @@
-from Orange.data import ContinuousVariable, Table, Domain, StringVariable
+from Orange.data import ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
@@ -80,6 +80,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     # widget properties
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
+    target_class = settings.Setting('')
     degree = settings.Setting(1)
     contours_enabled = settings.Setting(True)
     contour_step = settings.Setting(0.1)
@@ -88,7 +89,8 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     # settings
     grid_size = 30
-    colors = ['#2f7ed8', '#D32525']  # colors taken from highcharts.options.colors
+    colors = ["#1F7ECA", "#D32525", "#28D825", "#D5861F", "#98257E",
+              "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]  # taken from highcharts.options.colors
     contour_color = "#1f1f1f"
 
     # layout elements
@@ -115,6 +117,11 @@ class OWPolyinomialClassification(OWBaseLearner):
                                 orientation='horizontal',
                                 callback=self.apply,
                                 sendSelectedValue=True)
+        self.target_class_combobox = gui.comboBox(self.options_box, self, 'target_class',
+                                                  label='Target class:',
+                                                  orientation='horizontal',
+                                                  callback=self.apply,
+                                                  sendSelectedValue=True)
         self.degree_spin = gui.spin(self.options_box, self, 'degree',
                                     minv=1,
                                     maxv=5,
@@ -123,6 +130,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                     callback=self.init_learner)
         self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
+        self.target_class_combobox.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
 
         # plot properties box
         self.plot_properties_box = gui.widgetBox(self.controlArea, "Plot Properties")
@@ -200,6 +208,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         def reset_combos():
             self.cbx.clear()
             self.cby.clear()
+            self.target_class_combobox.clear()
 
         def init_combos():
             """
@@ -210,6 +219,9 @@ class OWPolyinomialClassification(OWBaseLearner):
                 if var.is_primitive() and var.is_continuous:
                     self.cbx.addItem(gui.attributeIconDict[var], var.name)
                     self.cby.addItem(gui.attributeIconDict[var], var.name)
+
+            for var in data.domain.class_var.values:
+                self.target_class_combobox.addItem(var)
 
         self.warning(1)  # remove warning about too less continuous attributes if exists
 
@@ -224,14 +236,11 @@ class OWPolyinomialClassification(OWBaseLearner):
             reset_combos()
             self.warning(1, "No class provided")
             self.set_empty_plot()
-        elif len(data.domain.class_var.values) > 2:
-            reset_combos()
-            self.warning(1, "Too much classes. Max 2 required")
-            self.set_empty_plot()
         else:
             init_combos()
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
+            self.target_class = self.target_class_combobox.itemText(0)
             self.apply()
 
     def init_learner(self):
@@ -272,12 +281,16 @@ class OWPolyinomialClassification(OWBaseLearner):
         options['series'] += self.plot_gradient_and_contour(min_x, max_x, min_y, max_y)
 
         # data points
+        target_class_index = self.data.domain.class_var.values.index(self.target_class)
+        classes = ([target_class_index] +
+                   [i for i in range(len(self.data.domain.class_var.values)) if i != target_class_index])
+
         options['series'] += [dict(data=[list(p.attributes())
-                                         for p in self.selected_data if int(p.get_class()) == _class],
+                                         for p in self.selected_data if int(p.metas[0]) == _class],
                                    type="scatter",
                                    zIndex=10,
-                                   color=self.colors[_class],
-                                   showInLegend=False) for _class in [0, 1]]
+                                   color=self.colors[i],
+                                   showInLegend=False) for i, _class in enumerate(classes)]
 
         # highcharts parameters
         kwargs = dict(
@@ -326,7 +339,9 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         # parameters to predict from grid
         attr = np.hstack((self.xv.reshape((-1, 1)), self.yv.reshape((-1, 1))))
-        attr_data = Table(self.selected_data.domain, attr, np.array([[None]] * len(attr)))
+        attr_data = Table(self.selected_data.domain, attr,
+                          np.array([[None]] * len(attr)),
+                          np.array([[None]] * len(attr)))
 
         # results
         self.probabilities_grid = self.model(attr_data, 1)[:, 1].reshape(self.xv.shape)
@@ -397,7 +412,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                 )))
         return data
 
-    def concat_x_y(self):
+    def select_data(self):
         """
         Function takes two selected columns from data table and merge them in new Orange.data.Table
 
@@ -410,10 +425,14 @@ class OWPolyinomialClassification(OWBaseLearner):
         cols = []
         for attr in (attr_x, attr_y):
             subset = self.data[:, attr]
-            cols.append(subset.Y if subset.Y.size else subset.X)
+            cols.append(subset.X)
         x = np.column_stack(cols)
-        domain = Domain([attr_x, attr_y], self.data.domain.class_var)
-        return Table(domain, x, self.data.Y)
+        domain = Domain([attr_x, attr_y],
+                        [DiscreteVariable(name=self.data.domain.class_var.name, values=[self.target_class, 'Others'])],
+                        [self.data.domain.class_var])
+        y = [(0 if d.get_class().value == self.target_class else 1) for d in self.data]
+
+        return Table(domain, x, y, self.data.Y[:, None])
 
     def apply(self):
         """
@@ -437,7 +456,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         Function sends model on widget's output
         """
         if self.data is not None:
-            self.selected_data = self.concat_x_y()
+            self.selected_data = self.select_data()
             self.model = self.learner(self.selected_data)
             self.model.name = self.learner_name
             self.model.instances = self.selected_data
