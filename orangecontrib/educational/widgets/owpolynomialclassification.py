@@ -172,6 +172,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                        min=0,
                                        max=1
                                    ),
+                                   legend=dict(enabled=False),
                                    debug=True)  # TODO: set false when end of development
         # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
