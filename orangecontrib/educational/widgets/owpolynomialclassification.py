@@ -448,20 +448,18 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function sends coefficients on widget's output if model has them
         """
-        model = None
-        if self.model is not None:
-            model = self.model
-            if hasattr(model, "model"):
-                model = model.model
-            elif hasattr(model, "skl_model"):
-                model = model.skl_model
-        if model is not None and hasattr(model, "coef_"):
-            domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
-                            metas=[StringVariable("name")])
-            coefficients = model.intercept_.tolist() + model.coef_[0].tolist()
-            names = [x for x in range(len(coefficients))]
-            coefficients_table = Table(domain, list(zip(coefficients, names)))
-            self.send("Coefficients", coefficients_table)
+
+        if self.model is not None and isinstance(self.learner, LogisticRegressionLearner):
+            model = self.model.skl_model
+            if model is not None and hasattr(model, "coef_"):
+                domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
+                                metas=[StringVariable("name")])
+                coefficients = model.intercept_.tolist() + model.coef_[0].tolist()
+                names = [x for x in range(len(coefficients))]
+                coefficients_table = Table(domain, list(zip(coefficients, names)))
+                self.send("Coefficients", coefficients_table)
+            else:
+                self.send("Coefficients", None)
         else:
             self.send("Coefficients", None)
 
