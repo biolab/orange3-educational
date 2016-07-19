@@ -440,7 +440,7 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.selected_data = self.concat_x_y()
             self.model = self.learner(self.selected_data)
             self.model.name = self.learner_name
-            self.model.instances = self.data
+            self.model.instances = self.selected_data
 
         self.send(self.OUTPUT_MODEL_NAME, self.model)
 
@@ -455,7 +455,12 @@ class OWPolyinomialClassification(OWBaseLearner):
                 domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
                                 metas=[StringVariable("name")])
                 coefficients = model.intercept_.tolist() + model.coef_[0].tolist()
-                names = [x for x in range(len(coefficients))]
+
+                data = self.model.instances
+                for preprocessor in self.learner.preprocessors:
+                    data = preprocessor(data)
+                names = [1] + [x.name for x in data.domain.attributes]
+
                 coefficients_table = Table(domain, list(zip(coefficients, names)))
                 self.send("Coefficients", coefficients_table)
             else:
