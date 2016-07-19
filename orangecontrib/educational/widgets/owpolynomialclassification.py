@@ -406,6 +406,7 @@ class OWPolyinomialClassification(OWBaseLearner):
             dataLabels=dict(
                 enabled=True,
                 format="{series.name}",
+                verticalAlign='middle',
                 style=dict(
                     fontWeight="normal",
                     color=OWPolyinomialClassification.contour_color,
