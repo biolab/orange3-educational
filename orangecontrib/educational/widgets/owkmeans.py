@@ -122,7 +122,7 @@ class OWKmeans(OWWidget):
                ("Centroids", Table)]
 
     # settings
-    numberOfClusters = settings.Setting(1)
+    numberOfClusters = settings.Setting(3)
     autoPlay = False
 
     # data
@@ -135,15 +135,15 @@ class OWKmeans(OWWidget):
     # other settings
     k_means = None
     autoPlaySpeed = settings.Setting(1)
-    lines_to_centroids = settings.Setting(0)
+    lines_to_centroids = settings.Setting(True)
     graph_name = 'scatter'
     outputName = "cluster"
-    button_labels = {"step1": "Reassign membership",
-                     "step2": "Recompute centroids",
-                     "step_back": "Step back",
+    button_labels = {"step1": "Reassign Membership",
+                     "step2": "Recompute Centroids",
+                     "step_back": "Step Back",
                      "autoplay_run": "Run",
                      "autoplay_stop": "Stop",
-                     "random_centroids": "Randomize"}
+                     "random_centroids": "Randomize Positions"}
     colors = ['#2f7ed8', '#0d233a', '#8bbc21', '#910000', '#1aadce',
               '#492970', '#f28f43', '#77a1e5', '#c42525', '#a6c96a']
 
@@ -151,15 +151,15 @@ class OWKmeans(OWWidget):
         super().__init__()
 
         # options box
-        self.optionsBox = gui.widgetBox(self.controlArea)
+        self.optionsBox = gui.widgetBox(self.controlArea, "Data")
         self.cbx = gui.comboBox(self.optionsBox, self, 'attr_x',
-                                label='X:',
+                                label='X: ',
                                 orientation=Qt.Horizontal,
                                 callback=self.restart,
                                 sendSelectedValue=True)
         self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.cby = gui.comboBox(self.optionsBox, self, 'attr_y',
-                                label='Y:',
+                                label='Y: ',
                                 orientation='horizontal',
                                 callback=self.restart,
                                 sendSelectedValue=True)
@@ -173,10 +173,12 @@ class OWKmeans(OWWidget):
                                                maxv=10,
                                                step=1,
                                                label='Number of centroids:',
+                                               alignment=Qt.AlignRight,
                                                callback=self.number_of_clusters_change)
         self.centroidNumbersSpinner.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
         self.restartButton = gui.button(self.centroidsBox, self, self.button_labels["random_centroids"],
                                         callback=self.restart)
+        gui.separator(self.centroidsBox)
         self.linesCheckbox = gui.checkBox(self.centroidsBox,
                                           self,
                                           'lines_to_centroids',
@@ -184,13 +186,14 @@ class OWKmeans(OWWidget):
                                           callback=self.complete_replot)
 
         # control box
-        self.commandsBox = gui.widgetBox(self.controlArea)
+        gui.separator(self.controlArea, 20, 20)
+        self.commandsBox = gui.widgetBox(self.controlArea, "Manually step through")
         self.stepButton = gui.button(self.commandsBox, self, self.button_labels["step2"],
                                      callback=self.step)
         self.stepBackButton = gui.button(self.commandsBox, self, self.button_labels["step_back"],
                                          callback=self.step_back)
-        self.autoPlayButton = gui.button(self.commandsBox, self, self.button_labels["autoplay_run"],
-                                         callback=self.auto_play)
+
+        self.commandsBox = gui.widgetBox(self.controlArea, "Run")
         self.autoPlaySpeedSpinner = gui.hSlider(self.commandsBox,
                                                 self,
                                                 'autoPlaySpeed',
@@ -200,6 +203,9 @@ class OWKmeans(OWWidget):
                                                 intOnly=False,
                                                 createLabel=False,
                                                 label='Speed:')
+        self.autoPlayButton = gui.button(self.commandsBox, self,
+                                         self.button_labels["autoplay_run"],
+                                         callback=self.auto_play)
 
         gui.rubber(self.controlArea)
 
@@ -402,8 +408,8 @@ class OWKmeans(OWWidget):
                                       draggableY=True if self.k_means.step_completed else False,
                                       showInLegend=False,
                                       zIndex=10,
-                                      marker=dict(symbol='diamond',
-                                                  radius=10)))
+                                      marker=dict(symbol='square',
+                                                  radius=6)))
 
         # plot lines between centroids and points
         if self.lines_to_centroids:

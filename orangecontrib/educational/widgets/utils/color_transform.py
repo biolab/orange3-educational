@@ -1,6 +1,6 @@
 def rgb_hash_brighter(hash, percent_brighter):
     r, g, b = hex_to_rgb(hash)
-    brightness_to_add = 255 * percent_brighter / 100
+    brightness_to_add = 255 * percent_brighter // 100
     r, g, b = r + brightness_to_add, g + brightness_to_add, b + brightness_to_add
     return rgb_to_hex(tuple(min(v, 255) for v in (r, g, b)))
 
