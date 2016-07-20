@@ -3,16 +3,16 @@ Polynomial Regression
 
 .. figure:: icons/polynomialregression.png
 
-Educational widgets that interactively shows what regression line is provided for with different regressors.
+Educational widget that interactively shows regression line for different regressors.
 
 Signals
 -------
-Inputs
-~~~~~~
+
+**Inputs**:
 
 - **Data**
 
-Input data set.
+Input data set. It needs at least two continuous attributes.
 
 - **Preprocessor**
 
@@ -20,10 +20,9 @@ Data preprocessors.
 
 - **Learner**
 
-Regression algorithm used in the widget.
+Regression algorithm used in the widget. Default set to Linear Regression.
 
-Outputs
-~~~~~~~
+**Outputs**:
 
 - **Learner**
 
@@ -40,40 +39,45 @@ Regressor coefficients if it has them.
 Description
 -----------
 
-This widget interactively shows regression line using different regressors from Orange3 Regression module provided on
-the input. In widget **Polynomial expansion** can be set. Polynomial expansion is regulation of the degree
-of polynom that is used to transform input data and has an effect on the shape of a curve. If polynomial expansion is
-set to 1 it means that untransformed data are used in regression.
+This widget interactively shows regression line using any of the regressors from *Orange3 Regression* module. 
+In the widget, `polynomial expansion <https://en.wikipedia.org/wiki/Polynomial_expansion>`__ can be set. 
+Polynomial expansion is a regulation of the degree of polynom that is used to transform the input data and has an effect 
+on the shape of a curve. If polynomial expansion is set to 1 it means that untransformed data are used in the regression.
 
-.. figure:: images/polyregressionmain.png
+.. figure:: images/polynomial-regression-stamped.png
 
-1. Provide data with at least two continuous attributes on input. Also provide any regression learner on input (if
-   not provided *Linear Regression* is used.
+1. Regressor name.
 
-3. Open widget and select **Imput** and **Target** feature in a dropdown menu.
+2. *Input*: independent variable on axis x.
 
-2. Select the degree of a polynomial expansion. With changing it you can see the difference between the
-   regression lines with different degree.
+   *Polynomial expansion*: degree of polynomial expansion.
 
-3. **Apply** button chan be used to submit changes on output.
+   *Target*: dependent variable on axis y.
+
+3. *Save Image* saves the image to the computer in a .svg or .png
+   format.
+   
+   *Report* includes widget parameters and visualization in the report.
 
 Example
 -------
 
-With *File* widget we loaded *Iris* data set. We also connect *Linear Regression* learner as show on figure above.
-In widget we selected *petal length* as an **Input** feature and *petal width* as a **Target**.
-We set **Polynomial expansion** to 1 what gives us linear regression line. Result is show on the figure below.
+.. figure:: images/polyregressionmain.png
 
-.. figure:: images/polyregression1.png
+We loaded *iris* data set with the **File** widget. 
+Then we connected **Linear Regression** learner to the **Polynomial Regression** widget.
+In the widget we selected *petal length* as our *Input* variable and *petal width* as our *Target* variable.
+We set *Polynomial expansion* to 1 which gives us a linear regression line. The result is shown on the figure below.
 
-We noticed that line can fit better if we increase **Polynomial expansion** parameter. We set it to 3.
+.. figure:: images/polynomial-regression-exp1.png
 
-.. figure:: images/polyregression2.png
+The line can fit better if we increase the **Polynomial expansion** parameter. Say, we set it to 3.
 
-We decided that results that we got with *Linear Regression* does not satisfy us so we changed the learner with
-*Regression Tree* learner.
+.. figure:: images/polynomial-regression-exp3.png
+
+To observe different results, change **Linear Regression** to any other regression learner from Orange. Example below is done with **Regression Tree** learner.
 
 .. figure:: images/polyregressiontree1.png
 
-.. figure:: images/polyregressiontree2.png
+.. figure:: images/polynomial-regression-tree-exp1.png
 
