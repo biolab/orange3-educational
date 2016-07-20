@@ -82,7 +82,7 @@ class OWPolyinomialClassification(OWBaseLearner):
     attr_y = settings.Setting('')
     target_class = settings.Setting('')
     degree = settings.Setting(1)
-    contours_enabled = settings.Setting(True)
+    contours_enabled = settings.Setting(False)
     contour_step = settings.Setting(0.1)
 
     graph_name = 'scatter'
@@ -204,7 +204,6 @@ class OWPolyinomialClassification(OWBaseLearner):
         data : Table
             Input data
         """
-        self.data = data
 
         def reset_combos():
             self.cbx.clear()
@@ -226,23 +225,33 @@ class OWPolyinomialClassification(OWBaseLearner):
 
         self.warning(1)  # remove warning about too less continuous attributes if exists
 
+        # clear variables
+        self.xv = None
+        self.yv = None
+        self.probabilities_grid = None
+
         if data is None or len(data) == 0:
+            self.data = None
             reset_combos()
             self.set_empty_plot()
         elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
+            self.data = None
             reset_combos()
             self.warning(1, "Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
         elif data.domain.class_var is None or len(data.domain.class_var.values) < 2:
+            self.data = None
             reset_combos()
             self.warning(1, "No class provided or only one class variable")
             self.set_empty_plot()
         else:
+            self.data = data
             init_combos()
             self.attr_x = self.cbx.itemText(0)
             self.attr_y = self.cbx.itemText(1)
             self.target_class = self.target_class_combobox.itemText(0)
-            self.apply()
+
+        self.apply()
 
     def init_learner(self):
         """
@@ -466,6 +475,8 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.model = self.learner(self.selected_data)
             self.model.name = self.learner_name
             self.model.instances = self.selected_data
+        else:
+            self.model = None
 
         self.send(self.OUTPUT_MODEL_NAME, self.model)
 

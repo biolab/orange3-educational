@@ -5,6 +5,7 @@ from Orange.preprocess.preprocess import Continuize, Discretize
 from orangecontrib.educational.widgets.owpolynomialclassification import OWPolyinomialClassification
 from orangecontrib.educational.widgets.utils.polynomialexpansion import PolynomialTransform
 from functools import reduce
+from numpy.testing import assert_array_equal
 
 
 class TestOWPolynomialClassification(WidgetTest):
@@ -177,7 +178,7 @@ class TestOWPolynomialClassification(WidgetTest):
         # set data set again
         self.send_signal("Data", self.iris)
 
-         # widget does not have any problems with that data set so everything should be fine
+        # widget does not have any problems with that data set so everything should be fine
         self.assertEqual(self.widget.cbx.count(), num_continuous_attributes)
         self.assertEqual(self.widget.cby.count(), num_continuous_attributes)
         self.assertEqual(self.widget.target_class_combobox.count(), len(self.iris.domain.class_var.values))
@@ -201,8 +202,8 @@ class TestOWPolynomialClassification(WidgetTest):
 
         # set data with one class variable
         table_one_class = Table(Domain([ContinuousVariable("x"), ContinuousVariable("y")],
-                                      DiscreteVariable("a", values=["k"])),
-                               [[1, 2], [2, 3]], [0, 0])
+                                       DiscreteVariable("a", values=["k"])),
+                                [[1, 2], [2, 3]], [0, 0])
         self.send_signal("Data", table_one_class)
 
         self.assertEqual(self.widget.cbx.count(), 0)
@@ -212,8 +213,8 @@ class TestOWPolynomialClassification(WidgetTest):
 
         # set data with not enough continuous variables
         table_no_enough_cont = Table(Domain([ContinuousVariable("x"), DiscreteVariable("y", values=["a", "b"])],
-                                      ContinuousVariable("a")),
-                               [[1, 0], [2, 1]], [0, 0])
+                                            ContinuousVariable("a")),
+                                     [[1, 0], [2, 1]], [0, 0])
         self.send_signal("Data", table_no_enough_cont)
 
         self.assertEqual(self.widget.cbx.count(), 0)
@@ -278,4 +279,157 @@ class TestOWPolynomialClassification(WidgetTest):
                                self.widget.learner.preprocessors, False))
 
         self.assertFalse(reduce(lambda x, y: x or isinstance(y, preprocessor),
-                               self.widget.learner.preprocessors, False))
+                                self.widget.learner.preprocessors, False))
+
+    def test_replot(self):
+        """
+        Test everything that is possible to test in replot
+        This function tests all replot functions
+        """
+
+        # test nothing happens when no data
+        self.assertIsNone(self.widget.xv)
+        self.assertIsNone(self.widget.yv)
+        self.assertIsNone(self.widget.probabilities_grid)
+
+        # when data available plot happens
+        self.send_signal("Data", self.iris)
+        self.assertIsNotNone(self.widget.xv)
+        self.assertIsNotNone(self.widget.yv)
+        self.assertIsNotNone(self.widget.probabilities_grid)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.probabilities_grid.shape)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.xv.shape)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.yv.shape)
+
+        # check that everything works fine when contours enabled/disabled
+        self.widget.contours_enabled_checkbox.click()
+
+        self.assertIsNotNone(self.widget.xv)
+        self.assertIsNotNone(self.widget.yv)
+        self.assertIsNotNone(self.widget.probabilities_grid)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.probabilities_grid.shape)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.xv.shape)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.yv.shape)
+
+        self.widget.contours_enabled_checkbox.click()
+
+        self.assertIsNotNone(self.widget.xv)
+        self.assertIsNotNone(self.widget.yv)
+        self.assertIsNotNone(self.widget.probabilities_grid)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.probabilities_grid.shape)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.xv.shape)
+        self.assertTupleEqual((self.widget.grid_size, self.widget.grid_size), self.widget.yv.shape)
+
+        # when remove data
+        self.send_signal("Data", None)
+
+        self.assertIsNone(self.widget.xv)
+        self.assertIsNone(self.widget.yv)
+        self.assertIsNone(self.widget.probabilities_grid)
+
+    def test_blur_grid(self):
+        self.send_signal("Data", self.iris)
+        # here we can check that 0.5 remains same
+        assert_array_equal(self.widget.probabilities_grid == 0.5,
+                           self.widget.blur_grid(self.widget.probabilities_grid) == 0.5)
+
+    def test_select_data(self):
+        """
+        Check if select data works properly
+        """
+        self.send_signal("Data", self.iris)
+
+        selected_data = self.widget.select_data()
+        self.assertEqual(len(selected_data.domain.attributes), 2)
+        self.assertIsNotNone(selected_data.domain.class_var)
+        self.assertEqual(len(selected_data.domain.metas), 1)  # meta with information about real cluster
+        self.assertEqual(len(selected_data), len(self.iris))
+
+    def test_send_learner(self):
+        """
+        Test if correct learner on output
+        """
+        self.assertEqual(self.get_output("Learner"), self.widget.learner)
+        self.assertTrue(isinstance(self.get_output("Learner"), self.widget.LEARNER))
+
+        # set new learner
+        learner = TreeLearner
+        self.send_signal("Learner", learner())
+        self.assertEqual(self.get_output("Learner"), self.widget.learner)
+        self.assertTrue(isinstance(self.get_output("Learner"), learner))
+
+        # back to default learner
+        self.send_signal("Learner", None)
+        self.assertEqual(self.get_output("Learner"), self.widget.learner)
+        self.assertTrue(isinstance(self.get_output("Learner"), self.widget.LEARNER))
+
+    def test_update_model(self):
+        """
+        Function check if correct model is on output
+        """
+
+        # when no data
+        self.assertIsNone(self.widget.model)
+        self.assertIsNone(self.get_output("Classifier"))
+
+        # set data
+        self.send_signal("Data", self.iris)
+        self.assertIsNotNone(self.widget.model)
+        self.assertEqual(self.widget.model, self.get_output("Classifier"))
+
+        # remove data
+        self.send_signal("Data", None)
+        self.assertIsNone(self.widget.model)
+        self.assertIsNone(self.get_output("Classifier"))
+
+    def test_send_coefficients(self):
+        """
+        Coefficients are only available if Logistic regression is used
+        """
+
+        # none when no data (model not build)
+        self.assertIsNone(self.get_output("Coefficients"))
+
+        # by default LogisticRegression so coefficients exists
+        self.send_signal("Data", self.iris)
+
+        # to check correctness before degree is changed
+        num_coefficients = sum(i + 1 for i in range(self.widget.degree + 1))
+        self.assertEqual(len(self.get_output("Coefficients")), num_coefficients)
+
+        # change degree
+        for j in range(1, 6):
+            self.widget.degree_spin.setValue(j)
+            num_coefficients = sum(i + 1 for i in range(self.widget.degree + 1))
+            self.assertEqual(len(self.get_output("Coefficients")), num_coefficients)
+
+        # change learner which does not have coefficients
+        learner = TreeLearner
+        self.send_signal("Learner", learner())
+        self.assertIsNone(self.get_output("Coefficients"))
+
+        # remove learner
+        self.send_signal("Learner", None)
+
+        # to check correctness before degree is changed
+        num_coefficients = sum(i + 1 for i in range(self.widget.degree + 1))
+        self.assertEqual(len(self.get_output("Coefficients")), num_coefficients)
+
+        # change degree
+        for j in range(1, 6):
+            self.widget.degree_spin.setValue(j)
+            num_coefficients = sum(i + 1 for i in range(self.widget.degree + 1))
+            self.assertEqual(len(self.get_output("Coefficients")), num_coefficients)
+
+        # manulay set LogisticRegression
+        self.send_signal("Learner", LogisticRegressionLearner())
+
+        # to check correctness before degree is changed
+        num_coefficients = sum(i + 1 for i in range(self.widget.degree + 1))
+        self.assertEqual(len(self.get_output("Coefficients")), num_coefficients)
+
+        # change degree
+        for j in range(1, 6):
+            self.widget.degree_spin.setValue(j)
+            num_coefficients = sum(i + 1 for i in range(self.widget.degree + 1))
+            self.assertEqual(len(self.get_output("Coefficients")), num_coefficients)
