@@ -174,7 +174,7 @@ class OWPolyinomialClassification(OWBaseLearner):
                                    ),
                                    legend=dict(enabled=False),
                                    debug=True)  # TODO: set false when end of development
-        # Just render an empty chart so it shows a nice 'No data to display'
+
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
 
@@ -191,7 +191,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function adds preprocessor when it changed on input
         """
-        self.preprocessors = ((preprocessor,) if preprocessor else ())
+        self.preprocessors = [preprocessor] if preprocessor else []
         self.init_learner()
 
     def set_data(self, data):
@@ -233,9 +233,9 @@ class OWPolyinomialClassification(OWBaseLearner):
             reset_combos()
             self.warning(1, "Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
-        elif data.domain.class_var is None:
+        elif data.domain.class_var is None or len(data.domain.class_var.values) < 2:
             reset_combos()
-            self.warning(1, "No class provided")
+            self.warning(1, "No class provided or only one class variable")
             self.set_empty_plot()
         else:
             init_combos()
@@ -453,6 +453,7 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function sends learner on widget's output
         """
+
         self.learner.name = self.learner_name
         self.send("Learner", self.learner)
 
