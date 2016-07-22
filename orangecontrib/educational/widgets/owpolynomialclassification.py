@@ -1,15 +1,22 @@
-from Orange.data import ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable
+from os import path
+import copy
+
+import numpy as np
+from scipy.ndimage.filters import gaussian_filter
+from PyQt4.QtGui import QSizePolicy
+from PyQt4.QtCore import Qt
+
+from Orange.data import (
+    ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
-import numpy as np
-from orangecontrib.educational.widgets.utils.polynomialexpansion import PolynomialTransform
-from PyQt4.QtGui import QSizePolicy
-from os import path
-from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter
+
+from orangecontrib.educational.widgets.utils.polynomialexpansion \
+    import PolynomialTransform
+from orangecontrib.educational.widgets.utils.color_transform \
+    import rgb_hash_brighter
 from orangecontrib.educational.widgets.utils.contour import Contour
-from scipy.ndimage.filters import gaussian_filter
-import copy
 
 
 class Scatterplot(highcharts.Highchart):
@@ -22,7 +29,9 @@ class Scatterplot(highcharts.Highchart):
     """
 
     def __init__(self, **kwargs):
-        with open(path.join(path.dirname(__file__), 'resources', 'highcharts-contour.js'), 'r') as f:
+        with open(path.join(
+                path.dirname(__file__), 'resources',
+                'highcharts-contour.js'), 'r') as f:
             contour_js = f.read()
 
         super().__init__(enable_zoom=False,
@@ -52,7 +61,8 @@ class Scatterplot(highcharts.Highchart):
 
 class OWPolyinomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
-    description = "Widget that demonstrates classification in two classes with polynomial expansion of attributes."
+    description = "Widget that demonstrates classification in two classes " \
+                  "with polynomial expansion of attributes."
     icon = "icons/polyclassification.svg"
     want_main_area = True
     resizing_enabled = True
@@ -90,7 +100,8 @@ class OWPolyinomialClassification(OWBaseLearner):
     # settings
     grid_size = 30
     colors = ["#1F7ECA", "#D32525", "#28D825", "#D5861F", "#98257E",
-              "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]  # taken from highcharts.options.colors
+              "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]
+    # taken from highcharts.options.colors
     contour_color = "#1f1f1f"
 
     # layout elements
@@ -102,78 +113,58 @@ class OWPolyinomialClassification(OWBaseLearner):
     contours_enabled_checkbox = None
     contour_step_slider = None
     scatter = None
+    target_class_combobox = None
 
     def add_main_layout(self):
 
         # options box
         self.options_box = gui.widgetBox(self.controlArea, "Options")
-        self.cbx = gui.comboBox(self.options_box, self, 'attr_x',
-                                label='X:',
-                                orientation='horizontal',
-                                callback=self.apply,
-                                sendSelectedValue=True)
-        self.cby = gui.comboBox(self.options_box, self, 'attr_y',
-                                label='Y:',
-                                orientation='horizontal',
-                                callback=self.apply,
-                                sendSelectedValue=True)
-        self.target_class_combobox = gui.comboBox(self.options_box, self, 'target_class',
-                                                  label='Target class:',
-                                                  orientation='horizontal',
-                                                  callback=self.apply,
-                                                  sendSelectedValue=True)
-        self.degree_spin = gui.spin(self.options_box, self, 'degree',
-                                    minv=1,
-                                    maxv=5,
-                                    step=1,
-                                    label='Polynomial expansion:',
-                                    callback=self.init_learner)
-        self.cbx.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
-        self.cby.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
-        self.target_class_combobox.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed))
+        opts = dict(
+            widget=self.options_box, master=self, orientation=Qt.Horizontal)
+        opts_combo = dict(opts, **dict(sendSelectedValue=True))
+        policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        self.cbx = gui.comboBox(
+            value='attr_x', label='X: ', callback=self.apply, **opts_combo)
+        self.cby = gui.comboBox(
+            value='attr_y', label='Y: ', callback=self.apply, **opts_combo)
+        self.target_class_combobox = gui.comboBox(
+            value='target_class', label='Target class: ',
+            callback=self.apply, **opts_combo)
+        self.degree_spin = gui.spin(
+            value='degree', label='Polynomial expansion:',
+            minv=1, maxv=5, step=1, callback=self.init_learner, **opts)
+        self.cbx.setSizePolicy(policy)
+        self.cby.setSizePolicy(policy)
+        self.target_class_combobox.setSizePolicy(policy)
 
         # plot properties box
-        self.plot_properties_box = gui.widgetBox(self.controlArea, "Plot Properties")
-        self.contours_enabled_checkbox = gui.checkBox(self.plot_properties_box, self, 'contours_enabled',
-                                                      label="Show contours",
-                                                      callback=self.plot_contour)
-        self.contour_step_slider = gui.spin(self.plot_properties_box,
-                                            self,
-                                            'contour_step',
-                                            minv=0.10,
-                                            maxv=0.50,
-                                            step=0.05,
-
-                                            label='Contour step:',
-                                            decimals=2,
-                                            spinType=float,
-                                            callback=self.plot_contour)
+        self.plot_properties_box = gui.widgetBox(
+            self.controlArea, "Plot Properties")
+        self.contours_enabled_checkbox = gui.checkBox(
+            self.plot_properties_box, self, 'contours_enabled',
+            label="Show contours", callback=self.plot_contour)
+        self.contour_step_slider = gui.spin(
+            self.plot_properties_box, self, 'contour_step',
+            minv=0.10, maxv=0.50, step=0.05, callback=self.plot_contour,
+            label='Contour step:', decimals=2, spinType=float)
 
         gui.rubber(self.controlArea)
 
         # chart
-        self.scatter = Scatterplot(Axis_gridLineWidth=0,
-                                   yAxis_gridLineWidth=0,
-                                   yAxis_startOnTick=False,
-                                   yAxis_endOnTick=False,
-                                   xAxis_startOnTick=False,
-                                   xAxis_endOnTick=False,
-                                   xAxis_lineWidth=0,
-                                   yAxis_lineWidth=0,
-                                   yAxis_tickWidth=1,
-                                   title_text='',
-                                   tooltip_shared=False,
-                                   colorAxis=dict(
-                                       stops=[
-                                           [0, rgb_hash_brighter(self.colors[0], 50)],
-                                           [0.5, '#ffffff'],
-                                           [1, rgb_hash_brighter(self.colors[1], 50)]],
-                                       tickInterval=0.2,
-                                       min=0,
-                                       max=1
-                                   ),
-                                   legend=dict(enabled=False),
-                                   debug=True)  # TODO: set false when end of development
+        self.scatter = Scatterplot(
+            xAxis_gridLineWidth=0, yAxis_gridLineWidth=0,
+            xAxis_startOnTick=False, xAxis_endOnTick=False,
+            yAxis_startOnTick=False, yAxis_endOnTick=False,
+            xAxis_lineWidth=0, yAxis_lineWidth=0,
+            yAxis_tickWidth=1, title_text='', tooltip_shared=False,
+            colorAxis=dict(
+                stops=[
+                    [0, rgb_hash_brighter(self.colors[0], 50)],
+                    [0.5, '#ffffff'],
+                    [1, rgb_hash_brighter(self.colors[1], 50)]],
+                tickInterval=0.2, min=0, max=1),
+            legend=dict(enabled=False),
+            debug=True)  # TODO: set false when end of development
 
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
@@ -196,7 +187,8 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     def set_data(self, data):
         """
-        Function receives data from input and init part of widget if data are ok. Otherwise set empty plot and notice
+        Function receives data from input and init part of widget if data
+        satisfy. Otherwise set empty plot and notice
         user about that
 
         Parameters
@@ -223,7 +215,7 @@ class OWPolyinomialClassification(OWBaseLearner):
             for var in data.domain.class_var.values:
                 self.target_class_combobox.addItem(var)
 
-        self.warning(1)  # remove warning about too less continuous attributes if exists
+        self.warning(1)
 
         # clear variables
         self.xv = None
@@ -234,12 +226,14 @@ class OWPolyinomialClassification(OWBaseLearner):
             self.data = None
             reset_combos()
             self.set_empty_plot()
-        elif sum(True for var in data.domain.attributes if isinstance(var, ContinuousVariable)) < 2:
+        elif sum(True for var in data.domain.attributes
+                 if isinstance(var, ContinuousVariable)) < 2:
             self.data = None
             reset_combos()
             self.warning(1, "Too few Continuous feature. Min 2 required")
             self.set_empty_plot()
-        elif data.domain.class_var is None or len(data.domain.class_var.values) < 2:
+        elif (data.domain.class_var is None or
+              len(data.domain.class_var.values) < 2):
             self.data = None
             reset_combos()
             self.warning(1, "No class provided or only one class variable")
@@ -257,7 +251,8 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function init learner and add preprocessors to learner
         """
-        self.learner = copy.deepcopy(self.learner_other) or self.LEARNER(penalty='l2', C=1e10)
+        self.learner = (copy.deepcopy(self.learner_other) or
+                        self.LEARNER(penalty='l2', C=1e10))
         self.learner.preprocessors = ((self.preprocessors or []) +
                                       (self.learner.preprocessors or []) +
                                       [self.default_preprocessor(self.degree)])
@@ -273,14 +268,16 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph
         """
-        attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
+        attr_x = self.data.domain[self.attr_x]
+        attr_y = self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
         data_y = [v[0] for v in self.data[:, attr_y]]
         min_x = min(data_x)
         max_x = max(data_x)
         min_y = min(data_y)
         max_y = max(data_y)
-        diff_x = (max_x - min_x) if abs(max_x - min_x) > 0.001 else 0.1  # just in cas that diff is 0
+        # just in cas that diff is 0
+        diff_x = (max_x - min_x) if abs(max_x - min_x) > 0.001 else 0.1
         diff_y = (max_y - min_y) if abs(max_y - min_y) > 0.001 else 0.1
         min_x, max_x = min_x - 0.03 * diff_x, max_x + 0.03 * diff_x
         min_y, max_y = min_y - 0.03 * diff_y, max_y + 0.03 * diff_y
@@ -288,19 +285,24 @@ class OWPolyinomialClassification(OWBaseLearner):
         options = dict(series=[])
 
         # gradient and contour
-        options['series'] += self.plot_gradient_and_contour(min_x, max_x, min_y, max_y)
+        options['series'] += self.plot_gradient_and_contour(
+            min_x, max_x, min_y, max_y)
 
         # data points
-        target_class_index = self.data.domain.class_var.values.index(self.target_class)
+        target_class_index = self.data.domain.class_var.values.index(
+            self.target_class)
         classes = ([target_class_index] +
-                   [i for i in range(len(self.data.domain.class_var.values)) if i != target_class_index])
+                   [i for i in range(len(self.data.domain.class_var.values))
+                    if i != target_class_index])
 
         options['series'] += [dict(data=[list(p.attributes())
-                                         for p in self.selected_data if int(p.metas[0]) == _class],
+                                         for p in self.selected_data
+                                         if int(p.metas[0]) == _class],
                                    type="scatter",
                                    zIndex=10,
                                    color=self.colors[i],
-                                   showInLegend=False) for i, _class in enumerate(classes)]
+                                   showInLegend=False)
+                              for i, _class in enumerate(classes)]
 
         # highcharts parameters
         kwargs = dict(
@@ -354,7 +356,8 @@ class OWPolyinomialClassification(OWBaseLearner):
                           np.array([[None]] * len(attr)))
 
         # results
-        self.probabilities_grid = self.model(attr_data, 1)[:, 1].reshape(self.xv.shape)
+        self.probabilities_grid = self.model(attr_data, 1)[:, 1]\
+            .reshape(self.xv.shape)
 
         blurred = self.blur_grid(self.probabilities_grid)
 
@@ -378,8 +381,9 @@ class OWPolyinomialClassification(OWBaseLearner):
             contour = Contour(self.xv, self.yv, self.probabilities_grid)
             contour_lines = contour.contours(
                 np.hstack(
-                    (np.arange(0.5, 0, - self.contour_step)[::-1],  # we want to have contour for 0.5
+                    (np.arange(0.5, 0, - self.contour_step)[::-1],
                      np.arange(0.5 + self.contour_step, 1, self.contour_step))))
+            # we want to have contour for 0.5
 
             series = []
             count = 0
@@ -402,7 +406,8 @@ class OWPolyinomialClassification(OWBaseLearner):
     @staticmethod
     def blur_grid(grid):
         filtered = gaussian_filter(grid, sigma=1)
-        filtered[(grid > 0.45) & (grid < 0.55)] = grid[(grid > 0.45) & (grid < 0.55)]
+        filtered[(grid > 0.45) & (grid < 0.55)] = grid[(grid > 0.45) &
+                                                       (grid < 0.55)]
         return filtered
 
     @staticmethod
@@ -410,8 +415,8 @@ class OWPolyinomialClassification(OWBaseLearner):
         """
         Function labels data with contour levels
         """
-        point = (no * 5) % len(data)  # we will add this label on the first point
-        point = point + (1 if point == 0 else 0)
+        point = (no * 5) % len(data)  # to avoid points on same positions
+        point += (1 if point == 0 else 0)
         data[point] = dict(
             x=data[point][0],
             y=data[point][1],
@@ -428,23 +433,28 @@ class OWPolyinomialClassification(OWBaseLearner):
 
     def select_data(self):
         """
-        Function takes two selected columns from data table and merge them in new Orange.data.Table
+        Function takes two selected columns from data table and merge them
+        in new Orange.data.Table
 
         Returns
         -------
         Table
             Table with selected columns
         """
-        attr_x, attr_y = self.data.domain[self.attr_x], self.data.domain[self.attr_y]
+        attr_x = self.data.domain[self.attr_x]
+        attr_y = self.data.domain[self.attr_y]
         cols = []
         for attr in (attr_x, attr_y):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
-        domain = Domain([attr_x, attr_y],
-                        [DiscreteVariable(name=self.data.domain.class_var.name, values=[self.target_class, 'Others'])],
-                        [self.data.domain.class_var])
-        y = [(0 if d.get_class().value == self.target_class else 1) for d in self.data]
+        domain = Domain(
+            [attr_x, attr_y],
+            [DiscreteVariable(name=self.data.domain.class_var.name,
+                              values=[self.target_class, 'Others'])],
+            [self.data.domain.class_var])
+        y = [(0 if d.get_class().value == self.target_class else 1)
+             for d in self.data]
 
         return Table(domain, x, y, self.data.Y[:, None])
 
@@ -485,19 +495,23 @@ class OWPolyinomialClassification(OWBaseLearner):
         Function sends coefficients on widget's output if model has them
         """
 
-        if self.model is not None and isinstance(self.learner, LogisticRegressionLearner):
+        if (self.model is not None and
+                isinstance(self.learner, LogisticRegressionLearner)):
             model = self.model.skl_model
             if model is not None and hasattr(model, "coef_"):
-                domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
-                                metas=[StringVariable("name")])
-                coefficients = model.intercept_.tolist() + model.coef_[0].tolist()
+                domain = Domain(
+                    [ContinuousVariable("coef", number_of_decimals=7)],
+                    metas=[StringVariable("name")])
+                coefficients = (model.intercept_.tolist() +
+                                model.coef_[0].tolist())
 
                 data = self.model.instances
                 for preprocessor in self.learner.preprocessors:
                     data = preprocessor(data)
                 names = [1] + [x.name for x in data.domain.attributes]
 
-                coefficients_table = Table(domain, list(zip(coefficients, names)))
+                coefficients_table = Table(
+                    domain, list(zip(coefficients, names)))
                 self.send("Coefficients", coefficients_table)
             else:
                 self.send("Coefficients", None)
