@@ -1,7 +1,9 @@
 from Orange.widgets.tests.base import GuiTest
-from orangecontrib.educational.widgets.owunivariateregression import OWUnivariateRegression
+from orangecontrib.educational.widgets.owunivariateregression import \
+    OWUnivariateRegression
 from Orange.data.table import Table
-from Orange.regression import LinearRegressionLearner, RandomForestRegressionLearner
+from Orange.regression import (LinearRegressionLearner,
+                               RandomForestRegressionLearner)
 from Orange.preprocess.preprocess import Normalize
 
 class TestOWUnivariateRegression(GuiTest):

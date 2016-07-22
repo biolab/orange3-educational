@@ -25,10 +25,12 @@ class TestKmeans(unittest.TestCase):
         self.assertFalse(self.kmeans.converged)
 
         self.kmeans.step()
-        self.assertFalse(self.kmeans.converged)  # step not complete so false every odd state
+        self.assertFalse(self.kmeans.converged)
+        # step not complete so false every odd state
 
         self.kmeans.step()
-        # it is even step so maybe converged but it depends on example unable to test
+        # it is even step so maybe converged but it depends on example
+        # unable to test
         self.kmeans.step()
         self.assertFalse(self.kmeans.converged)
 
@@ -48,7 +50,8 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.add_centroids(centroids)
 
         # if only one cluster all points in 0th element of first dimension
-        np.testing.assert_equal(self.kmeans.centroids_belonging_points, np.array([self.data.X]))
+        np.testing.assert_equal(
+            self.kmeans.centroids_belonging_points, np.array([self.data.X]))
 
         # try with two clusters and less data
         self.kmeans.set_data(self.data[:3])
@@ -89,12 +92,16 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.add_centroids([[5.2, 3.6]])
 
         # if only one cluster all points in 0th element of first dimension
-        np.testing.assert_equal(self.kmeans.find_clusters(self.kmeans.centroids), np.zeros(len(self.data)))
+        np.testing.assert_equal(
+            self.kmeans.find_clusters(self.kmeans.centroids),
+            np.zeros(len(self.data)))
 
         # try with two clusters and less data
         self.kmeans.set_data(self.data[:3])
         self.kmeans.add_centroids([[4.7, 3.0]])
-        np.testing.assert_equal(self.kmeans.find_clusters(self.kmeans.centroids), np.array([0, 1, 1]))
+        np.testing.assert_equal(
+            self.kmeans.find_clusters(self.kmeans.centroids),
+            np.array([0, 1, 1]))
 
     def test_step(self):
         centroids = [[5.2, 3.1], [6.5, 3], [7, 4]]
@@ -104,7 +111,8 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.step()
         self.assertEqual(self.kmeans.step_completed, False)
         self.assertEqual(self.kmeans.centroids_moved, True)
-        np.testing.assert_equal(centroids_before, self.kmeans.centroids_history[-2])
+        np.testing.assert_equal(centroids_before,
+                                self.kmeans.centroids_history[-2])
         # clusters doesnt change in every odd step
         np.testing.assert_equal(clusters_before, self.kmeans.clusters)
 
@@ -191,8 +199,13 @@ class TestKmeans(unittest.TestCase):
         self.assertEqual(self.kmeans.step_no, 2)
 
     def test_set_list(self):
-        self.assertEqual(self.kmeans.set_list([], 2, 1), [None, None, 1])  # test adding Nones if list too short
-        self.assertEqual(self.kmeans.set_list([2], 2, 1), [2, None, 1])  # test adding Nones if list too short
-        self.assertEqual(self.kmeans.set_list([2, 1], 2, 1), [2, 1, 1])  # adding to end
-        self.assertEqual(self.kmeans.set_list([2, 1], 1, 3), [2, 3])  # changing the element in the last place
-        self.assertEqual(self.kmeans.set_list([2, 1, 3], 1, 3), [2, 3, 3])  # changing the element in the middle place
+        # test adding Nones if list too short
+        self.assertEqual(self.kmeans.set_list([], 2, 1), [None, None, 1])
+        # test adding Nones if list too short
+        self.assertEqual(self.kmeans.set_list([2], 2, 1), [2, None, 1])
+        # adding to end
+        self.assertEqual(self.kmeans.set_list([2, 1], 2, 1), [2, 1, 1])
+        # changing the element in the last place
+        self.assertEqual(self.kmeans.set_list([2, 1], 1, 3), [2, 3])
+        # changing the element in the middle place
+        self.assertEqual(self.kmeans.set_list([2, 1, 3], 1, 3), [2, 3, 3])

@@ -1,5 +1,6 @@
 import unittest
-from orangecontrib.educational.widgets.utils.color_transform import rgb_hash_brighter, hex_to_rgb, rgb_to_hex
+from orangecontrib.educational.widgets.utils.color_transform \
+    import rgb_hash_brighter, hex_to_rgb, rgb_to_hex
 
 
 class TestColorTransform(unittest.TestCase):
@@ -25,14 +26,16 @@ class TestColorTransform(unittest.TestCase):
                    [(255, 127, 50), "#FF7F32"]]
 
         for rgb, hex_code in matches:
-            self.assertSequenceEqual(hex_to_rgb(hex_code), list(map(lambda x: x / 255, rgb)))
+            self.assertSequenceEqual(hex_to_rgb(hex_code),
+                                     list(map(lambda x: x / 255, rgb)))
 
     def test_rgb_hash_brighter(self):
         # calculated manually
-        matches = [["#1F7ECA", "#ACD3F2"],
-                   ["#CCCC33", "#E2E28C"],
-                   ["#993322", "#E7A094"],
-                   ["#663366", "#AF60AF"]]
+        matches = [["#1F7ECA", "#56a5e5"],
+                   ["#CCCC33", "#dbdb70"],
+                   ["#993322", "#d55a46"],
+                   ["#663366", "#ab58ab"]]
 
         for hash1, hash2 in matches:
-            self.assertEqual(rgb_hash_brighter(hash1, 0.3).lower(), hash2.lower())
+            self.assertEqual(rgb_hash_brighter(hash1, 0.3).lower(),
+                             hash2.lower())
