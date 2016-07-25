@@ -12,7 +12,7 @@ from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
 
-from orangecontrib.educational.widgets.utils.polynomialexpansion \
+from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
 from orangecontrib.educational.widgets.utils.color_transform \
     import rgb_hash_brighter
