@@ -59,7 +59,7 @@ class Scatterplot(highcharts.Highchart):
         self.evalJS("chart.redraw();")
 
 
-class OWPolyinomialClassification(OWBaseLearner):
+class OWPolynomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
     description = "Widget that demonstrates classification in two classes " \
                   "with polynomial expansion of attributes."
