@@ -426,7 +426,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 verticalAlign='middle',
                 style=dict(
                     fontWeight="normal",
-                    color=OWPolyinomialClassification.contour_color,
+                    color=OWPolynomialClassification.contour_color,
                     textShadow=False
                 )))
         return data
