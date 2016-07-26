@@ -73,17 +73,17 @@ Example
 We loaded *iris* data set with the :doc:`File<../orange3/doc/visual-programming/source/widgets/data/file>` widget and
 connected it to *Polynomial Classification* widget.
 To demonstrate outputs connections we connected *Coefficients* to Data Table widget where we can inspect their values.
-*Learner* output can be connected to Test & Score widget and *Classifier* ro Predictions widget.
+*Learner* output can be connected to *Test & Score* widget and *Classifier* to *Predictions widget*.
 
 In the widget we selected *sepal length* as our *X* variable and *sepal width* as our *Y* variable.
-We set *Polynomial expansion* to 1. That performs classification on non changed data. Result is show on the figure
+We set *Polynomial expansion* to 1. That performs classification on non transformed data. Result is show on the figure
 below. Color gradient represents the probability to classify data on its position in one of two classes. Blue color
 represents classification in target class and red color classification in class with all others examples.
 
 .. figure:: images/polyclassification1.png
 
 In next example we changed *File* widget with *Paint data* widget and plotted some custom data. Because center of data
-has one class and scrounging another *Polynomial expansion* degree 1 does not perform good classification. We set
-*Polynomial expansion* to 2 and got this classification. We also selected to use contour lines.
+has one class and surrounding another *Polynomial expansion* degree 1 does not perform good classification. We set
+*Polynomial expansion* to 2 and got classification in figure below. We also selected to use contour lines.
 
 .. figure:: images/polyclassification2.png
