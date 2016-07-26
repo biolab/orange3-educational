@@ -1,0 +1,5 @@
+When updating draggable-points or highcharts-contours examine the changelog and grep for any option incompatibilities.
+Check new option defaults.
+
+Additional check if bug with bind function is fixed. See:
+https://github.com/paulo-raca/highcharts-contour/pull/9
