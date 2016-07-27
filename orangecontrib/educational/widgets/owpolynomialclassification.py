@@ -410,7 +410,7 @@ class OWPolynomialClassification(OWBaseLearner):
                             [list(x) for x in zip(*reversed(line))],
                             s=0.001, k=self.degree,
                             per=(len(line)
-                                 if self.almost_same(line[0], line[-1], 0.0001)
+                                 if np.allclose(line[0], line[-1])
                                  else 0))
                         new_int = np.arange(0, 1.01, 0.01)
                         interpol_line = np.array(splev(new_int, tck)).T.tolist()
@@ -426,14 +426,9 @@ class OWPolynomialClassification(OWBaseLearner):
                                        name="%g" % round(key, 2),
                                        enableMouseTracking=False
                                        ))
-
                     count += 1
             self.scatter.add_series(series)
         self.scatter.redraw_series()
-
-    @staticmethod
-    def almost_same(l1, l2, tol):
-        return np.sum(np.abs(np.array(l1) - np.array(l2))) / len(l1) < tol
 
     @staticmethod
     def blur_grid(grid):
