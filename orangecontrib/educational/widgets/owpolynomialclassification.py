@@ -96,6 +96,7 @@ class OWPolynomialClassification(OWBaseLearner):
     attr_y = settings.Setting('')
     target_class = settings.Setting('')
     degree = settings.Setting(1)
+    legend_enabled = settings.Setting(True)
     contours_enabled = settings.Setting(False)
     contour_step = settings.Setting(0.1)
 
@@ -112,6 +113,7 @@ class OWPolynomialClassification(OWBaseLearner):
     degree_spin = None
     plot_properties_box = None
     contours_enabled_checkbox = None
+    legend_enabled_checkbox = None
     contour_step_slider = None
     scatter = None
     target_class_combobox = None
@@ -141,6 +143,9 @@ class OWPolynomialClassification(OWBaseLearner):
         # plot properties box
         self.plot_properties_box = gui.widgetBox(
             self.controlArea, "Plot Properties")
+        self.legend_enabled_checkbox = gui.checkBox(
+            self.plot_properties_box, self, 'legend_enabled',
+            label="Show legend", callback=self.replot)
         self.contours_enabled_checkbox = gui.checkBox(
             self.plot_properties_box, self, 'contours_enabled',
             label="Show contours", callback=self.plot_contour)
@@ -158,7 +163,6 @@ class OWPolynomialClassification(OWBaseLearner):
             yAxis_startOnTick=False, yAxis_endOnTick=False,
             xAxis_lineWidth=0, yAxis_lineWidth=0,
             yAxis_tickWidth=1, title_text='', tooltip_shared=False,
-            legend=dict(enabled=False),
             debug=True)  # TODO: set false when end of development
 
         self.scatter.chart()
@@ -295,7 +299,8 @@ class OWPolynomialClassification(OWBaseLearner):
                 zIndex=10,
                 color=rgb_to_hex(tuple(
                     sd.domain.metas[0].colors[_class].tolist())),
-                showInLegend=False)
+                showInLegend=True,
+                name=sd.domain.metas[0].values[_class])
             for _class in range(len(sd.domain.metas[0].values))]
 
         target_index = sd.domain.metas[0].values.index(self.target_class)
@@ -317,6 +322,13 @@ class OWPolynomialClassification(OWBaseLearner):
                 tickInterval=0.2, min=0, max=1),
             plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
+            legend=dict(
+                enabled=self.legend_enabled,
+                layout='vertical',
+                align='right',
+                verticalAlign='top',
+                floating=True,
+                backgroundColor='rgba(255, 255, 255, 0.3)'),
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
