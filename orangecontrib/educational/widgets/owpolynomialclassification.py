@@ -5,6 +5,10 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from PyQt4.QtGui import QSizePolicy
 from PyQt4.QtCore import Qt
+from sklearn.linear_model import Ridge
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+from scipy.interpolate import splprep, splev
 
 from Orange.data import (
     ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
@@ -98,7 +102,7 @@ class OWPolynomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 30
+    grid_size = 25
     colors = ["#1F7ECA", "#D32525", "#28D825", "#D5861F", "#98257E",
               "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]
     # taken from highcharts.options.colors
@@ -378,7 +382,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         self.scatter.remove_contours()
         if self.contours_enabled:
-            contour = Contour(self.xv, self.yv, self.probabilities_grid)
+            contour = Contour(
+                self.xv, self.yv, self.blur_grid(self.probabilities_grid))
             contour_lines = contour.contours(
                 np.hstack(
                     (np.arange(0.5, 0, - self.contour_step)[::-1],
@@ -389,8 +394,20 @@ class OWPolynomialClassification(OWBaseLearner):
             count = 0
             for key, value in contour_lines.items():
                 for line in value:
+                    if len(line) > self.degree:
+                        # if less than degree interpolation fails
+                        tck, u = splprep(
+                            [list(x) for x in zip(*reversed(line))],
+                            s=0.002, k=self.degree,
+                            per=(len(line)
+                                 if self.almost_same(line[0], line[-1], 0.0001)
+                                 else 0))
+                        new_int = np.arange(0, 1.01, 0.01)
+                        interpol_line = np.array(splev(new_int, tck)).T.tolist()
+                    else:
+                        interpol_line = line
 
-                    series.append(dict(data=self.labeled(line, count),
+                    series.append(dict(data=self.labeled(interpol_line, count),
                                        color=self.contour_color,
                                        type="spline",
                                        lineWidth=0.5,
@@ -399,9 +416,14 @@ class OWPolynomialClassification(OWBaseLearner):
                                        name="%g" % round(key, 2),
                                        enableMouseTracking=False
                                        ))
+
                     count += 1
             self.scatter.add_series(series)
         self.scatter.redraw_series()
+
+    @staticmethod
+    def almost_same(l1, l2, tol):
+        return np.sum(np.abs(np.array(l1) - np.array(l2))) / len(l1) < tol
 
     @staticmethod
     def blur_grid(grid):
