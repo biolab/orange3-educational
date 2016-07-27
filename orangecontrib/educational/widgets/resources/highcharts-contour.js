@@ -28,6 +28,7 @@ var defaultOptions = Highcharts.getOptions(),
 
 defaultOptions.plotOptions.contour = merge(defaultOptions.plotOptions.heatmap, {
     marker: defaultOptions.plotOptions.scatter.marker,
+    turboThreshold:0
 });
 
 /**
@@ -50,30 +51,6 @@ wrap(Highcharts.ColorAxis.prototype, 'setAxisSize', function (proceed) {
 });
 
 Highcharts.Axis.prototype.drawCrosshair = function() {};
-
-if (!Function.prototype.bind) {
-  Function.prototype.bind = function (oThis) {
-    if (typeof this !== "function") {
-      // closest thing possible to the ECMAScript 5 internal IsCallable function
-      throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
-    }
-
-    var aArgs = Array.prototype.slice.call(arguments, 1),
-        fToBind = this,
-        fNOP = function () {},
-        fBound = function () {
-          return fToBind.apply(this instanceof fNOP && oThis
-                                 ? this
-                                 : oThis,
-                               aArgs.concat(Array.prototype.slice.call(arguments)));
-        };
-
-    fNOP.prototype = this.prototype;
-    fBound.prototype = new fNOP();
-
-    return fBound;
-  };
-}
 
 // The Heatmap series type
 seriesTypes.contour = extendClass(seriesTypes.heatmap, {
@@ -334,8 +311,8 @@ seriesTypes.contour = extendClass(seriesTypes.heatmap, {
 
         var egde_count = {};
         var validatePoint = function(p) {
-            return p && (typeof p.x === "number") && (typeof p.y === "number") && (typeof p.z === "number" || !this.is3d) && (typeof p.value === "number");
-        }.bind(this);
+            return p && (typeof p.x === "number") && (typeof p.y === "number") && (typeof p.z === "number" || !series.is3d) && (typeof p.value === "number");
+        };
         var appendEdge = function(a,b) {
             egde_count[a+'-'+b] = (egde_count[a+'-'+b] || 0) + 1;
         };
