@@ -303,8 +303,12 @@ class OWPolynomialClassification(OWBaseLearner):
                 name=sd.domain.metas[0].values[_class])
             for _class in range(len(sd.domain.metas[0].values))]
 
-        target_index = sd.domain.metas[0].values.index(self.target_class)
-        target_color =  tuple(sd.domain.metas[0].colors[target_index].tolist())
+        cls_domain = sd.domain.metas[0]
+
+        target_idx = cls_domain.values.index(self.target_class)
+        target_color =  tuple(cls_domain.colors[target_idx].tolist())
+        other_color = (tuple(cls_domain.colors[(target_idx + 1) % 2].tolist())
+                       if len(cls_domain.values) == 2 else (170, 170, 170))
 
         # highcharts parameters
         kwargs = dict(
@@ -318,7 +322,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 stops=[
                     [0, rgb_hash_brighter(rgb_to_hex(target_color), 50)],
                     [0.5, '#ffffff'],
-                    [1, rgb_hash_brighter("#aaaaaa", 50)]],
+                    [1, rgb_hash_brighter(rgb_to_hex(other_color), 50)]],
                 tickInterval=0.2, min=0, max=1),
             plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
