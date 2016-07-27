@@ -19,7 +19,7 @@ from Orange.classification import LogisticRegressionLearner, Learner
 from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
 from orangecontrib.educational.widgets.utils.color_transform \
-    import rgb_hash_brighter
+    import rgb_hash_brighter, rgb_to_hex
 from orangecontrib.educational.widgets.utils.contour import Contour
 
 
@@ -103,9 +103,6 @@ class OWPolynomialClassification(OWBaseLearner):
 
     # settings
     grid_size = 25
-    colors = ["#1F7ECA", "#D32525", "#28D825", "#D5861F", "#98257E",
-              "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]
-    # taken from highcharts.options.colors
     contour_color = "#1f1f1f"
 
     # layout elements
@@ -161,12 +158,6 @@ class OWPolynomialClassification(OWBaseLearner):
             yAxis_startOnTick=False, yAxis_endOnTick=False,
             xAxis_lineWidth=0, yAxis_lineWidth=0,
             yAxis_tickWidth=1, title_text='', tooltip_shared=False,
-            colorAxis=dict(
-                stops=[
-                    [0, rgb_hash_brighter(self.colors[0], 50)],
-                    [0.5, '#ffffff'],
-                    [1, rgb_hash_brighter(self.colors[1], 50)]],
-                tickInterval=0.2, min=0, max=1),
             legend=dict(enabled=False),
             debug=True)  # TODO: set false when end of development
 
@@ -272,6 +263,7 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph
         """
+
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y]
         data_x = [v[0] for v in self.data[:, attr_x]]
@@ -292,21 +284,22 @@ class OWPolynomialClassification(OWBaseLearner):
         options['series'] += self.plot_gradient_and_contour(
             min_x, max_x, min_y, max_y)
 
+        sd = self.selected_data
         # data points
-        target_class_index = self.data.domain.class_var.values.index(
-            self.target_class)
-        classes = ([target_class_index] +
-                   [i for i in range(len(self.data.domain.class_var.values))
-                    if i != target_class_index])
+        options['series'] += [
+            dict(
+                data=[list(p.attributes())
+                      for p in sd
+                      if int(p.metas[0]) == _class],
+                type="scatter",
+                zIndex=10,
+                color=rgb_to_hex(tuple(
+                    sd.domain.metas[0].colors[_class].tolist())),
+                showInLegend=False)
+            for _class in range(len(sd.domain.metas[0].values))]
 
-        options['series'] += [dict(data=[list(p.attributes())
-                                         for p in self.selected_data
-                                         if int(p.metas[0]) == _class],
-                                   type="scatter",
-                                   zIndex=10,
-                                   color=self.colors[i],
-                                   showInLegend=False)
-                              for i, _class in enumerate(classes)]
+        target_index = sd.domain.metas[0].values.index(self.target_class)
+        target_color =  tuple(sd.domain.metas[0].colors[target_index].tolist())
 
         # highcharts parameters
         kwargs = dict(
@@ -316,7 +309,12 @@ class OWPolynomialClassification(OWBaseLearner):
             xAxis_max=max_x,
             yAxis_min=min_y,
             yAxis_max=max_y,
-
+            colorAxis=dict(
+                stops=[
+                    [0, rgb_hash_brighter(rgb_to_hex(target_color), 50)],
+                    [0.5, '#ffffff'],
+                    [1, rgb_hash_brighter("#aaaaaa", 50)]],
+                tickInterval=0.2, min=0, max=1),
             plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
             tooltip_headerFormat="",
