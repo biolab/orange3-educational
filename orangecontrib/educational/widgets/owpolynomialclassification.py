@@ -398,7 +398,7 @@ class OWPolynomialClassification(OWBaseLearner):
                         # if less than degree interpolation fails
                         tck, u = splprep(
                             [list(x) for x in zip(*reversed(line))],
-                            s=0.002, k=self.degree,
+                            s=0.001, k=self.degree,
                             per=(len(line)
                                  if self.almost_same(line[0], line[-1], 0.0001)
                                  else 0))
