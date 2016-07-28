@@ -1,4 +1,5 @@
 from Orange.widgets.utils import itemmodels
+from math import isnan
 from os import path
 import copy
 
@@ -6,9 +7,6 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 from PyQt4.QtCore import Qt
-from sklearn.linear_model import Ridge
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.pipeline import make_pipeline
 from scipy.interpolate import splprep, splev
 
 from Orange.data import (
@@ -104,7 +102,7 @@ class OWPolynomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 25
+    grid_size = 30
     contour_color = "#1f1f1f"
 
     # layout elements
@@ -286,8 +284,8 @@ class OWPolynomialClassification(OWBaseLearner):
 
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y]
-        data_x = [v[0] for v in self.data[:, attr_x]]
-        data_y = [v[0] for v in self.data[:, attr_y]]
+        data_x = [v[0] for v in self.data[:, attr_x] if not isnan(v[0])]
+        data_y = [v[0] for v in self.data[:, attr_y] if not isnan(v[0])]
         min_x = min(data_x)
         max_x = max(data_x)
         min_y = min(data_y)
@@ -310,7 +308,8 @@ class OWPolynomialClassification(OWBaseLearner):
             dict(
                 data=[list(p.attributes())
                       for p in sd
-                      if int(p.metas[0]) == _class],
+                      if (int(p.metas[0]) == _class and
+                          all(v is not None for v in p.attributes()))],
                 type="scatter",
                 zIndex=10,
                 color=rgb_to_hex(tuple(
@@ -322,7 +321,7 @@ class OWPolynomialClassification(OWBaseLearner):
         cls_domain = sd.domain.metas[0]
 
         target_idx = cls_domain.values.index(self.target_class)
-        target_color =  tuple(cls_domain.colors[target_idx].tolist())
+        target_color = tuple(cls_domain.colors[target_idx].tolist())
         other_color = (tuple(cls_domain.colors[(target_idx + 1) % 2].tolist())
                        if len(cls_domain.values) == 2 else (170, 170, 170))
 
