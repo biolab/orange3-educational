@@ -271,12 +271,15 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function inits empty plot
         """
+        print("clear")
         self.scatter.clear()
 
     def replot(self):
         """
         This function performs complete replot of the graph
         """
+        if self.data is None:
+            return
 
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y]
