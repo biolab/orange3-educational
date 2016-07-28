@@ -4,7 +4,7 @@ import copy
 
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
-from PyQt4.QtGui import QSizePolicy
+from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 from PyQt4.QtCore import Qt
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import PolynomialFeatures
@@ -221,8 +221,11 @@ class OWPolynomialClassification(OWBaseLearner):
             self.x_var_model[:] = c_vars
             self.y_var_model[:] = c_vars
 
-            for var in data.domain.class_var.values:
-                self.target_class_combobox.addItem(var)
+            for i, var in enumerate(data.domain.class_var.values):
+                pix_map = QPixmap(60, 60)
+                color = tuple(data.domain.class_var.colors[i].tolist())
+                pix_map.fill(QColor(*color))
+                self.target_class_combobox.addItem(QIcon(pix_map), var)
 
         self.warning(1)
 
