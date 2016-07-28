@@ -335,9 +335,9 @@ class OWPolynomialClassification(OWBaseLearner):
             yAxis_max=max_y,
             colorAxis=dict(
                 stops=[
-                    [0, rgb_hash_brighter(rgb_to_hex(target_color), 50)],
+                    [0, rgb_hash_brighter(rgb_to_hex(target_color), 0.5)],
                     [0.5, '#ffffff'],
-                    [1, rgb_hash_brighter(rgb_to_hex(other_color), 50)]],
+                    [1, rgb_hash_brighter(rgb_to_hex(other_color), 0.5)]],
                 tickInterval=0.2, min=0, max=1),
             plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
@@ -347,13 +347,17 @@ class OWPolynomialClassification(OWBaseLearner):
                 align='right',
                 verticalAlign='top',
                 floating=True,
-                backgroundColor='rgba(255, 255, 255, 0.3)'),
+                backgroundColor='rgba(255, 255, 255, 0.3)',
+                symbolWidth=0,
+                symbolHeight=0),
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
+        self.scatter.evalJS("chart.colorAxis[0].axisParent.destroy();")
+            # hack to destroy the legend for coloraxis
         self.plot_contour()
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
