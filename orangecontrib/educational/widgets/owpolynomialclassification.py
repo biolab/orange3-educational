@@ -1,3 +1,4 @@
+from Orange.widgets.utils import itemmodels
 from os import path
 import copy
 
@@ -117,8 +118,13 @@ class OWPolynomialClassification(OWBaseLearner):
     contour_step_slider = None
     scatter = None
     target_class_combobox = None
+    x_var_model = None
+    y_var_model = None
 
     def add_main_layout(self):
+        # var models
+        self.x_var_model = itemmodels.VariableListModel()
+        self.y_var_model = itemmodels.VariableListModel()
 
         # options box
         self.options_box = gui.widgetBox(self.controlArea, "Options")
@@ -139,6 +145,9 @@ class OWPolynomialClassification(OWBaseLearner):
         self.cbx.setSizePolicy(policy)
         self.cby.setSizePolicy(policy)
         self.target_class_combobox.setSizePolicy(policy)
+
+        self.cbx.setModel(self.x_var_model)
+        self.cby.setModel(self.y_var_model)
 
         # plot properties box
         self.plot_properties_box = gui.widgetBox(
@@ -197,8 +206,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
 
         def reset_combos():
-            self.cbx.clear()
-            self.cby.clear()
+            self.x_var_model[:] = []
+            self.y_var_model[:] = []
             self.target_class_combobox.clear()
 
         def init_combos():
@@ -206,10 +215,11 @@ class OWPolynomialClassification(OWBaseLearner):
             function initialize the combos with attributes
             """
             reset_combos()
-            for var in data.domain if data is not None else []:
-                if var.is_primitive() and var.is_continuous:
-                    self.cbx.addItem(gui.attributeIconDict[var], var.name)
-                    self.cby.addItem(gui.attributeIconDict[var], var.name)
+
+            c_vars = [var for var in data.domain.variables if var.is_continuous]
+
+            self.x_var_model[:] = c_vars
+            self.y_var_model[:] = c_vars
 
             for var in data.domain.class_var.values:
                 self.target_class_combobox.addItem(var)
