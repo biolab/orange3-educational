@@ -14,6 +14,7 @@ from Orange.data import (
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import LogisticRegressionLearner, Learner
+from Orange.widgets.widget import Msg, OWWidget
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
@@ -118,6 +119,10 @@ class OWPolynomialClassification(OWBaseLearner):
     target_class_combobox = None
     x_var_model = None
     y_var_model = None
+
+    class Warning(OWWidget.Warning):
+        to_few_features = Msg("Too few Continuous feature. Min 2 required")
+        no_class = Msg("No class provided or only one class variable")
 
     def add_main_layout(self):
         # var models
@@ -225,7 +230,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 pix_map.fill(QColor(*color))
                 self.target_class_combobox.addItem(QIcon(pix_map), var)
 
-        self.warning(1)
+        self.Warning.clear()
 
         # clear variables
         self.xv = None
@@ -240,13 +245,13 @@ class OWPolynomialClassification(OWBaseLearner):
                  if isinstance(var, ContinuousVariable)) < 2:
             self.data = None
             reset_combos()
-            self.warning(1, "Too few Continuous feature. Min 2 required")
+            self.Warning.to_few_features()
             self.set_empty_plot()
         elif (data.domain.class_var is None or
               len(data.domain.class_var.values) < 2):
             self.data = None
             reset_combos()
-            self.warning(1, "No class provided or only one class variable")
+            self.Warning.no_class()
             self.set_empty_plot()
         else:
             self.data = data
