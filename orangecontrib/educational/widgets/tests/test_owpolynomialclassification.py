@@ -2,7 +2,7 @@ from Orange.widgets.tests.base import WidgetTest
 from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
 from Orange.classification import LogisticRegressionLearner, TreeLearner, RandomForestLearner
 from Orange.preprocess.preprocess import Continuize, Discretize
-from orangecontrib.educational.widgets.owpolynomialclassification import OWPolyinomialClassification
+from orangecontrib.educational.widgets.owpolynomialclassification import OWPolynomialClassification
 from orangecontrib.educational.widgets.utils.polynomialtransform import PolynomialTransform
 from functools import reduce
 from numpy.testing import assert_array_equal
@@ -11,7 +11,7 @@ from numpy.testing import assert_array_equal
 class TestOWPolynomialClassification(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWPolyinomialClassification)
+        self.widget = self.create_widget(OWPolynomialClassification)
         self.iris = Table("iris")
 
     def test_add_main_layout(self):

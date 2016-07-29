@@ -29,10 +29,10 @@ class TestColorTransform(unittest.TestCase):
 
     def test_rgb_hash_brighter(self):
         # calculated manually
-        matches = [["#1F7ECA", "#ACD3F2"],
-                   ["#CCCC33", "#E2E28C"],
-                   ["#993322", "#E7A094"],
-                   ["#663366", "#AF60AF"]]
+        matches = [["#1F7ECA", "#56a5e5"],
+                   ["#CCCC33", "#dbdb70"],
+                   ["#993322", "#d55a46"],
+                   ["#663366", "#ab58ab"]]
 
         for hash1, hash2 in matches:
             self.assertEqual(rgb_hash_brighter(hash1, 0.3).lower(), hash2.lower())
