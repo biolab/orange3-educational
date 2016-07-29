@@ -2,6 +2,8 @@ cd $TRAVIS_BUILD_DIR/orange
 # clone orange from git
 git clone https://github.com/biolab/orange3.git
 
+cd orange3
+
 # install requirements
 pip install numpy
 pip install scipy
