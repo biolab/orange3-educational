@@ -286,6 +286,7 @@ class TestOWPolynomialClassification(WidgetTest):
         Test everything that is possible to test in replot
         This function tests all replot functions
         """
+        self.widget.replot()
 
         # test nothing happens when no data
         self.assertIsNone(self.widget.xv)

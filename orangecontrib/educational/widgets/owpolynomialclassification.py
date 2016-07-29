@@ -547,23 +547,20 @@ class OWPolynomialClassification(OWBaseLearner):
         if (self.model is not None and
                 isinstance(self.learner, LogisticRegressionLearner)):
             model = self.model.skl_model
-            if model is not None and hasattr(model, "coef_"):
-                domain = Domain(
-                    [ContinuousVariable("coef", number_of_decimals=7)],
-                    metas=[StringVariable("name")])
-                coefficients = (model.intercept_.tolist() +
-                                model.coef_[0].tolist())
+            domain = Domain(
+                [ContinuousVariable("coef", number_of_decimals=7)],
+                metas=[StringVariable("name")])
+            coefficients = (model.intercept_.tolist() +
+                            model.coef_[0].tolist())
 
-                data = self.model.instances
-                for preprocessor in self.learner.preprocessors:
-                    data = preprocessor(data)
-                names = [1] + [x.name for x in data.domain.attributes]
+            data = self.model.instances
+            for preprocessor in self.learner.preprocessors:
+                data = preprocessor(data)
+            names = [1] + [x.name for x in data.domain.attributes]
 
-                coefficients_table = Table(
-                    domain, list(zip(coefficients, names)))
-                self.send("Coefficients", coefficients_table)
-            else:
-                self.send("Coefficients", None)
+            coefficients_table = Table(
+                domain, list(zip(coefficients, names)))
+            self.send("Coefficients", coefficients_table)
         else:
             self.send("Coefficients", None)
 
