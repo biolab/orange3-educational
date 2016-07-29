@@ -8,6 +8,7 @@ class TestPolynomialTransform(unittest.TestCase):
 
     def setUp(self):
         self.titanic = Table('titanic')
+        self.iris = Table('iris')
         domain = Domain([ContinuousVariable("a"), ContinuousVariable("b")])
         self.data = Table(domain, [[1.3, 2], [3, 4.1], [1, 2], [3.2, 3.1]])
         # data with two columns
@@ -22,6 +23,9 @@ class TestPolynomialTransform(unittest.TestCase):
 
         # titanic does not have all continuous attributes
         self.assertRaises(ValueError, polynomial_transform, self.titanic)
+
+        # check when too much continous attributes
+        self.assertRaises(ValueError, polynomial_transform, self.iris)
 
         # check if number of cell columns sufficient
         no_columns = 2  # sum of pascal triangle
