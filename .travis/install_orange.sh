@@ -1,5 +1,7 @@
 cd $TRAVIS_BUILD_DIR/orange
 # clone orange from git
+
+rm -f -R orange3 # remove if exist
 git clone https://github.com/biolab/orange3.git
 
 cd orange3
