@@ -272,7 +272,6 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function inits empty plot
         """
-        print("clear")
         self.scatter.clear()
 
     def replot(self):

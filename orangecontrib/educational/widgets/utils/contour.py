@@ -103,19 +103,21 @@ class Contour:
         step = 0
         while 0 <= i < bitmap.shape[0] - 1 \
                 and 0 <= j < bitmap.shape[1] - 1:
-            if i == start_i and j == start_j and step > 0:
+            square = bitmap[i:i+2, j:j+2]
+            upper = (True if (self.corner_idx(square) in [5, 10] and
+                              (previous_position is None or
+                               previous_position[0] < i or
+                               previous_position[1] < j)) else False)
+
+            if self.visited(i, j, upper):
+                # i == start_i and j == start_j and step > 0 and
                 break  # cycle
 
-            square = bitmap[i:i+2, j:j+2]
             new_p = self.new_point(
                 square, previous_position, np.array([i, j]), threshold)
             path.append(self.to_real_coordinate(new_p))
 
-            self.mark_visited(
-                i, j, (True if (self.corner_idx(square) in [5, 10] and
-                                (previous_position is None or
-                                 previous_position[0] < i or
-                                 previous_position[1] < j)) else False))
+            self.mark_visited(i, j, upper)
             previous_position_tmp = [i, j]
 
             i, j = self.new_position(

@@ -24,6 +24,16 @@ class TestContours(unittest.TestCase):
         self.z_lt_rb_desc = (np.max(self.xv) - self.xv) + \
                             (np.max(self.yv) - self.yv)
 
+        # test for testing cycles and 5s and 10s
+        self.cycle = np.array([[0, 0, 0, 0, 0],
+                               [0, 1, 0, 0, 0],
+                               [0, 0, 1, 0, 0],
+                               [0, 1, 0, 0, 0],
+                               [0, 0, 0, 0, 0]])
+        x = np.linspace(0, 4, 5)
+        y = np.linspace(0, 4, 5)
+        self.xv_cycle, self.yv_cycle = np.meshgrid(x, y)
+
     def test_contours(self):
         """
         Test if right amount of values
@@ -132,6 +142,14 @@ class TestContours(unittest.TestCase):
         self.assertEqual(len(c_lines[2]), 1)
         self.assertEqual(len(c_lines[3]), 1)
 
+        # test in cycle set
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle)
+        c_lines = c.contours([0.5])
+
+        self.assertIn(0.5, c_lines.keys())
+        self.assertEqual(len(c_lines[0.5]), 1)
+
+
     def test_find_contours(self):
         """
         Test if right contours found for threshold
@@ -235,6 +253,23 @@ class TestContours(unittest.TestCase):
         self.assertEqual(len(points), 1)  # only one line in particular example
         for i in range(11):
             self.assertIn([10-i, 10-i], points[0])
+
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle)
+
+        points = c.find_contours(0.5)
+        self.assertEqual(len(points[0]), 13)
+        self.assertIn([1, 0.5], points[0])
+        self.assertIn([1.5, 1], points[0])
+        self.assertIn([2, 1.5], points[0])
+        self.assertIn([2.5, 2], points[0])
+        self.assertIn([2, 2.5], points[0])
+        self.assertIn([1.5, 3], points[0])
+        self.assertIn([1, 3.5], points[0])
+        self.assertIn([0.5, 3], points[0])
+        self.assertIn([1, 2.5], points[0])
+        self.assertIn([1.5, 2], points[0])
+        self.assertIn([1, 1.5], points[0])
+        self.assertIn([0.5, 1], points[0])
 
     def test_to_real_coordinate(self):
         c = Contour(self.xv, self.yv, self.z_horizontal_asc)
@@ -346,3 +381,39 @@ class TestContours(unittest.TestCase):
         self.assertEqual(Contour.corner_idx([[1, 1], [1, 0]]), 13)
         self.assertEqual(Contour.corner_idx([[1, 1], [0, 1]]), 14)
         self.assertEqual(Contour.corner_idx([[1, 1], [1, 1]]), 15)
+
+    def test_visited(self):
+        c = Contour(self.xv, self.yv, self.z_rt_lb_desc)
+        c.visited_points = np.zeros(self.xv.shape)
+
+        self.assertFalse(c.visited(0, 0, True))
+        self.assertFalse(c.visited(0, 0, False))
+
+        # check if upper
+        c.mark_visited(0, 0, True)
+        self.assertTrue(c.visited(0, 0, True))
+        self.assertFalse(c.visited(0, 0, False))
+
+        # check if lower
+        c.mark_visited(1, 1, False)
+        self.assertFalse(c.visited(1, 1, True))
+        self.assertTrue(c.visited(1, 1, False))
+
+        # check if ok when mark again
+        c.mark_visited(1, 1, False)
+        self.assertFalse(c.visited(1, 1, True))
+        self.assertTrue(c.visited(1, 1, False))
+
+        c.mark_visited(0, 0, True)
+        self.assertTrue(c.visited(0, 0, True))
+        self.assertFalse(c.visited(0, 0, False))
+
+        # check if booth lower fist, and upper first
+        c.mark_visited(1, 1, True)
+        self.assertTrue(c.visited(1, 1, True))
+        self.assertTrue(c.visited(1, 1, False))
+
+        c.mark_visited(0, 0, False)
+        self.assertTrue(c.visited(0, 0, True))
+        self.assertTrue(c.visited(0, 0, False))
+
