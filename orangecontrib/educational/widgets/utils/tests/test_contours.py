@@ -25,11 +25,16 @@ class TestContours(unittest.TestCase):
                             (np.max(self.yv) - self.yv)
 
         # test for testing cycles and 5s and 10s
-        self.cycle = np.array([[0, 0, 0, 0, 0],
-                               [0, 1, 0, 0, 0],
-                               [0, 0, 1, 0, 0],
-                               [0, 1, 0, 0, 0],
-                               [0, 0, 0, 0, 0]])
+        self.cycle1 = np.array([[0, 0, 0, 0, 0],
+                                [0, 1, 0, 0, 0],
+                                [0, 0, 1, 0, 0],
+                                [0, 1, 0, 0, 0],
+                                [0, 0, 0, 0, 0]])
+        self.cycle2 = np.array([[0, 0, 0, 0, 0],
+                                [0, 0, 1, 0, 0],
+                                [0, 1, 0, 0, 0],
+                                [0, 0, 1, 0, 0],
+                                [0, 0, 0, 0, 0]])
         x = np.linspace(0, 4, 5)
         y = np.linspace(0, 4, 5)
         self.xv_cycle, self.yv_cycle = np.meshgrid(x, y)
@@ -143,11 +148,24 @@ class TestContours(unittest.TestCase):
         self.assertEqual(len(c_lines[3]), 1)
 
         # test in cycle set
-        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle)
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle1)
         c_lines = c.contours([0.5])
 
         self.assertIn(0.5, c_lines.keys())
         self.assertEqual(len(c_lines[0.5]), 1)
+
+        # test start with square 5, before only 10 was checked
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle2)
+        c_lines = c.contours([0.5])
+
+        self.assertIn(0.5, c_lines.keys())
+        self.assertEqual(len(c_lines[0.5]), 1)
+
+        # test no contours, then no key in dict
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle2)
+        c_lines = c.contours([1.5])
+
+        self.assertNotIn(1.5, c_lines.keys())
 
     def test_find_contours(self):
         """
@@ -253,7 +271,7 @@ class TestContours(unittest.TestCase):
         for i in range(11):
             self.assertIn([10-i, 10-i], points[0])
 
-        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle)
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle1)
 
         points = c.find_contours(0.5)
         self.assertEqual(len(points[0]), 13)
@@ -269,6 +287,23 @@ class TestContours(unittest.TestCase):
         self.assertIn([1.5, 2], points[0])
         self.assertIn([1, 1.5], points[0])
         self.assertIn([0.5, 1], points[0])
+
+        c = Contour(self.xv_cycle, self.yv_cycle, self.cycle2)
+
+        points = c.find_contours(0.5)
+        self.assertEqual(len(points[0]), 13)
+        self.assertIn([2, 0.5], points[0])
+        self.assertIn([2.5, 1], points[0])
+        self.assertIn([2, 1.5], points[0])
+        self.assertIn([1.5, 2], points[0])
+        self.assertIn([2, 2.5], points[0])
+        self.assertIn([2.5, 3], points[0])
+        self.assertIn([2, 3.5], points[0])
+        self.assertIn([1.5, 3], points[0])
+        self.assertIn([1, 2.5], points[0])
+        self.assertIn([0.5, 2], points[0])
+        self.assertIn([1, 1.5], points[0])
+        self.assertIn([1.5, 1], points[0])
 
     def test_to_real_coordinate(self):
         c = Contour(self.xv, self.yv, self.z_horizontal_asc)
