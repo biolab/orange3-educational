@@ -149,7 +149,6 @@ class TestContours(unittest.TestCase):
         self.assertIn(0.5, c_lines.keys())
         self.assertEqual(len(c_lines[0.5]), 1)
 
-
     def test_find_contours(self):
         """
         Test if right contours found for threshold
@@ -416,4 +415,3 @@ class TestContours(unittest.TestCase):
         c.mark_visited(0, 0, False)
         self.assertTrue(c.visited(0, 0, True))
         self.assertTrue(c.visited(0, 0, False))
-
