@@ -103,7 +103,7 @@ class OWPolynomialClassification(OWBaseLearner):
     graph_name = 'scatter'
 
     # settings
-    grid_size = 30
+    grid_size = 25
     contour_color = "#1f1f1f"
 
     # layout elements
