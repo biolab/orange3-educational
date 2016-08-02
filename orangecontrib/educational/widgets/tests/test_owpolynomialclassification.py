@@ -497,3 +497,27 @@ class TestOWPolynomialClassification(WidgetTest):
             num_coefficients = sum(i + 1 for i in range(w.degree + 1))
             self.assertEqual(
                 len(self.get_output("Coefficients")), num_coefficients)
+
+    def test_send_data(self):
+        """
+        Check data output signal
+        """
+        w = self.widget
+
+        self.assertIsNone(self.get_output("Data"))
+
+        self.send_signal("Data", self.iris)
+
+        # check correct number of attributes
+        for j in range(1, 6):
+            w.degree_spin.setValue(j)
+            num_coefficients = sum(i + 1 for i in range(1, w.degree + 1))
+            self.assertEqual(
+                len(self.get_output("Data").domain.attributes), num_coefficients)
+
+        self.assertEqual(len(self.get_output("Data").domain.metas), 1)
+        self.assertIsNotNone(self.get_output("Data").domain.class_var)
+
+        # check again none
+        self.send_signal("Data", None)
+        self.assertIsNone(self.get_output("Data"))

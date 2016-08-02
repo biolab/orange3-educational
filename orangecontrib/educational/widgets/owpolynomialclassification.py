@@ -531,7 +531,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.send_coefficients()
         if self.data is not None:
             self.replot()
-            self.send_data()
+        self.send_data()
 
     def send_learner(self):
         """
@@ -584,10 +584,13 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function sends data on widget's output
         """
-        data = self.selected_data
-        for preprocessor in self.learner.preprocessors:
-            data = preprocessor(data)
-        self.send("Data", data)
+        if self.data is not None:
+            data = self.selected_data
+            for preprocessor in self.learner.preprocessors:
+                data = preprocessor(data)
+            self.send("Data", data)
+            return
+        self.send("Data", None)
 
     def add_bottom_buttons(self):
         pass
