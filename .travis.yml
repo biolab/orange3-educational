@@ -11,6 +11,7 @@ cache:
     ccache: true
     directories:
         - $TRAVIS_BUILD_DIR/pyqt
+        - $TRAVIS_BUILD_DIR/orange
 
 addons:
     apt:
@@ -28,6 +29,7 @@ install:
     - source $TRAVIS_BUILD_DIR/.travis/install_pyqt.sh
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel
+    - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
     - pip install -e .
     - pip install codecov
 
