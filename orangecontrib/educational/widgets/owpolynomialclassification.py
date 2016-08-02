@@ -13,7 +13,8 @@ from Orange.data import (
     ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
 from Orange.widgets import highcharts, settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
-from Orange.classification import LogisticRegressionLearner, Learner
+from Orange.classification import (LogisticRegressionLearner, Learner,
+                                   RandomForestLearner, TreeLearner)
 from Orange.widgets.widget import Msg, OWWidget
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
@@ -402,7 +403,10 @@ class OWPolynomialClassification(OWBaseLearner):
 
         blurred = self.blur_grid(self.probabilities_grid)
 
-        return self.plot_gradient(self.xv, self.yv, blurred)
+        is_tree = type(self.learner) in [RandomForestLearner, TreeLearner]
+        return self.plot_gradient(self.xv, self.yv,
+                                  self.probabilities_grid
+                                  if is_tree else blurred)
 
     def plot_gradient(self, x, y, grid):
         """
@@ -419,8 +423,11 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         self.scatter.remove_contours()
         if self.contours_enabled:
+            is_tree = type(self.learner) in [RandomForestLearner, TreeLearner]
+            # tree does not need smoothing
             contour = Contour(
-                self.xv, self.yv, self.blur_grid(self.probabilities_grid))
+                self.xv, self.yv, self.probabilities_grid
+                if is_tree else self.blur_grid(self.probabilities_grid))
             contour_lines = contour.contours(
                 np.hstack(
                     (np.arange(0.5, 0, - self.contour_step)[::-1],
@@ -431,7 +438,9 @@ class OWPolynomialClassification(OWBaseLearner):
             count = 0
             for key, value in contour_lines.items():
                 for line in value:
-                    if len(line) > self.degree:
+                    if (len(line) > self.degree and
+                                type(self.learner) not in
+                                [RandomForestLearner, TreeLearner]):
                         # if less than degree interpolation fails
                         tck, u = splprep(
                             [list(x) for x in zip(*reversed(line))],
