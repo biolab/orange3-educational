@@ -1,6 +1,7 @@
 import numpy as np
 
-from Orange.classification import Learner, Model
+from Orange.classification import Model
+from scipy.optimize import fmin_l_bfgs_b
 
 
 class LogisticRegression:
@@ -10,8 +11,8 @@ class LogisticRegression:
     theta = None
     domain = None
 
-    def __init__(self, alpha, theta=None, data=None):
-        self.alpha = alpha
+    def __init__(self, alpha=0.1, theta=None, data=None):
+        self.set_alpha(alpha)
         self.set_data(data)
         self.set_theta(theta)
 
@@ -23,6 +24,9 @@ class LogisticRegression:
 
     def set_theta(self, theta):
         self.theta = theta
+
+    def set_alpha(self, alpha):
+        self.alpha = alpha
 
     @property
     def model(self):
@@ -36,14 +40,24 @@ class LogisticRegression:
         """
         Cost function for logistic regression
         """
+        # TODO: modify for more thetas
         yh = self.g(self.x.dot(theta))
-        return -sum(np.log(self.y * yh + (1 - self.y) * (1 - yh)))
+        return -sum(np.log(self.y * yh + (1 - self.y) * (1 - yh))) / len(yh)
 
     def dj(self, theta):
         """
         Gradient of the cost function with L2 regularization
         """
         return (self.g(self.x.dot(theta)) - self.y).dot(self.x)
+
+    def optimized(self):
+        """
+        Function performs model training
+        """
+        res = fmin_l_bfgs_b(self.j,
+                            np.zeros(self.x.shape[1]),
+                            self.dj)
+        return res[0]
 
     @staticmethod
     def g(z):
