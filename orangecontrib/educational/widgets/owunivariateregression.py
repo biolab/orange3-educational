@@ -1,6 +1,7 @@
 from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
 from PyQt4.QtCore import Qt, QRectF
 
+import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
 import numpy as np
 
@@ -24,7 +25,8 @@ class OWUnivariateRegression(OWBaseLearner):
 
     inputs = [("Learner", Learner, "set_learner")]
 
-    outputs = [("Coefficients", Table)]
+    outputs = [("Coefficients", Table),
+               ("Data", Table)]
 
     LEARNER = PolynomialLearner
 
@@ -246,9 +248,31 @@ class OWUnivariateRegression(OWBaseLearner):
         else:
             self.send("Coefficients", None)
 
+        self.send_data()
+
+    def send_data(self):
+        if self.data is not None:
+            attributes = self.x_var_model[self.x_var_index]
+            class_var = self.y_var_model[self.y_var_index]
+            data_table = Table(
+                Domain([attributes], class_vars=[class_var]), self.data)
+            polyfeatures = skl_preprocessing.PolynomialFeatures(
+                int(self.polynomialexpansion))
+            x = polyfeatures.fit_transform(data_table.X)
+
+            x_label = data_table.domain.attributes[0].name
+            out_domain = Domain(
+                [ContinuousVariable("1"), data_table.domain.attributes[0]] +
+                [ContinuousVariable("{}^{}".format(x_label, i))
+                 for i in range(2, int(self.polynomialexpansion) + 1)])
+
+            self.send("Data", Table(out_domain, x))
+            return
+
+        self.send("Data", None)
+
     def add_bottom_buttons(self):
         pass
-
 
 
 if __name__ == "__main__":
