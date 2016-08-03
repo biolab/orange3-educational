@@ -69,6 +69,13 @@ class Scatterplot(highcharts.Highchart):
                 series.remove(true);
             """.format(id=id))
 
+    def remove_last_point(self, id):
+        self.evalJS("""
+            series = chart.get('{id}');
+            if (series != null)
+                series.removePoint(series.data.length - 1, true);
+            """.format(id=id))
+
     def add_series(self, series):
         for i, s in enumerate(series):
             self.exposeObject('series%d' % i, series[i])
@@ -156,9 +163,13 @@ class OWGradientDescent(OWWidget):
 
         self.comand_box = gui.widgetBox(self.controlArea)
 
-        self.step_buttton = gui.button(widget=self.comand_box,
+        self.step_button = gui.button(widget=self.comand_box,
                                        master=self,
                                        callback=self.step,
+                                       label="Step")
+        self.step_back_button = gui.button(widget=self.comand_box,
+                                       master=self,
+                                       callback=self.step_back,
                                        label="Step")
 
         # graph in mainArea
@@ -264,6 +275,11 @@ class OWGradientDescent(OWWidget):
         self.learner.step()
         theta = self.learner.theta
         self.plot_point(theta[0], theta[1])
+
+    def step_back(self):
+        if self.learner.step_no > 0:
+            self.learner.step_back()
+            self.scatter.remove_last_point("path")
 
     def plot_point(self, x, y):
         self.scatter.add_point_to_series("path", x, y)
