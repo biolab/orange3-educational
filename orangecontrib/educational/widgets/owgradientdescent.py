@@ -132,6 +132,7 @@ class OWGradientDescent(OWWidget):
     target_class = settings.Setting('')
     alpha = settings.Setting(0.1)
     auto_play_speed = settings.Setting(1)
+    stochastic = settings.Setting(False)
 
     # models
     x_var_model = None
@@ -187,15 +188,21 @@ class OWGradientDescent(OWWidget):
                                    master=self,
                                    callback=self.change_alpha,
                                    value="alpha",
-                                   label="Alpha: ",
+                                   label="Learning rate: ",
                                    minv=0.01,
                                    maxv=1,
                                    step=0.01,
                                    spinType=float)
+        self.stochastic_checkbox = gui.checkBox(widget=self.properties_box,
+                                                master=self,
+                                                callback=self.change_stochastic,
+                                                value="stochastic",
+                                                label="Stochastic: ")
         self.restart_button = gui.button(widget=self.properties_box,
                                        master=self,
                                        callback=self.restart,
                                        label="Restart")
+
 
         self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
 
@@ -310,12 +317,16 @@ class OWGradientDescent(OWWidget):
     def restart(self):
         self.selected_data = self.select_data()
         self.learner = self.default_learner(data=Normalize(self.selected_data),
-                                            alpha=self.alpha)
+                                            alpha=self.alpha, stochastic=self.stochastic)
         self.replot()
 
     def change_alpha(self):
         if self.learner is not None:
             self.learner.set_alpha(self.alpha)
+
+    def change_stochastic(self):
+        if self.learner is not None:
+            self.learner.stochastic = self.stochastic
 
     def step(self):
         if self.data is None:

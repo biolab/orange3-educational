@@ -11,12 +11,15 @@ class LogisticRegression:
     theta = None
     domain = None
     step_no = 0
+    stochastic_i = 0
+    stochastic_num_steps = 30  # number of steps in one step
 
-    def __init__(self, alpha=0.1, theta=None, data=None):
+    def __init__(self, alpha=0.1, theta=None, data=None, stochastic=False):
         self.history = []
         self.set_alpha(alpha)
         self.set_data(data)
         self.set_theta(theta)
+        self.stochastic = stochastic
 
     def set_data(self, data):
         if data is not None:
@@ -31,7 +34,7 @@ class LogisticRegression:
             self.theta = np.array(theta)
         else:
             self.theta = None
-        self.history = self.set_list(self.history, 0, np.copy(self.theta))
+        self.history = self.set_list(self.history, 0, (np.copy(self.theta), 0))
         self.step_no = 0
 
     def set_alpha(self, alpha):
@@ -45,18 +48,39 @@ class LogisticRegression:
     def converged(self):
         if self.step_no == 0:
             return False
-        return np.sum(np.abs(self.theta - self.history[self.step_no - 1])) < 1e-2
+        return np.sum(np.abs(self.theta - self.history[self.step_no - 1][0])) < (1e-2 if not self.stochastic else 1e-5)
 
     def step(self):
         self.step_no += 1
-        grad = self.dj(self.theta)
+        grad = self.dj(self.theta, self.stochastic)
         self.theta -= self.alpha * grad
-        self.history = self.set_list(self.history, self.step_no, np.copy(self.theta))
+
+        self.stochastic_i += self.stochastic_num_steps
+
+        seed = None  # seed that will be stored to revert the shuffle
+        if self.stochastic_i >= len(self.x):
+            self.stochastic_i = 0
+            seed = np.random.randint(100)  # random seed
+            np.random.seed(seed)  # set seed of permutation used to shuffle
+            indices = np.random.permutation(len(self.x))
+            self.x = self.x[indices]  # permutation
+            self.y = self.y[indices]
+
+        self.history = self.set_list(self.history, self.step_no, (np.copy(self.theta), self.stochastic_i, seed))
 
     def step_back(self):
         if self.step_no > 0:
             self.step_no -= 1
-            self.theta = np.copy(self.history[self.step_no])
+            self.theta = np.copy(self.history[self.step_no][0])
+            self.stochastic_i = self.history[self.step_no][1]
+            seed = self.history[self.step_no + 1][2]
+            if seed is not None:  # it means data had been permuted on this pos
+                np.random.seed(seed)  # use same seed to revert
+                indices = np.random.permutation(len(self.x))
+                indices_reverse = np.argsort(indices)
+                # indices of sorted indices gives us reversing shuffle list
+                self.x = self.x[indices_reverse]
+                self.y = self.y[indices_reverse]
 
     def j(self, theta):
         """
@@ -67,11 +91,17 @@ class LogisticRegression:
         # return -sum(np.log(self.y * yh + (1 - self.y) * (1 - yh))) / len(yh)
         return -sum(self.y * np.log(yh) + (1 - self.y) * np.log(1 - yh)) / len(yh)
 
-    def dj(self, theta):
+    def dj(self, theta, stochastic=False):
         """
         Gradient of the cost function with L2 regularization
         """
-        return (self.g(self.x.dot(theta)) - self.y).dot(self.x)
+        if stochastic:
+            ns = self.stochastic_num_steps
+            x = self.x[self.stochastic_i : self.stochastic_i + ns]
+            y = self.y[self.stochastic_i : self.stochastic_i + ns]
+            return x.T.dot(self.g(x.dot(theta)) - y)
+        else:
+            return (self.g(self.x.dot(theta)) - self.y).dot(self.x)
 
     def optimized(self):
         """
@@ -94,8 +124,8 @@ class LogisticRegression:
         """
 
         # limit values in z to avoid log with 0 produced by values almost 0
-        z_mod = np.minimum(z, 100 * np.ones(len(z)))
-        z_mod = np.maximum(z_mod, -100 * np.ones(len(z)))
+        z_mod = np.minimum(z, 100)
+        z_mod = np.maximum(z_mod, -100)
 
         return 1.0 / (1 + np.exp(- z_mod))
 
