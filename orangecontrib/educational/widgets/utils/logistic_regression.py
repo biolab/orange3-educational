@@ -41,6 +41,12 @@ class LogisticRegression:
     def model(self):
         return LogisticRegressionModel(self.theta, self.domain)
 
+    @property
+    def converged(self):
+        if self.step_no == 0:
+            return False
+        return np.sum(np.abs(self.theta - self.history[self.step_no - 1])) < 1e-2
+
     def step(self):
         self.step_no += 1
         grad = self.dj(self.theta)
