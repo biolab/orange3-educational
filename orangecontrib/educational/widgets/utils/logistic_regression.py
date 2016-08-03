@@ -9,6 +9,7 @@ class LogisticRegression:
     x = None
     y = None
     theta = None
+    alpha = None
     domain = None
     step_no = 0
     stochastic_i = 0
@@ -48,7 +49,8 @@ class LogisticRegression:
     def converged(self):
         if self.step_no == 0:
             return False
-        return np.sum(np.abs(self.theta - self.history[self.step_no - 1][0])) < (1e-2 if not self.stochastic else 1e-5)
+        return (np.sum(np.abs(self.theta - self.history[self.step_no - 1][0])) <
+                (1e-2 if not self.stochastic else 1e-5))
 
     def step(self):
         self.step_no += 1
@@ -66,7 +68,9 @@ class LogisticRegression:
             self.x = self.x[indices]  # permutation
             self.y = self.y[indices]
 
-        self.history = self.set_list(self.history, self.step_no, (np.copy(self.theta), self.stochastic_i, seed))
+        self.history = self.set_list(
+            self.history, self.step_no,
+            (np.copy(self.theta), self.stochastic_i, seed))
 
     def step_back(self):
         if self.step_no > 0:
@@ -86,10 +90,10 @@ class LogisticRegression:
         """
         Cost function for logistic regression
         """
-        # TODO: modify for more thetas
-        yh = self.g(self.x.dot(theta))
-        # return -sum(np.log(self.y * yh + (1 - self.y) * (1 - yh))) / len(yh)
-        return -sum(self.y * np.log(yh) + (1 - self.y) * np.log(1 - yh)) / len(yh)
+        yh = self.g(self.x.dot(theta.T)).T
+        y = self.y
+        return -np.sum(
+            (self.y * np.log(yh) + (1 - y) * np.log(1 - yh)).T, axis=0) / len(y)
 
     def dj(self, theta, stochastic=False):
         """
