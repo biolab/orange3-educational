@@ -1,9 +1,9 @@
-from math import isnan
 from os import path
+import time
 
 import numpy as np
 from Orange.widgets.utils import itemmodels
-from PyQt4.QtCore import pyqtSlot, Qt
+from PyQt4.QtCore import pyqtSlot, Qt, QThread, SIGNAL
 from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 from scipy.interpolate import splev, splprep
 from scipy.ndimage import gaussian_filter
@@ -88,6 +88,33 @@ class Scatterplot(highcharts.Highchart):
         """.format(id=id, x=x, y=y))
 
 
+class Autoplay(QThread):
+    """
+    Class used for separated thread when using "Autoplay" for k-means
+    Parameters
+    ----------
+    owkmeans : OWKmeans
+        Instance of OWKmeans class
+    """
+
+    def __init__(self, ow_gradient_descent):
+        QThread.__init__(self)
+        self.ow_gradient_descent = ow_gradient_descent
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        """
+        Stepping through the algorithm until converge or user interrupts
+        """
+        while (not self.ow_gradient_descent.learner.converged and
+                   self.ow_gradient_descent.auto_play_enabled):
+            self.emit(SIGNAL('step()'))
+            time.sleep(2 - self.ow_gradient_descent.auto_play_speed)
+        self.emit(SIGNAL('stop_auto_play()'))
+
+
 class OWGradientDescent(OWWidget):
 
     name = "Gradient Descent"
@@ -104,6 +131,7 @@ class OWGradientDescent(OWWidget):
     attr_y = settings.Setting('')
     target_class = settings.Setting('')
     alpha = settings.Setting(0.1)
+    auto_play_speed = settings.Setting(1)
 
     # models
     x_var_model = None
@@ -120,6 +148,10 @@ class OWGradientDescent(OWWidget):
     data = None
     selected_data = None
 
+    # autoplay
+    auto_play_enabled = False
+    autoplay_button_text = ["Run", "Stop"]
+
     class Warning(OWWidget.Warning):
         to_few_features = Msg("Too few Continuous feature. Min 2 required")
         no_class = Msg("No class provided or only one class variable")
@@ -134,7 +166,7 @@ class OWGradientDescent(OWWidget):
         # options box
         policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
 
-        self.options_box = gui.widgetBox(self.controlArea)
+        self.options_box = gui.widgetBox(self.controlArea, "Data")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
             callback=self.restart, sendSelectedValue=True
@@ -150,7 +182,7 @@ class OWGradientDescent(OWWidget):
         self.cbx.setModel(self.x_var_model)
         self.cby.setModel(self.y_var_model)
 
-        self.properties_box = gui.widgetBox(self.controlArea)
+        self.properties_box = gui.widgetBox(self.controlArea, "Properties")
         self.alpha_spin = gui.spin(widget=self.properties_box,
                                    master=self,
                                    callback=self.change_alpha,
@@ -160,17 +192,35 @@ class OWGradientDescent(OWWidget):
                                    maxv=1,
                                    step=0.01,
                                    spinType=float)
+        self.restart_button = gui.button(widget=self.properties_box,
+                                       master=self,
+                                       callback=self.restart,
+                                       label="Restart")
 
-        self.comand_box = gui.widgetBox(self.controlArea)
+        self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
 
-        self.step_button = gui.button(widget=self.comand_box,
+        self.step_button = gui.button(widget=self.step_box,
                                        master=self,
                                        callback=self.step,
                                        label="Step")
-        self.step_back_button = gui.button(widget=self.comand_box,
+        self.step_back_button = gui.button(widget=self.step_box,
                                        master=self,
                                        callback=self.step_back,
-                                       label="Step")
+                                       label="Step back")
+
+        self.run_box = gui.widgetBox(self.controlArea, "Run")
+        self.auto_play_button = gui.button(
+            self.run_box, self, self.autoplay_button_text[0],
+            callback=self.auto_play)
+        self.auto_play_speed_spinner = gui.hSlider(self.run_box,
+                                                   self,
+                                                   'auto_play_speed',
+                                                   minValue=0,
+                                                   maxValue=1.91,
+                                                   step=0.1,
+                                                   intOnly=False,
+                                                   createLabel=False,
+                                                   label='Speed:')
 
         # graph in mainArea
         self.scatter = Scatterplot(click_callback=self.set_theta,
@@ -259,7 +309,8 @@ class OWGradientDescent(OWWidget):
 
     def restart(self):
         self.selected_data = self.select_data()
-        self.learner = self.default_learner(data=Normalize(self.selected_data))
+        self.learner = self.default_learner(data=Normalize(self.selected_data),
+                                            alpha=self.alpha)
         self.replot()
 
     def change_alpha(self):
@@ -312,8 +363,8 @@ class OWGradientDescent(OWWidget):
 
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text=attr_x.name,
-            yAxis_title_text=attr_y.name,
+            xAxis_title_text="theta 0",
+            yAxis_title_text="theta 1",
             xAxis_min=self.min_x,
             xAxis_max=self.max_x,
             yAxis_min=self.min_y,
@@ -322,11 +373,11 @@ class OWGradientDescent(OWWidget):
             xAxis_endOnTick=False,
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
-            colorAxis=dict(
-                stops=[
-                    [min_value, "#ffffff"],
-                    [max_value, "#ff0000"]],
-                tickInterval=1, max=max_value, min=min_value),
+            # colorAxis=dict(
+            #     stops=[
+            #         [min_value, "#ffffff"],
+            #         [max_value, "#ff0000"]],
+            #     tickInterval=1, max=max_value, min=min_value),
             plotOptions_contour_colsize=(self.max_y - self.min_y) / 10000,
             plotOptions_contour_rowsize=(self.max_x - self.min_x) / 10000,
             tooltip_enabled=False,
@@ -460,4 +511,37 @@ class OWGradientDescent(OWWidget):
                 dict(id="path", data=[[x, y]], showInLegend=False,
                      type="scatter", lineWidth=1,
                      marker=dict(enabled=True, radius=2))],)
+
+    def auto_play(self):
+        """
+        Function called when autoplay button pressed
+        """
+        self.auto_play_enabled = not self.auto_play_enabled
+        self.auto_play_button.setText(
+            self.autoplay_button_text[self.auto_play_enabled])
+        if self.auto_play_enabled:
+            self.disable_controls(self.auto_play_enabled)
+            self.autoPlayThread = Autoplay(self)
+            self.connect(self.autoPlayThread, SIGNAL("step()"), self.step)
+            self.connect(
+                self.autoPlayThread, SIGNAL("stop_auto_play()"),
+                self.stop_auto_play)
+            self.autoPlayThread.start()
+        else:
+            self.stop_auto_play()
+
+    def stop_auto_play(self):
+        """
+        Called when stop autoplay button pressed or in the end of autoplay
+        """
+        self.auto_play_enabled = False
+        self.disable_controls(self.auto_play_enabled)
+        self.auto_play_button.setText(
+            self.autoplay_button_text[self.auto_play_enabled])
+
+    def disable_controls(self, disabled):
+        self.step_box.setDisabled(disabled)
+        self.options_box.setDisabled(disabled)
+        self.properties_box.setDisabled(disabled)
+
 
