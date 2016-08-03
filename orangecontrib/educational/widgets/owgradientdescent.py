@@ -425,7 +425,8 @@ class OWGradientDescent(OWWidget):
         self.xv, self.yv = np.meshgrid(x, y)
         thetas = np.column_stack((self.xv.flatten(), self.yv.flatten()))
 
-        cost_values = np.vstack([self.learner.j(theta) for theta in thetas])
+        # cost_values = np.vstack([self.learner.j(theta) for theta in thetas])
+        cost_values = self.learner.j(thetas)
 
         # results
         self.cost_grid = cost_values.reshape(self.xv.shape)
