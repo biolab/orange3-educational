@@ -5,6 +5,8 @@ import numpy as np
 from Orange.widgets.utils import itemmodels
 from PyQt4.QtCore import pyqtSlot, Qt
 from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
+from scipy.interpolate import splev, splprep
+from scipy.ndimage import gaussian_filter
 
 from Orange.classification import Model
 from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
@@ -12,10 +14,11 @@ from Orange.widgets import gui
 from Orange.widgets import highcharts
 from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg
-from scipy.ndimage import gaussian_filter
+from Orange.preprocess.preprocess import Normalize
 
 from orangecontrib.educational.widgets.utils.logistic_regression \
     import LogisticRegression
+from orangecontrib.educational.widgets.utils.contour import Contour
 
 
 class Scatterplot(highcharts.Highchart):
@@ -28,9 +31,9 @@ class Scatterplot(highcharts.Highchart):
     """
 
     js_click_function = """/**/(function(event) {
-                window.pybridge.chart_clicked(event.xAxis[0].value, event.yAxis[0].value);
-            })
-            """
+            window.pybridge.chart_clicked(event.xAxis[0].value, event.yAxis[0].value);
+        })
+        """
 
     # to make unit tesest
     count_replots = 0
@@ -46,7 +49,6 @@ class Scatterplot(highcharts.Highchart):
                          enable_select='',
                          chart_events_click=self.js_click_function,
                          plotOptions_series_states_hover_enabled=False,
-                         plotOptions_series_cursor="move",
                          javascript=contours_js,
                          **kwargs)
 
@@ -59,6 +61,24 @@ class Scatterplot(highcharts.Highchart):
     @pyqtSlot(float, float)
     def chart_clicked(self, x, y):
         self.click_callback(x, y)
+
+    def remove_series(self, id):
+        self.evalJS("""
+            series = chart.get('{id}');
+            if (series != null)
+                series.remove(true);
+            """.format(id=id))
+
+    def add_series(self, series):
+        for i, s in enumerate(series):
+            self.exposeObject('series%d' % i, series[i])
+            self.evalJS("chart.addSeries(series%d, true);" % i)
+
+    def add_point_to_series(self, id, x, y):
+        self.evalJS("""
+            series = chart.get('{id}');
+            series.addPoint([{x}, {y}]);
+        """.format(id=id, x=x, y=y))
 
 
 class OWGradientDescent(OWWidget):
@@ -76,6 +96,7 @@ class OWGradientDescent(OWWidget):
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
     target_class = settings.Setting('')
+    alpha = settings.Setting(0.1)
 
     # models
     x_var_model = None
@@ -85,7 +106,8 @@ class OWGradientDescent(OWWidget):
     default_learner = LogisticRegression
     learner = None
     cost_grid = None
-    grid_size = 20
+    grid_size = 15
+    contour_color = "#aaaaaa"
 
     # data
     data = None
@@ -121,8 +143,26 @@ class OWGradientDescent(OWWidget):
         self.cbx.setModel(self.x_var_model)
         self.cby.setModel(self.y_var_model)
 
+        self.properties_box = gui.widgetBox(self.controlArea)
+        self.alpha_spin = gui.spin(widget=self.properties_box,
+                                   master=self,
+                                   callback=self.change_alpha,
+                                   value="alpha",
+                                   label="Alpha: ",
+                                   minv=0.01,
+                                   maxv=1,
+                                   step=0.01,
+                                   spinType=float)
+
+        self.comand_box = gui.widgetBox(self.controlArea)
+
+        self.step_buttton = gui.button(widget=self.comand_box,
+                                       master=self,
+                                       callback=self.step,
+                                       label="Step")
+
         # graph in mainArea
-        self.scatter = Scatterplot(click_callback=self.graph_clicked,
+        self.scatter = Scatterplot(click_callback=self.set_theta,
                                    xAxis_gridLineWidth=0,
                                    yAxis_gridLineWidth=0,
                                    title_text='',
@@ -203,10 +243,30 @@ class OWGradientDescent(OWWidget):
             self.target_class = self.target_class_combobox.itemText(0)
             self.restart()
 
+    def set_empty_plot(self):
+        self.scatter.clear()
+
     def restart(self):
         self.selected_data = self.select_data()
-        self.learner = self.default_learner(data=self.selected_data)
+        self.learner = self.default_learner(data=Normalize(self.selected_data))
         self.replot()
+
+    def change_alpha(self):
+        if self.learner is not None:
+            self.learner.set_alpha(self.alpha)
+
+    def step(self):
+        if self.data is None:
+            return
+        if self.learner.theta is None:
+            self.set_theta(np.random.uniform(self.min_x, self.max_x),
+                           np.random.uniform(self.min_y, self.max_y))
+        self.learner.step()
+        theta = self.learner.theta
+        self.plot_point(theta[0], theta[1])
+
+    def plot_point(self, x, y):
+        self.scatter.add_point_to_series("path", x, y)
 
     def replot(self):
         """
@@ -219,44 +279,48 @@ class OWGradientDescent(OWWidget):
         attr_y = self.data.domain[self.attr_y]
 
         optimal_theta = self.learner.optimized()
-        min_x = optimal_theta[0] - 3
-        max_x = optimal_theta[0] + 3
-        min_y = optimal_theta[1] - 3
-        max_y = optimal_theta[1] + 3
+        self.min_x = optimal_theta[0] - 5
+        self.max_x = optimal_theta[0] + 5
+        self.min_y = optimal_theta[1] - 5
+        self.max_y = optimal_theta[1] + 5
 
         options = dict(series=[])
 
         # gradient and contour
         options['series'] += self.plot_gradient_and_contour(
-            min_x, max_x, min_y, max_y)
+            self.min_x, self.max_x, self.min_y, self.max_y)
 
-        data = options['series'][0]['data']
-        data = [d[2] for d in data]
-        min_value = np.min(data)
-        max_value = np.max(data)
+
+        min_value = np.min(self.cost_grid)
+        max_value = np.max(self.cost_grid)
 
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text=attr_x.name,
             yAxis_title_text=attr_y.name,
-            xAxis_min=min_x,
-            xAxis_max=max_x,
-            yAxis_min=min_y,
-            yAxis_max=max_y,
+            xAxis_min=self.min_x,
+            xAxis_max=self.max_x,
+            yAxis_min=self.min_y,
+            yAxis_max=self.max_y,
+            xAxis_startOnTick=False,
+            xAxis_endOnTick=False,
+            yAxis_startOnTick=False,
+            yAxis_endOnTick=False,
             colorAxis=dict(
                 stops=[
                     [min_value, "#ffffff"],
                     [max_value, "#ff0000"]],
                 tickInterval=1, max=max_value, min=min_value),
-            plotOptions_contour_colsize=(max_y - min_y) / 1000,
-            plotOptions_contour_rowsize=(max_x - min_x) / 1000,
+            plotOptions_contour_colsize=(self.max_y - self.min_y) / 10000,
+            plotOptions_contour_rowsize=(self.max_x - self.min_x) / 10000,
+            tooltip_enabled=False,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
-            # hack to destroy the legend for coloraxis
+
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -290,7 +354,8 @@ class OWGradientDescent(OWWidget):
 
         blurred = self.blur_grid(self.cost_grid)
 
-        return self.plot_gradient(self.xv, self.yv, blurred)
+        # return self.plot_gradient(self.xv, self.yv, blurred) + \
+        return self.plot_contour()
 
     def plot_gradient(self, x, y, grid):
         """
@@ -327,57 +392,56 @@ class OWGradientDescent(OWWidget):
 
         return Table(domain, x, y, self.data.Y[:, None])
 
-    # def plot_contour(self):
-    #     """
-    #     Function constructs contour lines
-    #     """
-    #     self.scatter.remove_contours()
-    #     if self.contours_enabled:
-    #         contour = Contour(
-    #             self.xv, self.yv, self.blur_grid(self.probabilities_grid))
-    #         contour_lines = contour.contours(
-    #             np.hstack(
-    #                 (np.arange(0.5, 0, - self.contour_step)[::-1],
-    #                  np.arange(0.5 + self.contour_step, 1, self.contour_step))))
-    #         # we want to have contour for 0.5
-    #
-    #         series = []
-    #         count = 0
-    #         for key, value in contour_lines.items():
-    #             for line in value:
-    #                 if len(line) > self.degree:
-    #                     # if less than degree interpolation fails
-    #                     tck, u = splprep(
-    #                         [list(x) for x in zip(*reversed(line))],
-    #                         s=0.001, k=self.degree,
-    #                         per=(len(line)
-    #                              if np.allclose(line[0], line[-1])
-    #                              else 0))
-    #                     new_int = np.arange(0, 1.01, 0.01)
-    #                     interpol_line = np.array(splev(new_int, tck)).T.tolist()
-    #                 else:
-    #                     interpol_line = line
-    #
-    #                 series.append(dict(data=self.labeled(interpol_line, count),
-    #                                    color=self.contour_color,
-    #                                    type="spline",
-    #                                    lineWidth=0.5,
-    #                                    showInLegend=False,
-    #                                    marker=dict(enabled=False),
-    #                                    name="%g" % round(key, 2),
-    #                                    enableMouseTracking=False
-    #                                    ))
-    #                 count += 1
-    #         self.scatter.add_series(series)
-    #     self.scatter.redraw_series()
+    def plot_contour(self):
+        """
+        Function constructs contour lines
+        """
+
+        contour = Contour(
+            self.xv, self.yv, self.blur_grid(self.cost_grid))
+        contour_lines = contour.contours(
+            np.linspace(np.min(self.cost_grid), np.max(self.cost_grid), 10))
+
+        series = []
+        count = 0
+        for key, value in contour_lines.items():
+            for line in value:
+                # if len(line) > 3:
+                #     # if less than degree interpolation fails
+                #     tck, u = splprep(
+                #         [list(x) for x in zip(*reversed(line))],
+                #         s=0.001, k=3,
+                #         per=(len(line)
+                #              if np.allclose(line[0], line[-1])
+                #              else 0))
+                #     new_int = np.arange(0, 1.01, 0.01)
+                #     interpol_line = np.array(splev(new_int, tck)).T.tolist()
+                # else:
+                interpol_line = line
+
+                series.append(dict(data=interpol_line,
+                                   color=self.contour_color,
+                                   type="spline",
+                                   lineWidth=0.5,
+                                   showInLegend=False,
+                                   marker=dict(enabled=False),
+                                   name="%g" % round(key, 2),
+                                   enableMouseTracking=False
+                                   ))
+                count += 1
+        return series
 
     @staticmethod
     def blur_grid(grid):
         filtered = gaussian_filter(grid, sigma=1)
-        filtered[(grid > 0.45) & (grid < 0.55)] = grid[(grid > 0.45) &
-                                                       (grid < 0.55)]
         return filtered
 
-    def graph_clicked(self, x, y):
-        pass
+    def set_theta(self, x, y):
+        if self.learner is not None:
+            self.learner.set_theta([x, y])
+            self.scatter.remove_series("path")
+            self.scatter.add_series([
+                dict(id="path", data=[[x, y]], showInLegend=False,
+                     type="scatter", lineWidth=1,
+                     marker=dict(enabled=True, radius=2))],)
 
