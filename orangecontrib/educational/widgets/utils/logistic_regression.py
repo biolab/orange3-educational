@@ -10,8 +10,10 @@ class LogisticRegression:
     y = None
     theta = None
     domain = None
+    step_no = 0
 
     def __init__(self, alpha=0.1, theta=None, data=None):
+        self.history = []
         self.set_alpha(alpha)
         self.set_data(data)
         self.set_theta(theta)
@@ -29,6 +31,8 @@ class LogisticRegression:
             self.theta = np.array(theta)
         else:
             self.theta = None
+        self.history = self.set_list(self.history, 0, np.copy(self.theta))
+        self.step_no = 0
 
     def set_alpha(self, alpha):
         self.alpha = alpha
@@ -38,8 +42,15 @@ class LogisticRegression:
         return LogisticRegressionModel(self.theta, self.domain)
 
     def step(self):
+        self.step_no += 1
         grad = self.dj(self.theta)
         self.theta -= self.alpha * grad
+        self.history = self.set_list(self.history, self.step_no, np.copy(self.theta))
+
+    def step_back(self):
+        if self.step_no > 0:
+            self.step_no -= 1
+            self.theta = np.copy(self.history[self.step_no])
 
     def j(self, theta):
         """
@@ -47,7 +58,8 @@ class LogisticRegression:
         """
         # TODO: modify for more thetas
         yh = self.g(self.x.dot(theta))
-        return -sum(np.log(self.y * yh + (1 - self.y) * (1 - yh))) / len(yh)
+        # return -sum(np.log(self.y * yh + (1 - self.y) * (1 - yh))) / len(yh)
+        return -sum(self.y * np.log(yh) + (1 - self.y) * np.log(1 - yh)) / len(yh)
 
     def dj(self, theta):
         """
@@ -81,6 +93,15 @@ class LogisticRegression:
 
         return 1.0 / (1 + np.exp(- z_mod))
 
+    @staticmethod
+    def set_list(l, i, v):
+        try:
+            l[i] = v
+        except IndexError:
+            for _ in range(i-len(l)):
+                l.append(None)
+            l.append(v)
+        return l
 
 class LogisticRegressionModel(Model):
 
