@@ -23,7 +23,12 @@ class LogisticRegression:
             self.domain = data.domain
 
     def set_theta(self, theta):
-        self.theta = theta
+        if isinstance(theta, (np.ndarray, np.generic)):
+            self.theta = theta
+        elif isinstance(theta, list):
+            self.theta = np.array(theta)
+        else:
+            self.theta = None
 
     def set_alpha(self, alpha):
         self.alpha = alpha
