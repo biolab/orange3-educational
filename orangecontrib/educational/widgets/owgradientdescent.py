@@ -51,6 +51,7 @@ class Scatterplot(highcharts.Highchart):
                          enable_select='',
                          chart_events_click=self.js_click_function,
                          plotOptions_series_states_hover_enabled=False,
+                         chart_panning=False,
                          javascript=contours_js,
                          **kwargs)
 
@@ -437,8 +438,8 @@ class OWGradientDescent(OWWidget):
             #         [min_value, "#ffffff"],
             #         [max_value, "#ff0000"]],
             #     tickInterval=1, max=max_value, min=min_value),
-            plotOptions_contour_colsize=(self.max_y - self.min_y) / 10000,
-            plotOptions_contour_rowsize=(self.max_x - self.min_x) / 10000,
+            # plotOptions_contour_colsize=(self.max_y - self.min_y) / 10000,
+            # plotOptions_contour_rowsize=(self.max_x - self.min_x) / 10000,
             tooltip_enabled=False,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
@@ -480,7 +481,7 @@ class OWGradientDescent(OWWidget):
         # results
         self.cost_grid = cost_values.reshape(xv.shape)
 
-        # return self.plot_gradient(self.xv, self.yv, blurred) + \
+        # return self.plot_gradient(xv, yv, self.cost_grid) + \
         return self.plot_contour(xv, yv, self.cost_grid)
 
     def plot_gradient(self, x, y, grid):
