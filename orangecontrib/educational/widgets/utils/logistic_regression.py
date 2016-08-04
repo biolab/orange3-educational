@@ -212,7 +212,6 @@ class LogisticRegressionModel(Model):
         super().__init__(domain)
         self.theta = theta
         self.name = "Logistic Regression"
-        print("a")
 
     def predict_storage(self, data):
         probabilities = LogisticRegression.g(data.X.dot(self.theta))
