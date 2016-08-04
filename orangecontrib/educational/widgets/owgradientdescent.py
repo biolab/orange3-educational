@@ -139,7 +139,7 @@ class OWGradientDescent(OWWidget):
 
     name = "Gradient Descent"
     description = "Widget shows the procedure of gradient descent."
-    icon = "icons/InteractiveKMeans.svg"
+    icon = "icons/GradientDescent.svg"
     want_main_area = True
 
     inputs = [("Data", Table, "set_data")]
