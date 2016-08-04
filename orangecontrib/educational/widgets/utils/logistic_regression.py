@@ -45,6 +45,10 @@ class LogisticRegression:
             self.x = data.X
             self.y = data.Y
             self.domain = data.domain
+        else:
+            self.x = None
+            self.y = None
+            self.domain = None
 
     def set_theta(self, theta):
         """
@@ -70,7 +74,10 @@ class LogisticRegression:
         """
         Function returns model based on current parameters.
         """
-        return LogisticRegressionModel(self.theta, self.domain)
+        if self.theta is None or self.domain is None:
+            return None
+        else:
+            return LogisticRegressionModel(self.theta, self.domain)
 
     @property
     def converged(self):
@@ -185,20 +192,6 @@ class LogisticRegression:
         """
         Function sets i-th value in list to v. If i does not exist in l
         it is initialized else value is modified
-
-        Parameters
-        ----------
-        l : list
-            List
-        i : int
-            Index of position in list
-        v : any
-            Value to insert in list
-
-        Returns
-        -------
-        list
-            List with inserted value v on position i
         """
         try:
             l[i] = v
