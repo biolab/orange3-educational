@@ -211,6 +211,12 @@ class LogisticRegressionModel(Model):
     def __init__(self, theta, domain):
         super().__init__(domain)
         self.theta = theta
+        self.name = "Logistic Regression"
+        print("a")
 
     def predict_storage(self, data):
-        return LogisticRegression.g(data.X.dot(self.theta))
+        probabilities = LogisticRegression.g(data.X.dot(self.theta))
+        values = np.around(probabilities)
+        probabilities0 = 1 - probabilities
+        probabilities = np.column_stack((probabilities0, probabilities))
+        return values, probabilities
