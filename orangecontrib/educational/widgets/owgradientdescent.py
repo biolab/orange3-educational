@@ -407,19 +407,16 @@ class OWGradientDescent(OWWidget):
             return
 
         optimal_theta = self.learner.optimized()
-        self.min_x = optimal_theta[0] - 5
-        self.max_x = optimal_theta[0] + 5
-        self.min_y = optimal_theta[1] - 5
-        self.max_y = optimal_theta[1] + 5
+        self.min_x = optimal_theta[0] - 10
+        self.max_x = optimal_theta[0] + 10
+        self.min_y = optimal_theta[1] - 10
+        self.max_y = optimal_theta[1] + 10
 
         options = dict(series=[])
 
         # gradient and contour
         options['series'] += self.plot_gradient_and_contour(
             self.min_x, self.max_x, self.min_y, self.max_y)
-
-        min_value = np.min(self.cost_grid)
-        max_value = np.max(self.cost_grid)
 
         # highcharts parameters
         kwargs = dict(
@@ -433,13 +430,6 @@ class OWGradientDescent(OWWidget):
             xAxis_endOnTick=False,
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
-            # colorAxis=dict(
-            #     stops=[
-            #         [min_value, "#ffffff"],
-            #         [max_value, "#ff0000"]],
-            #     tickInterval=1, max=max_value, min=min_value),
-            # plotOptions_contour_colsize=(self.max_y - self.min_y) / 10000,
-            # plotOptions_contour_rowsize=(self.max_x - self.min_x) / 10000,
             tooltip_enabled=False,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
@@ -481,7 +471,6 @@ class OWGradientDescent(OWWidget):
         # results
         self.cost_grid = cost_values.reshape(xv.shape)
 
-        # return self.plot_gradient(xv, yv, self.cost_grid) + \
         return self.plot_contour(xv, yv, self.cost_grid)
 
     def plot_gradient(self, x, y, grid):
@@ -584,17 +573,26 @@ class OWGradientDescent(OWWidget):
         self.properties_box.setDisabled(disabled)
 
     def send_output(self):
+        """
+        Function sends output
+        """
         self.send_model()
         self.send_coefficients()
         self.send_data()
 
     def send_model(self):
+        """
+        Function sends model on output.
+        """
         if self.learner is not None and self.learner.theta is not None:
             self.send("Classifier", self.learner.model)
         else:
             self.send("Classifier", None)
 
     def send_coefficients(self):
+        """
+        Function sends logistic regression coefficients on output.
+        """
         if self.learner is not None and self.learner.theta is not None:
             domain = Domain(
                     [ContinuousVariable("coef", number_of_decimals=7)],
@@ -608,6 +606,9 @@ class OWGradientDescent(OWWidget):
             self.send("Coefficients", None)
 
     def send_data(self):
+        """
+        Function sends data on output.
+        """
         if self.selected_data is not None:
             self.send("Data", self.selected_data)
         else:
