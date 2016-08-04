@@ -337,7 +337,7 @@ class OWGradientDescent(OWWidget):
         """
         self.selected_data = self.select_data()
         self.learner = self.default_learner(
-            data=Normalize(self.selected_data),
+            data=self.selected_data,
             alpha=self.alpha, stochastic=self.stochastic)
         self.replot()
         self.send_output()
@@ -519,7 +519,7 @@ class OWGradientDescent(OWWidget):
         y = [(0 if d.get_class().value == self.target_class else 1)
              for d in self.data]
 
-        return Table(domain, x, y, self.data.Y[:, None])
+        return Normalize(Table(domain, x, y, self.data.Y[:, None]))
 
     def plot_contour(self, xv, yv, cost_grid):
         """
