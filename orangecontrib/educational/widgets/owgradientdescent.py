@@ -8,7 +8,8 @@ from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 
 from Orange.widgets.utils import itemmodels
 from Orange.classification import Model
-from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
+from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable, \
+    StringVariable
 from Orange.widgets import gui
 from Orange.widgets import highcharts
 from Orange.widgets import settings
@@ -143,8 +144,9 @@ class OWGradientDescent(OWWidget):
     want_main_area = True
 
     inputs = [("Data", Table, "set_data")]
-    outputs = [("Model", Model),
-               ("Coefficients", Table)]
+    outputs = [("Classifier", Model),
+               ("Coefficients", Table),
+               ("Data", Table)]
 
     # selected attributes in chart
     attr_x = settings.Setting('')
@@ -295,20 +297,22 @@ class OWGradientDescent(OWWidget):
 
         # clear variables
         self.cost_grid = None
+        self.learner = None
 
-        dd = data.domain
+        d = data
+        self.send_output()
 
         if data is None or len(data) == 0:
             self.data = None
             reset_combos()
             self.set_empty_plot()
-        elif sum(True for var in dd.attributes
+        elif sum(True for var in d.domain.attributes
                  if isinstance(var, ContinuousVariable)) < 2:
             self.data = None
             reset_combos()
             self.Warning.to_few_features()
             self.set_empty_plot()
-        elif dd.class_var is None or len(dd.class_var.values) < 2:
+        elif d.domain.class_var is None or len(d.domain.class_var.values) < 2:
             self.data = None
             reset_combos()
             self.Warning.no_class()
@@ -336,6 +340,7 @@ class OWGradientDescent(OWWidget):
             data=Normalize(self.selected_data),
             alpha=self.alpha, stochastic=self.stochastic)
         self.replot()
+        self.send_output()
 
     def change_alpha(self):
         """
@@ -362,6 +367,7 @@ class OWGradientDescent(OWWidget):
                 dict(id="path", data=[[x, y]], showInLegend=False,
                      type="scatter", lineWidth=1,
                      marker=dict(enabled=True, radius=2))],)
+            self.send_output()
 
     def step(self):
         """
@@ -375,6 +381,7 @@ class OWGradientDescent(OWWidget):
         self.learner.step()
         theta = self.learner.theta
         self.plot_point(theta[0], theta[1])
+        self.send_output()
 
     def step_back(self):
         """
@@ -383,6 +390,7 @@ class OWGradientDescent(OWWidget):
         if self.learner.step_no > 0:
             self.learner.step_back()
             self.scatter.remove_last_point("path")
+            self.send_output()
 
     def plot_point(self, x, y):
         """
@@ -583,3 +591,33 @@ class OWGradientDescent(OWWidget):
         self.step_box.setDisabled(disabled)
         self.options_box.setDisabled(disabled)
         self.properties_box.setDisabled(disabled)
+
+    def send_output(self):
+        self.send_model()
+        self.send_coefficients()
+        self.send_data()
+
+    def send_model(self):
+        if self.learner is not None and self.learner.theta is not None:
+            self.send("Classifier", self.learner.model)
+        else:
+            self.send("Classifier", None)
+
+    def send_coefficients(self):
+        if self.learner is not None and self.learner.theta is not None:
+            domain = Domain(
+                    [ContinuousVariable("coef", number_of_decimals=7)],
+                    metas=[StringVariable("name")])
+            names = ["theta 0", "theta 1"]
+
+            coefficients_table = Table(
+                    domain, list(zip(list(self.learner.theta), names)))
+            self.send("Coefficients", coefficients_table)
+        else:
+            self.send("Coefficients", None)
+
+    def send_data(self):
+        if self.selected_data is not None:
+            self.send("Data", self.selected_data)
+        else:
+            self.send("Data", None)
