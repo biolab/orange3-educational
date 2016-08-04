@@ -218,7 +218,7 @@ class OWGradientDescent(OWWidget):
         self.alpha_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_alpha,
             value="alpha", label="Learning rate: ",
-            minv=0.01, maxv=1, step=0.01, spinType=float)
+            minv=0.01, maxv=10, step=0.01, spinType=float)
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
@@ -480,10 +480,8 @@ class OWGradientDescent(OWWidget):
         # results
         self.cost_grid = cost_values.reshape(xv.shape)
 
-        blurred = self.blur_grid(self.cost_grid)
-
         # return self.plot_gradient(self.xv, self.yv, blurred) + \
-        return self.plot_contour(xv, yv, blurred)
+        return self.plot_contour(xv, yv, self.cost_grid)
 
     def plot_gradient(self, x, y, grid):
         """
@@ -529,7 +527,7 @@ class OWGradientDescent(OWWidget):
         contour = Contour(
             xv, yv, cost_grid)
         contour_lines = contour.contours(
-            np.linspace(np.min(cost_grid), np.max(cost_grid), 10))
+            np.linspace(np.min(cost_grid), np.max(cost_grid), 20))
 
         series = []
         count = 0
@@ -548,14 +546,6 @@ class OWGradientDescent(OWWidget):
                                    ))
                 count += 1
         return series
-
-    @staticmethod
-    def blur_grid(grid):
-        """
-        Function blur the grid, to make crossings smoother
-        """
-        filtered = gaussian_filter(grid, sigma=1)
-        return filtered
 
     def auto_play(self):
         """

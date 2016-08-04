@@ -27,6 +27,8 @@ class LogisticRegression:
     step_no = 0
     stochastic_i = 0
     stochastic_num_steps = 30  # number of steps in one step
+    regularization_rate = 0.001
+    # very small regularization rate to avoid big parameters
 
     def __init__(self, alpha=0.1, theta=None, data=None, stochastic=False):
         self.history = []
@@ -136,8 +138,8 @@ class LogisticRegression:
         """
         yh = self.g(self.x.dot(theta.T)).T
         y = self.y
-        return -np.sum(
-            (self.y * np.log(yh) + (1 - y) * np.log(1 - yh)).T, axis=0) / len(y)
+        return (-np.sum((y * np.log(yh) + (1 - y) * np.log(1 - yh)).T, axis=0) +
+                self.regularization_rate * np.sum(np.square(theta.T), axis=0))
 
     def dj(self, theta, stochastic=False):
         """
@@ -149,7 +151,8 @@ class LogisticRegression:
             y = self.y[self.stochastic_i: self.stochastic_i + ns]
             return x.T.dot(self.g(x.dot(theta)) - y)
         else:
-            return (self.g(self.x.dot(theta)) - self.y).dot(self.x)
+            return ((self.g(self.x.dot(theta)) - self.y).dot(self.x) +
+                   self.regularization_rate * theta)
 
     def optimized(self):
         """
@@ -172,8 +175,8 @@ class LogisticRegression:
         """
 
         # limit values in z to avoid log with 0 produced by values almost 0
-        z_mod = np.minimum(z, 100)
-        z_mod = np.maximum(z_mod, -100)
+        z_mod = np.minimum(z, 20)
+        z_mod = np.maximum(z_mod, -20)
 
         return 1.0 / (1 + np.exp(- z_mod))
 
