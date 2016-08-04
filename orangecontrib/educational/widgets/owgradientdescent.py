@@ -407,10 +407,10 @@ class OWGradientDescent(OWWidget):
             return
 
         optimal_theta = self.learner.optimized()
-        self.min_x = optimal_theta[0] - 5
-        self.max_x = optimal_theta[0] + 5
-        self.min_y = optimal_theta[1] - 5
-        self.max_y = optimal_theta[1] + 5
+        self.min_x = optimal_theta[0] - 10
+        self.max_x = optimal_theta[0] + 10
+        self.min_y = optimal_theta[1] - 10
+        self.max_y = optimal_theta[1] + 10
 
         options = dict(series=[])
 
@@ -584,17 +584,26 @@ class OWGradientDescent(OWWidget):
         self.properties_box.setDisabled(disabled)
 
     def send_output(self):
+        """
+        Function sends output
+        """
         self.send_model()
         self.send_coefficients()
         self.send_data()
 
     def send_model(self):
+        """
+        Function sends model on output.
+        """
         if self.learner is not None and self.learner.theta is not None:
             self.send("Classifier", self.learner.model)
         else:
             self.send("Classifier", None)
 
     def send_coefficients(self):
+        """
+        Function sends logistic regression coefficients on output.
+        """
         if self.learner is not None and self.learner.theta is not None:
             domain = Domain(
                     [ContinuousVariable("coef", number_of_decimals=7)],
@@ -608,6 +617,9 @@ class OWGradientDescent(OWWidget):
             self.send("Coefficients", None)
 
     def send_data(self):
+        """
+        Function sends data on output.
+        """
         if self.selected_data is not None:
             self.send("Data", self.selected_data)
         else:
