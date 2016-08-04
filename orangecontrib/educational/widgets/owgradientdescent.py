@@ -418,9 +418,6 @@ class OWGradientDescent(OWWidget):
         options['series'] += self.plot_gradient_and_contour(
             self.min_x, self.max_x, self.min_y, self.max_y)
 
-        min_value = np.min(self.cost_grid)
-        max_value = np.max(self.cost_grid)
-
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text="theta 0",
@@ -433,13 +430,6 @@ class OWGradientDescent(OWWidget):
             xAxis_endOnTick=False,
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
-            # colorAxis=dict(
-            #     stops=[
-            #         [min_value, "#ffffff"],
-            #         [max_value, "#ff0000"]],
-            #     tickInterval=1, max=max_value, min=min_value),
-            # plotOptions_contour_colsize=(self.max_y - self.min_y) / 10000,
-            # plotOptions_contour_rowsize=(self.max_x - self.min_x) / 10000,
             tooltip_enabled=False,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
@@ -481,7 +471,6 @@ class OWGradientDescent(OWWidget):
         # results
         self.cost_grid = cost_values.reshape(xv.shape)
 
-        # return self.plot_gradient(xv, yv, self.cost_grid) + \
         return self.plot_contour(xv, yv, self.cost_grid)
 
     def plot_gradient(self, x, y, grid):
