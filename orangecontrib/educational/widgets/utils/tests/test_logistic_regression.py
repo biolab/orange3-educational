@@ -1,9 +1,10 @@
 import unittest
-from Orange.data import Table, Domain
+from Orange.data import Table
 from orangecontrib.educational.widgets.utils.logistic_regression import \
     LogisticRegression
 from numpy.testing import *
 import numpy as np
+
 
 class TestKmeans(unittest.TestCase):
 
@@ -121,7 +122,7 @@ class TestKmeans(unittest.TestCase):
         self.assertEqual(len(values), len(self.iris))
         self.assertEqual(len(probabilities), len(self.iris))
         # values have to be 0 if prob <0.5 else 1
-        assert_array_equal(values, np.around(probabilities)[:,1])
+        assert_array_equal(values, np.around(probabilities)[:, 1])
 
     def test_converged(self):
         """
@@ -236,7 +237,6 @@ class TestKmeans(unittest.TestCase):
         self.assertEqual(lr.step_no, 0)
 
         lr.step()
-        theta1 = np.copy(lr.theta)
         lr.step()
         lr.step_back()
 
@@ -258,8 +258,98 @@ class TestKmeans(unittest.TestCase):
         lr.step_back()
         assert_array_equal(lr.x, before)
 
+    def test_j(self):
+        """
+        Test cost function j
+        """
+        lr = self.logistic_regression
 
+        lr.set_data(self.iris)
 
+        # test with one theta and with list of thetas
+        self.assertEqual(type(lr.j(np.array([1., 1., 1., 1.]))), np.float64)
+        self.assertEqual(
+            len(lr.j(np.array([[1., 1., 1., 1.], [2, 2, 2, 2]]))), 2)
 
+    def test_dj(self):
+        """
+        Test gradient function
+        """
+        lr = self.logistic_regression
 
+        lr.set_data(self.iris)
+        # check length with stochastic and usual
+        self.assertEqual(len(lr.dj(np.array([1, 1, 1, 1]))), 4)
+        lr.stochastic = True
+        self.assertEqual(len(lr.dj(np.array([1, 1, 1, 1]))), 4)
 
+    def test_optimized(self):
+        """
+        Test if optimized works well
+        """
+        lr = self.logistic_regression
+
+        lr.set_data(self.iris)
+        op_theta = lr.optimized()
+        self.assertEqual(len(op_theta), 4)
+
+        # check if really minimal, function is monotonic so everywhere around
+        # j should be higher
+        self.assertLessEqual(
+            lr.j(op_theta), lr.j(op_theta + np.array([1, 0, 0, 0])))
+        self.assertLessEqual(
+            lr.j(op_theta), lr.j(op_theta + np.array([0, 1, 0, 0])))
+        self.assertLessEqual(
+            lr.j(op_theta), lr.j(op_theta + np.array([0, 0, 1, 0])))
+        self.assertLessEqual(
+            lr.j(op_theta), lr.j(op_theta + np.array([0, 0, 0, 1])))
+
+    def test_g(self):
+        """
+        Test sigmoid function
+        """
+        lr = self.logistic_regression
+
+        # test length
+        self.assertEqual(type(lr.g(1)), np.float64)
+        self.assertEqual(len(lr.g(np.array([1, 1]))), 2)
+        self.assertEqual(len(lr.g(np.array([1, 1, 1]))), 3)
+        self.assertEqual(len(lr.g(np.array([1, 1, 1, 1]))), 4)
+
+        # test correctness, function between 0 and 1
+        self.assertGreaterEqual(lr.g(-10000), 0)
+        self.assertGreaterEqual(lr.g(-1000), 0)
+        self.assertGreaterEqual(lr.g(-10), 0)
+        self.assertGreaterEqual(lr.g(-1), 0)
+        self.assertGreaterEqual(lr.g(0), 0)
+        self.assertGreaterEqual(lr.g(1), 0)
+        self.assertGreaterEqual(lr.g(10), 0)
+        self.assertGreaterEqual(lr.g(1000), 0)
+        self.assertGreaterEqual(lr.g(10000), 0)
+
+        self.assertLessEqual(lr.g(-10000), 1)
+        self.assertLessEqual(lr.g(-1000), 1)
+        self.assertLessEqual(lr.g(-10), 1)
+        self.assertLessEqual(lr.g(-1), 1)
+        self.assertLessEqual(lr.g(0), 1)
+        self.assertLessEqual(lr.g(1), 1)
+        self.assertLessEqual(lr.g(10), 1)
+        self.assertLessEqual(lr.g(1000), 1)
+        self.assertLessEqual(lr.g(10000), 1)
+
+    def test_set_list(self):
+        """
+        Test set list
+        """
+        lr = self.logistic_regression
+
+        # test adding Nones if list too short
+        self.assertEqual(lr.set_list([], 2, 1), [None, None, 1])
+        # test adding Nones if list too short
+        self.assertEqual(lr.set_list([2], 2, 1), [2, None, 1])
+        # adding to end
+        self.assertEqual(lr.set_list([2, 1], 2, 1), [2, 1, 1])
+        # changing the element in the last place
+        self.assertEqual(lr.set_list([2, 1], 1, 3), [2, 3])
+        # changing the element in the middle place
+        self.assertEqual(lr.set_list([2, 1, 3], 1, 3), [2, 3, 3])
