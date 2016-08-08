@@ -154,6 +154,7 @@ class OWGradientDescent(OWWidget):
     attr_y = settings.Setting('')
     target_class = settings.Setting('')
     alpha = settings.Setting(0.1)
+    step_size = settings.Setting(30)  # step size for stochastic gds
     auto_play_speed = settings.Setting(1)
     stochastic = settings.Setting(False)
 
@@ -224,6 +225,10 @@ class OWGradientDescent(OWWidget):
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
             label="Stochastic: ")
+        self.step_size_spin = gui.spin(
+            widget=self.properties_box, master=self, callback=self.change_step,
+            value="step_size", label="Step size: ",
+            minv=1, maxv=100, step=1)
         self.restart_button = gui.button(
             widget=self.properties_box, master=self,
             callback=self.restart, label="Restart")
@@ -339,7 +344,8 @@ class OWGradientDescent(OWWidget):
         self.selected_data = self.select_data()
         self.learner = self.default_learner(
             data=self.selected_data,
-            alpha=self.alpha, stochastic=self.stochastic)
+            alpha=self.alpha, stochastic=self.stochastic,
+            step_size=self.step_size)
         self.replot()
         self.send_output()
 
@@ -356,6 +362,10 @@ class OWGradientDescent(OWWidget):
         """
         if self.learner is not None:
             self.learner.stochastic = self.stochastic
+
+    def change_step(self):
+        if self.learner is not None:
+            self.learner.stochastic_step_size = self.step_size
 
     def change_theta(self, x, y):
         """
