@@ -196,7 +196,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(w.learner)
         w.stochastic_checkbox.click()
 
-    def change_step(self):
+    def test_change_step(self):
         """
         Function check if change step works correctly
         """
@@ -234,7 +234,7 @@ class TestOWGradientDescent(WidgetTest):
         # change alpha
         w.change_theta(1, 1)
         assert_array_equal(w.learner.theta, [1, 1])
-        w.change_theta(1, 2)
+        w.scatter.chart_clicked(1, 2)
         assert_array_equal(w.learner.theta, [1, 2])
 
         # just check if nothing happens when no learner

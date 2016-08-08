@@ -487,15 +487,6 @@ class OWGradientDescent(OWWidget):
 
         return self.plot_contour(xv, yv, self.cost_grid)
 
-    def plot_gradient(self, x, y, grid):
-        """
-        Function constructs background gradient
-        """
-        return [dict(data=[[x[j, k], y[j, k], grid[j, k]] for j in range(len(x))
-                           for k in range(y.shape[1])],
-                     grid_width=self.grid_size,
-                     type="contour")]
-
     def plot_contour(self, xv, yv, cost_grid):
         """
         Function constructs contour lines
