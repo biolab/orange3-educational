@@ -304,6 +304,7 @@ class OWGradientDescent(OWWidget):
         # clear variables
         self.cost_grid = None
         self.learner = None
+        self.selected_data = None
 
         d = data
         self.send_output()
@@ -314,6 +315,7 @@ class OWGradientDescent(OWWidget):
             self.set_empty_plot()
         elif sum(True for var in d.domain.attributes
                  if isinstance(var, ContinuousVariable)) < 2:
+            # not enough (2) continuous variable
             self.data = None
             reset_combos()
             self.Warning.to_few_features()
@@ -398,6 +400,8 @@ class OWGradientDescent(OWWidget):
         """
         Function performs step back
         """
+        if self.data is None:
+            return
         if self.learner.step_no > 0:
             self.learner.step_back()
             self.scatter.remove_last_point("path")
@@ -492,33 +496,6 @@ class OWGradientDescent(OWWidget):
                      grid_width=self.grid_size,
                      type="contour")]
 
-    def select_data(self):
-        """
-        Function takes two selected columns from data table and merge them
-        in new Orange.data.Table
-
-        Returns
-        -------
-        Table
-            Table with selected columns
-        """
-        attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y]
-        cols = []
-        for attr in (attr_x, attr_y):
-            subset = self.data[:, attr]
-            cols.append(subset.X)
-        x = np.column_stack(cols)
-        domain = Domain(
-            [attr_x, attr_y],
-            [DiscreteVariable(name=self.data.domain.class_var.name,
-                              values=[self.target_class, 'Others'])],
-            [self.data.domain.class_var])
-        y = [(0 if d.get_class().value == self.target_class else 1)
-             for d in self.data]
-
-        return Normalize(Table(domain, x, y, self.data.Y[:, None]))
-
     def plot_contour(self, xv, yv, cost_grid):
         """
         Function constructs contour lines
@@ -547,23 +524,54 @@ class OWGradientDescent(OWWidget):
                 count += 1
         return series
 
+    def select_data(self):
+        """
+        Function takes two selected columns from data table and merge them
+        in new Orange.data.Table
+
+        Returns
+        -------
+        Table
+            Table with selected columns
+        """
+        if self.data is None:
+            return
+
+        attr_x = self.data.domain[self.attr_x]
+        attr_y = self.data.domain[self.attr_y]
+        cols = []
+        for attr in (attr_x, attr_y):
+            subset = self.data[:, attr]
+            cols.append(subset.X)
+        x = np.column_stack(cols)
+        domain = Domain(
+            [attr_x, attr_y],
+            [DiscreteVariable(name=self.data.domain.class_var.name,
+                              values=[self.target_class, 'Others'])],
+            [self.data.domain.class_var])
+        y = [(0 if d.get_class().value == self.target_class else 1)
+             for d in self.data]
+
+        return Normalize(Table(domain, x, y, self.data.Y[:, None]))
+
     def auto_play(self):
         """
         Function called when autoplay button pressed
         """
-        self.auto_play_enabled = not self.auto_play_enabled
-        self.auto_play_button.setText(
-            self.auto_play_button_text[self.auto_play_enabled])
-        if self.auto_play_enabled:
-            self.disable_controls(self.auto_play_enabled)
-            self.auto_play_thread = Autoplay(self)
-            self.connect(self.auto_play_thread, SIGNAL("step()"), self.step)
-            self.connect(
-                self.auto_play_thread, SIGNAL("stop_auto_play()"),
-                self.stop_auto_play)
-            self.auto_play_thread.start()
-        else:
-            self.stop_auto_play()
+        if self.data is not None:
+            self.auto_play_enabled = not self.auto_play_enabled
+            self.auto_play_button.setText(
+                self.auto_play_button_text[self.auto_play_enabled])
+            if self.auto_play_enabled:
+                self.disable_controls(self.auto_play_enabled)
+                self.auto_play_thread = Autoplay(self)
+                self.connect(self.auto_play_thread, SIGNAL("step()"), self.step)
+                self.connect(
+                    self.auto_play_thread, SIGNAL("stop_auto_play()"),
+                    self.stop_auto_play)
+                self.auto_play_thread.start()
+            else:
+                self.stop_auto_play()
 
     def stop_auto_play(self):
         """
@@ -605,8 +613,8 @@ class OWGradientDescent(OWWidget):
         """
         if self.learner is not None and self.learner.theta is not None:
             domain = Domain(
-                    [ContinuousVariable("coef", number_of_decimals=7)],
-                    metas=[StringVariable("name")])
+                    [ContinuousVariable("Coefficients", number_of_decimals=7)],
+                    metas=[StringVariable("Name")])
             names = ["theta 0", "theta 1"]
 
             coefficients_table = Table(
