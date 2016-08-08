@@ -26,16 +26,18 @@ class LogisticRegression:
     domain = None
     step_no = 0
     stochastic_i = 0
-    stochastic_num_steps = 30  # number of steps in one step
+    stochastic_step_size = 30  # number of steps in one step
     regularization_rate = 0.001
     # very small regularization rate to avoid big parameters
 
-    def __init__(self, alpha=0.1, theta=None, data=None, stochastic=False):
+    def __init__(self, alpha=0.1, theta=None, data=None, stochastic=False,
+                 step_size=30):
         self.history = []
         self.set_alpha(alpha)
         self.set_data(data)
         self.set_theta(theta)
         self.stochastic = stochastic
+        self.stochastic_step_size = step_size
 
     def set_data(self, data):
         """
@@ -100,7 +102,7 @@ class LogisticRegression:
         self.theta -= self.alpha * grad
 
         # increase index used by stochastic gradient descent
-        self.stochastic_i += self.stochastic_num_steps
+        self.stochastic_i += self.stochastic_step_size
 
         seed = None  # seed that will be stored to revert the shuffle
         # if we came around all data set index to zero and permute data
@@ -153,7 +155,7 @@ class LogisticRegression:
         Gradient of the cost function for logistic regression
         """
         if stochastic:
-            ns = self.stochastic_num_steps
+            ns = self.stochastic_step_size
             x = self.x[self.stochastic_i: self.stochastic_i + ns]
             y = self.y[self.stochastic_i: self.stochastic_i + ns]
             return x.T.dot(self.g(x.dot(theta)) - y)

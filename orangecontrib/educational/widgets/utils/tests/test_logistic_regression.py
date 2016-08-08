@@ -240,7 +240,7 @@ class TestKmeans(unittest.TestCase):
         lr.step()
         lr.step_back()
 
-        self.assertEqual(lr.stochastic_i, lr.stochastic_num_steps)
+        self.assertEqual(lr.stochastic_i, lr.stochastic_step_size)
         self.assertEqual(lr.step_no, 1)
 
         lr.step_back()
