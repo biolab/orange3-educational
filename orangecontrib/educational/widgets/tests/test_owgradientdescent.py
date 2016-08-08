@@ -217,7 +217,7 @@ class TestOWGradientDescent(WidgetTest):
         # just check if nothing happens when no learner
         self.send_signal("Data", None)
         self.assertIsNone(w.learner)
-        w.step_size_spin.setValue(40)
+        w.step_size_spin.setValue(30)
 
     def test_change_theta(self):
         """
