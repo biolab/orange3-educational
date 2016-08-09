@@ -257,13 +257,16 @@ class OWGradientDescent(OWWidget):
                                    yAxis_gridLineWidth=0,
                                    title_text='',
                                    tooltip_shared=False,
-                                   debug=True)
+                                   debug=True,
+                                   legend_symbolWidth=0,
+                                   legend_symbolHeight=0)
         # TODO: set false when end of development
         gui.rubber(self.controlArea)
 
         # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
+        # to remove the legend
 
     def set_data(self, data):
         """
@@ -378,8 +381,10 @@ class OWGradientDescent(OWWidget):
             self.scatter.remove_series("path")
             self.scatter.add_series([
                 dict(id="path", data=[[x, y]], showInLegend=False,
-                     type="scatter", lineWidth=1,
-                     marker=dict(enabled=True, radius=2))],)
+                     type="scatter", lineWidth=1, enableMouseTracking=False,
+                     color="#ff0000",
+                     marker=dict(
+                         enabled=True, radius=2))],)
             self.send_output()
 
     def step(self):
@@ -432,6 +437,9 @@ class OWGradientDescent(OWWidget):
         options['series'] += self.plot_gradient_and_contour(
             self.min_x, self.max_x, self.min_y, self.max_y)
 
+        min_value = np.min(self.cost_grid)
+        max_value = np.max(self.cost_grid)
+
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text="theta 0",
@@ -444,13 +452,20 @@ class OWGradientDescent(OWWidget):
             xAxis_endOnTick=False,
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
-            tooltip_enabled=False,
+            # tooltip_enabled=False,
+            colorAxis=dict(
+                minColor="#ffffff", maxColor="#00BFFF",
+                endOnTick=False, startOnTick=False),
+            plotOptions_contour_colsize=(self.max_y - self.min_y) / 1000,
+            plotOptions_contour_rowsize=(self.max_x - self.min_x) / 1000,
             tooltip_headerFormat="",
             tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
                                 "<strong>%s:</strong> {point.y:.2f}" %
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
+        # to remove the colorAxis legend
+        self.scatter.evalJS("chart.colorAxis[0].axisParent.destroy();")
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -485,7 +500,17 @@ class OWGradientDescent(OWWidget):
         # results
         self.cost_grid = cost_values.reshape(xv.shape)
 
-        return self.plot_contour(xv, yv, self.cost_grid)
+        return self.plot_gradient(xv, yv, self.cost_grid) + \
+            self.plot_contour(xv, yv, self.cost_grid)
+
+    def plot_gradient(self, x, y, grid):
+        """
+        Function constructs background gradient
+        """
+        return [dict(data=[[x[j, k], y[j, k], grid[j, k]] for j in range(len(x))
+                           for k in range(y.shape[1])],
+                     grid_width=self.grid_size,
+                     type="contour")]
 
     def plot_contour(self, xv, yv, cost_grid):
         """
