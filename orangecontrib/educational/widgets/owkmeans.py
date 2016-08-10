@@ -143,6 +143,7 @@ class OWKmeans(OWWidget):
 
     # data
     data = None
+    selected_rows = None  # rows that are selected for kmeans (not nan rows)
 
     # selected attributes in chart
     attr_x = settings.Setting('')
@@ -242,6 +243,9 @@ class OWKmeans(OWWidget):
             subset = self.data[:, attr]
             cols.append(subset.Y if subset.Y.size else subset.X)
         x = np.column_stack(cols)
+        not_nan = ~np.isnan(x).any(axis=1)
+        x = x[not_nan]  # remove rows with nan
+        self.selected_rows = np.where(not_nan)
         domain = Domain([attr_x, attr_y])
         return Table(domain, x)
 
@@ -484,7 +488,7 @@ class OWKmeans(OWWidget):
                 type="scatter",
                 showInLegend=False,
                 color=rgb_hash_brighter(
-                    self.colors[i % len(self.colors)], 0.3)))
+                    self.colors[i % len(self.colors)], 0.5)))
 
         self.scatter.add_series(series)
 
@@ -560,7 +564,7 @@ class OWKmeans(OWWidget):
             classes = [clust_var]
             domain = Domain(attributes, classes, meta_attrs)
             annotated_data = Table.from_table(domain, self.data)
-            annotated_data.get_column_view(clust_var)[0][:] = km.clusters
+            annotated_data.Y[self.selected_rows] = km.clusters
 
             centroids = Table(Domain(km.data.domain.attributes), km.centroids)
             self.send("Annotated Data", annotated_data)
