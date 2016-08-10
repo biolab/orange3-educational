@@ -3,7 +3,7 @@ from os import path
 from itertools import chain
 import time
 
-from PyQt4.QtCore import pyqtSlot, QThread, SIGNAL, Qt
+from PyQt4.QtCore import pyqtSlot, QThread, Qt, pyqtSignal
 from PyQt4.QtGui import QSizePolicy
 
 import Orange
@@ -39,9 +39,9 @@ class Autoplay(QThread):
         """
         while ((not self.owkmeans.k_means.converged) and
                self.owkmeans.auto_play_enabled):
-            self.emit(SIGNAL('step()'))
+            self.owkmeans.step_trigger.emit()
             time.sleep(2 - self.owkmeans.auto_play_speed)
-        self.emit(SIGNAL('stop_auto_play()'))
+        self.owkmeans.stop_auto_play_trigger.emit()
 
 
 class Scatterplot(highcharts.Highchart):
@@ -162,6 +162,10 @@ class OWKmeans(OWWidget):
     # (if more required check for more in chart.options.color)
     colors = ["#1F7ECA", "#D32525", "#28D825", "#D5861F", "#98257E",
               "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]
+
+    # signals
+    step_trigger = pyqtSignal()
+    stop_auto_play_trigger = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -360,9 +364,8 @@ class OWKmeans(OWWidget):
             self.centroids_box.setDisabled(True)
             self.step_box.setDisabled(True)
             self.auto_play_thread = Autoplay(self)
-            self.connect(self.auto_play_thread, SIGNAL("step()"), self.step)
-            self.connect(self.auto_play_thread, SIGNAL("stop_auto_play()"),
-                         self.stop_auto_play)
+            self.step_trigger.connect(self.step)
+            self.stop_auto_play_trigger.connect(self.stop_auto_play)
             self.auto_play_thread.start()
         else:
             self.stop_auto_play()
@@ -377,6 +380,7 @@ class OWKmeans(OWWidget):
         self.auto_play_enabled = False
         self.auto_play_button\
             .setText(self.AUTOPLAY_BUTTONS[self.auto_play_enabled])
+        self.button_text_change()
 
     def replot(self):
         """
