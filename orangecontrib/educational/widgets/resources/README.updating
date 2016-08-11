@@ -1,0 +1,2 @@
+When updating draggable-points or highcharts-contours examine the changelog and grep for any option incompatibilities.
+Check new option defaults.
