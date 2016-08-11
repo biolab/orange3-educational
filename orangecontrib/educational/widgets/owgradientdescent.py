@@ -278,7 +278,6 @@ class OWGradientDescent(OWWidget):
         # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
-        # to remove the legend
 
     def set_data(self, data):
         """
@@ -368,7 +367,7 @@ class OWGradientDescent(OWWidget):
 
     def change_alpha(self):
         """
-        Function changes alpha parameter of the alogrithm
+        Function changes alpha parameter of the algorithm
         """
         if self.learner is not None:
             self.learner.set_alpha(self.alpha)
@@ -455,9 +454,6 @@ class OWGradientDescent(OWWidget):
         options['series'] += self.plot_gradient_and_contour(
             self.min_x, self.max_x, self.min_y, self.max_y)
 
-        min_value = np.min(self.cost_grid)
-        max_value = np.max(self.cost_grid)
-
         # highcharts parameters
         kwargs = dict(
             xAxis_title_text="theta 0",
@@ -470,7 +466,6 @@ class OWGradientDescent(OWWidget):
             xAxis_endOnTick=False,
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
-            # tooltip_enabled=False,
             colorAxis=dict(
                 minColor="#ffffff", maxColor="#00BFFF",
                 endOnTick=False, startOnTick=False),
@@ -518,8 +513,8 @@ class OWGradientDescent(OWWidget):
         # results
         self.cost_grid = cost_values.reshape(xv.shape)
 
-        return self.plot_gradient(xv, yv, self.cost_grid) + \
-            self.plot_contour(xv, yv, self.cost_grid)
+        return (self.plot_gradient(xv, yv, self.cost_grid) +
+                self.plot_contour(xv, yv, self.cost_grid))
 
     def plot_gradient(self, x, y, grid):
         """
@@ -534,9 +529,7 @@ class OWGradientDescent(OWWidget):
         """
         Function constructs contour lines
         """
-
-        contour = Contour(
-            xv, yv, cost_grid)
+        contour = Contour(xv, yv, cost_grid)
         contour_lines = contour.contours(
             np.linspace(np.min(cost_grid), np.max(cost_grid), 20))
 
