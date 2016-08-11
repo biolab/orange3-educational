@@ -228,10 +228,10 @@ class TestOWGradientDescent(WidgetTest):
         # to define learner
         self.send_signal("Data", self.iris)
 
-        # check init alpha
-        self.assertIsNone(w.learner.theta)
+        # check init theta
+        self.assertIsNotNone(w.learner.theta)
 
-        # change alpha
+        # change theta
         w.change_theta(1, 1)
         assert_array_equal(w.learner.theta, [1, 1])
         w.scatter.chart_clicked(1, 2)
@@ -253,8 +253,7 @@ class TestOWGradientDescent(WidgetTest):
 
         self.send_signal("Data", self.iris)
 
-        # test theta set when none
-        self.assertIsNone(w.learner.theta)
+        # test theta set after step if not set yet
         w.step()
         self.assertIsNotNone(w.learner.theta)
 
@@ -471,9 +470,9 @@ class TestOWGradientDescent(WidgetTest):
         # when no learner
         self.assertIsNone(self.get_output("Classifier"))
 
-        # when learner but no theta
+        # when learner theta set automatically
         self.send_signal("Data", self.iris)
-        self.assertIsNone(self.get_output("Classifier"))
+        self.assertIsNotNone(self.get_output("Classifier"))
 
         # when everything fine
         w.change_theta(1., 1.)
@@ -491,7 +490,7 @@ class TestOWGradientDescent(WidgetTest):
 
         # when learner but no theta
         self.send_signal("Data", self.iris)
-        self.assertIsNone(self.get_output("Coefficients"))
+        self.assertIsNotNone(self.get_output("Coefficients"))
 
         # when everything fine
         w.change_theta(1., 1.)
