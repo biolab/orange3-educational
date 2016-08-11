@@ -42,10 +42,13 @@ class PolynomialTransform(Preprocess):
                 p1, p2 = i - j, j
                 poly_vars.append(
                     ContinuousVariable(
-                        "{n1} ^ {p1} * {n2} ^ {p2}".format(n1=variables[0].name,
-                                                           n2=variables[1].name,
-                                                           p1=p1,
-                                                           p2=p2),
+                        (("{n1}^{p1}" if p1 > 1 else "{n1}") +
+                         (" * " if p1 > 0 and p2 > 0 else "") +
+                         ("{n2}^{p2}" if p2 > 1 else "{n2}")).format(
+                            n1=variables[0].name if p1 > 0 else "",
+                            n2=variables[1].name if p2 > 0 else "",
+                            p1=p1 if p1 > 1 else "",
+                            p2=p2 if p2 > 1 else ""),
                         compute_value=MultiplyAndPower(variables, p1, p2)))
 
         domain = Domain(poly_vars, data.domain.class_var, data.domain.metas)
