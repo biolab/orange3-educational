@@ -436,6 +436,8 @@ class OWGradientDescent(OWWidget):
         if self.learner.step_no > 0:
             self.learner.step_back()
             self.scatter.remove_last_point("path")
+            theta = self.learner.theta
+            self.plot_last_point(theta[0], theta[1])
             self.send_output()
 
     def plot_point(self, x, y):
@@ -443,6 +445,9 @@ class OWGradientDescent(OWWidget):
         Function add point to the path
         """
         self.scatter.add_point_to_series("path", x, y)
+        self.plot_last_point(x, y)
+
+    def plot_last_point(self, x, y):
         self.scatter.remove_last_point("last_point")
         self.scatter.add_point_to_series("last_point", x, y)
 
