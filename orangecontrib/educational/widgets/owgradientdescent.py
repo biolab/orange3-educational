@@ -2,7 +2,6 @@ from os import path
 import time
 
 import numpy as np
-from scipy.ndimage import gaussian_filter
 from PyQt4.QtCore import pyqtSlot, Qt, QThread, SIGNAL
 from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 
@@ -215,6 +214,8 @@ class OWGradientDescent(OWWidget):
         self.cbx.setModel(self.x_var_model)
         self.cby.setModel(self.y_var_model)
 
+        gui.separator(self.controlArea, 20, 20)
+
         # properties box
         self.properties_box = gui.widgetBox(self.controlArea, "Properties")
         self.alpha_spin = gui.spin(
@@ -233,6 +234,11 @@ class OWGradientDescent(OWWidget):
             widget=self.properties_box, master=self,
             callback=self.restart, label="Restart")
 
+        self.alpha_spin.setSizePolicy(policy)
+        self.step_size_spin.setSizePolicy(policy)
+
+        gui.separator(self.controlArea, 20, 20)
+
         # step box
         self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
         self.step_button = gui.button(
@@ -240,6 +246,8 @@ class OWGradientDescent(OWWidget):
         self.step_back_button = gui.button(
             widget=self.step_box, master=self, callback=self.step_back,
             label="Step back")
+
+        gui.separator(self.controlArea, 20, 20)
 
         # run box
         self.run_box = gui.widgetBox(self.controlArea, "Run")
