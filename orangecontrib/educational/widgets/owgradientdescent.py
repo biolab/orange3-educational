@@ -359,11 +359,18 @@ class OWGradientDescent(OWWidget):
         Function restarts the algorithm
         """
         self.selected_data = self.select_data()
+        theta = self.learner.history[0][0] if self.learner is not None else None
         self.learner = self.default_learner(
             data=self.selected_data,
             alpha=self.alpha, stochastic=self.stochastic,
+            theta=theta,
             step_size=self.step_size)
         self.replot()
+        if theta is None:  # no previous theta exist
+            self.change_theta(np.random.uniform(self.min_x, self.max_x),
+                              np.random.uniform(self.min_y, self.max_y))
+        else:  # theta already exist
+            self.change_theta(theta[0], theta[1])
         self.send_output()
 
     def change_alpha(self):
