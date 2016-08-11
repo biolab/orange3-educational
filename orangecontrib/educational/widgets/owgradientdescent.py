@@ -127,7 +127,8 @@ class Autoplay(QThread):
         Stepping through the algorithm until converge or user interrupts
         """
         while (not self.ow_gradient_descent.learner.converged and
-               self.ow_gradient_descent.auto_play_enabled):
+               self.ow_gradient_descent.auto_play_enabled and
+               self.ow_gradient_descent.learner.step_no <= 500):
             self.ow_gradient_descent.step_trigger.emit()
             time.sleep(2 - self.ow_gradient_descent.auto_play_speed)
         self.ow_gradient_descent.stop_auto_play_trigger.emit()
@@ -407,6 +408,8 @@ class OWGradientDescent(OWWidget):
         Function performs one step of the algorithm
         """
         if self.data is None:
+            return
+        if self.learner.step_no > 500:  # limit step no to avoid freezes
             return
         if self.learner.theta is None:
             self.change_theta(np.random.uniform(self.min_x, self.max_x),
