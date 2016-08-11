@@ -1,13 +1,15 @@
-from Orange.widgets.tests.base import GuiTest
-from orangecontrib.educational.widgets.owunivariateregression import OWUnivariateRegression
+from Orange.widgets.tests.base import WidgetTest
+from orangecontrib.educational.widgets.owunivariateregression \
+    import OWUnivariateRegression
 from Orange.data.table import Table
-from Orange.regression import LinearRegressionLearner, RandomForestRegressionLearner
+from Orange.regression import (LinearRegressionLearner,
+                               RandomForestRegressionLearner)
 from Orange.preprocess.preprocess import Normalize
 
-class TestOWUnivariateRegression(GuiTest):
+class TestOWUnivariateRegression(WidgetTest):
 
     def setUp(self):
-        self.widget = OWUnivariateRegression()
+        self.widget = self.create_widget(OWUnivariateRegression)
         self.data = Table("iris")
         self.data_housing = Table("housing")
 
@@ -158,3 +160,28 @@ class TestOWUnivariateRegression(GuiTest):
         self.assertNotEqual(self.widget.plot_item, None)
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
+    def test_data_output(self):
+        """
+        Check if correct data on output
+        """
+        self.assertIsNone(self.get_output("Data"))
+        self.widget.set_data(self.data)
+        self.widget.expansion_spin.setValue(1)
+        self.widget.send_data()
+        self.assertEqual(len(self.get_output("Data").domain.attributes), 2)
+
+        self.widget.expansion_spin.setValue(2)
+        self.widget.send_data()
+        self.assertEqual(len(self.get_output("Data").domain.attributes), 3)
+
+        self.widget.expansion_spin.setValue(3)
+        self.widget.send_data()
+        self.assertEqual(len(self.get_output("Data").domain.attributes), 4)
+
+        self.widget.expansion_spin.setValue(4)
+        self.widget.send_data()
+        self.assertEqual(len(self.get_output("Data").domain.attributes), 5)
+
+        self.widget.set_data(None)
+        self.widget.send_data()
+        self.assertIsNone(self.get_output("Data"))
