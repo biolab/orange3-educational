@@ -1,0 +1,35 @@
+{
+    "name": "contour",
+    "version": "1.3.0",
+    "title": "Contour Curves",
+    "author": {
+        "name": "Paulo Costa",
+        "url": "https://github.com/paulo-raca/highcharts-contour/"
+    },
+    "licenses": [
+        {
+            "type": "WTFPL – Do What the Fuck You Want to Public License",
+            "url": "http://www.wtfpl.net/"
+        }
+    ],
+    "dependencies": {
+        "highcharts": "4.0.4",
+        "highcharts-heatmap": "4.0.4",
+        "delaunay": "1.0.0"
+    },
+    "description": "Displays contour curves from sampled data. You can think of it as a 'smoothed heatmap'",
+    "keywords": [
+        "heatmap",
+        "contour"
+    ],
+    "demo": [
+        "http://jsfiddle.net/nsj5uzdw/",
+        "http://jsfiddle.net/acyfjeg8/",
+        "http://jsfiddle.net/1peapgLw/",
+        "http://jsfiddle.net/yw56rtus/",
+        "http://jsfiddle.net/bgxd3tgr/",
+        "http://jsfiddle.net/f7ofc3q3/",
+        "http://jsfiddle.net/mqxmraL2/",
+        "http://jsfiddle.net/13x2mbz8/"
+    ]
+}
