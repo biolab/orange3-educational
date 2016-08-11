@@ -387,12 +387,16 @@ class OWGradientDescent(OWWidget):
         if self.learner is not None:
             self.learner.set_theta([x, y])
             self.scatter.remove_series("path")
+            self.scatter.remove_series("last_point")
             self.scatter.add_series([
+                dict(id="last_point", data=[[x, y]], showInLegend=False,
+                     type="scatter", enableMouseTracking=False,
+                     color="#ffcc00", marker=dict(radius=4)),
                 dict(id="path", data=[[x, y]], showInLegend=False,
                      type="scatter", lineWidth=1, enableMouseTracking=False,
                      color="#ff0000",
                      marker=dict(
-                         enabled=True, radius=2))],)
+                         enabled=True, radius=2))])
             self.send_output()
 
     def step(self):
@@ -425,6 +429,8 @@ class OWGradientDescent(OWWidget):
         Function add point to the path
         """
         self.scatter.add_point_to_series("path", x, y)
+        self.scatter.remove_last_point("last_point")
+        self.scatter.add_point_to_series("last_point", x, y)
 
     def replot(self):
         """
