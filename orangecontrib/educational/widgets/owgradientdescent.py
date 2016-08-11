@@ -574,9 +574,12 @@ class OWGradientDescent(OWWidget):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
+        if len(self.data.domain.class_var.values) == 2:
+            return self.data
+
         domain = Domain(
             [attr_x, attr_y],
-            [DiscreteVariable(name=self.data.domain.class_var.name,
+            [DiscreteVariable(name=self.data.domain.class_var.name + "-bin",
                               values=[self.target_class, 'Others'])],
             [self.data.domain.class_var])
         y = [(0 if d.get_class().value == self.target_class else 1)
