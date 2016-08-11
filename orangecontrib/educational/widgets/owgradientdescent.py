@@ -2,7 +2,7 @@ from os import path
 import time
 
 import numpy as np
-from PyQt4.QtCore import pyqtSlot, Qt, QThread, SIGNAL
+from PyQt4.QtCore import pyqtSlot, Qt, QThread, pyqtSignal
 from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 
 from Orange.widgets.utils import itemmodels
@@ -128,9 +128,9 @@ class Autoplay(QThread):
         """
         while (not self.ow_gradient_descent.learner.converged and
                self.ow_gradient_descent.auto_play_enabled):
-            self.emit(SIGNAL('step()'))
+            self.ow_gradient_descent.step_trigger.emit()
             time.sleep(2 - self.ow_gradient_descent.auto_play_speed)
-        self.emit(SIGNAL('stop_auto_play()'))
+        self.ow_gradient_descent.stop_auto_play_trigger.emit()
 
 
 class OWGradientDescent(OWWidget):
@@ -180,6 +180,10 @@ class OWGradientDescent(OWWidget):
     auto_play_enabled = False
     auto_play_button_text = ["Run", "Stop"]
     auto_play_thread = None
+
+    # signals
+    step_trigger = pyqtSignal()
+    stop_auto_play_trigger = pyqtSignal()
 
     class Warning(OWWidget.Warning):
         """
@@ -595,10 +599,8 @@ class OWGradientDescent(OWWidget):
             if self.auto_play_enabled:
                 self.disable_controls(self.auto_play_enabled)
                 self.auto_play_thread = Autoplay(self)
-                self.connect(self.auto_play_thread, SIGNAL("step()"), self.step)
-                self.connect(
-                    self.auto_play_thread, SIGNAL("stop_auto_play()"),
-                    self.stop_auto_play)
+                self.step_trigger.connect(self.step)
+                self.stop_auto_play_trigger.connect(self.stop_auto_play)
                 self.auto_play_thread.start()
             else:
                 self.stop_auto_play()
