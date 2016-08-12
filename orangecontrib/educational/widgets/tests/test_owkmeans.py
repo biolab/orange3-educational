@@ -15,27 +15,32 @@ class TestOWKmeans(GuiTest):
         self.widget.set_data(self.data)
         self.widget.centroid_numbers_spinner.setValue(4)
 
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step2"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[1])
 
         # make step
         self.widget.step_button.click()
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step1"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[0])
 
         # make next step
         self.widget.step_button.click()
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step2"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[1])
 
         # make step to recompute centroids and then move one centroid (in graph)
         # automatic step have to ber preformed
         self.widget.step_button.click()
         self.widget.centroid_dropped(0, 1, 1)
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step2"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[1])
 
         # make step to recompute centroids and then move one centroid (in graph)
         # automatic step have to ber preformed
         self.widget.step_button.click()
         self.widget.graph_clicked(1, 1)
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step2"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[1])
 
     def test_boxes_disabling(self):
         """
@@ -46,28 +51,33 @@ class TestOWKmeans(GuiTest):
         self.widget.set_data(None)
         self.assertEqual(self.widget.options_box.isEnabled(), False)
         self.assertEqual(self.widget.centroids_box.isEnabled(), False)
-        self.assertEqual(self.widget.commands_box.isEnabled(), False)
+        self.assertEqual(self.widget.step_box.isEnabled(), False)
+        self.assertEqual(self.widget.run_box.isEnabled(), False)
 
         # if data provided
         self.widget.set_data(self.data)
         self.assertEqual(self.widget.options_box.isEnabled(), True)
         self.assertEqual(self.widget.centroids_box.isEnabled(), True)
-        self.assertEqual(self.widget.commands_box.isEnabled(), True)
+        self.assertEqual(self.widget.step_box.isEnabled(), True)
+        self.assertEqual(self.widget.run_box.isEnabled(), True)
 
         # if too les continuous attributes
-        domain = Orange.data.Domain(self.data.domain.attributes[:1], self.data.domain.class_var)
+        domain = Orange.data.Domain(self.data.domain.attributes[:1],
+                                    self.data.domain.class_var)
         data1 = Orange.data.Table(domain, self.data)
         self.widget.set_data(data1)
         self.assertEqual(self.widget.options_box.isEnabled(), False)
         self.assertEqual(self.widget.centroids_box.isEnabled(), False)
-        self.assertEqual(self.widget.commands_box.isEnabled(), False)
+        self.assertEqual(self.widget.step_box.isEnabled(), False)
+        self.assertEqual(self.widget.run_box.isEnabled(), False)
 
         # if too much clusters for data
         self.widget.number_of_clusters = 3
         self.widget.set_data(self.data[:2])
         self.assertEqual(self.widget.options_box.isEnabled(), True)
         self.assertEqual(self.widget.centroids_box.isEnabled(), True)
-        self.assertEqual(self.widget.commands_box.isEnabled(), False)
+        self.assertEqual(self.widget.step_box.isEnabled(), False)
+        self.assertEqual(self.widget.run_box.isEnabled(), False)
 
     def test_no_data(self):
         """
@@ -79,7 +89,8 @@ class TestOWKmeans(GuiTest):
         self.assertEqual(self.widget.cby.count(), 0)
 
         # if too les continuous attributes
-        domain = Orange.data.Domain(self.data.domain.attributes[:1], self.data.domain.class_var)
+        domain = Orange.data.Domain(self.data.domain.attributes[:1],
+                                    self.data.domain.class_var)
         data1 = Orange.data.Table(domain, self.data)
         self.widget.set_data(data1)
         self.assertEqual(self.widget.k_means, None)
@@ -90,8 +101,9 @@ class TestOWKmeans(GuiTest):
         """
         Check if combo box contains proper number of attributes
         """
-        num_continuous_attributes = sum(True for var in self.data.domain.attributes
-                                        if isinstance(var, ContinuousVariable))
+        num_continuous_attributes = sum(
+            True for var in self.data.domain.attributes
+            if isinstance(var, ContinuousVariable))
         self.widget.set_data(self.data)
         if num_continuous_attributes < 2:
             self.assertEqual(self.widget.cbx.count(), 0)
@@ -115,7 +127,8 @@ class TestOWKmeans(GuiTest):
         self.assertEqual(self.widget.step_button.isEnabled(), False)
         self.assertEqual(self.widget.step_back_button.isEnabled(), False)
         self.assertEqual(self.widget.auto_play_button.isEnabled(), True)
-        self.assertEqual(self.widget.auto_play_button.text(), self.widget.button_labels["autoplay_stop"])
+        self.assertEqual(self.widget.auto_play_button.text(),
+                         self.widget.AUTOPLAY_BUTTONS[1])
 
         # stop autoplay
         self.widget.auto_play_button.click()
@@ -123,13 +136,14 @@ class TestOWKmeans(GuiTest):
         self.assertEqual(self.widget.options_box.isEnabled(), True)
         self.assertEqual(self.widget.centroids_box.isEnabled(), True)
         self.assertEqual(self.widget.step_button.isEnabled(), True)
-        self.assertEqual(self.widget.step_back_button.isEnabled(), True)
         self.assertEqual(self.widget.auto_play_button.isEnabled(), True)
-        self.assertEqual(self.widget.auto_play_button.text(), self.widget.button_labels["autoplay_run"])
+        self.assertEqual(self.widget.auto_play_button.text(),
+                         self.widget.AUTOPLAY_BUTTONS[0])
 
     def test_centroids_change(self):
         """
-        Test if number of centroid in k-means changes correctly when adding, deleting centroids
+        Test if number of centroid in k-means changes correctly when adding,
+        deleting centroids
         """
         self.widget.set_data(self.data)
         self.widget.centroid_numbers_spinner.setValue(4)
@@ -194,12 +208,14 @@ class TestOWKmeans(GuiTest):
         self.widget.set_data(self.data)
         self.widget.centroid_numbers_spinner.setValue(4)
         self.widget.button_text_change()
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step2"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[1])
         self.assertEqual(self.widget.step_back_button.isEnabled(), False)
 
         self.widget.step_button.click()
         self.widget.button_text_change()
-        self.assertEqual(self.widget.step_button.text(), self.widget.button_labels["step1"])
+        self.assertEqual(self.widget.step_button.text(),
+                         self.widget.STEP_BUTTONS[0])
         self.assertEqual(self.widget.step_back_button.isEnabled(), True)
 
         self.widget.auto_play_button.click()
@@ -211,7 +227,8 @@ class TestOWKmeans(GuiTest):
 
     def test_replot(self):
         self.widget.replot()
-        self.assertEqual(self.widget.scatter.count_replots, 1)  # 1 because graph cleaned on the beginning
+        # 1 because graph cleaned on the beginning
+        self.assertEqual(self.widget.scatter.count_replots, 1)
         self.widget.set_data(self.data)
         self.assertEqual(self.widget.scatter.count_replots, 2)
         self.widget.step_button.click()
@@ -222,13 +239,16 @@ class TestOWKmeans(GuiTest):
         self.assertEqual(self.widget.scatter.count_replots, 3)
 
         self.widget.step_button.click()
-        self.assertEqual(self.widget.scatter.count_replots, 4)  # complete replot because it is cluster change
+        self.assertEqual(self.widget.scatter.count_replots, 4)
+        # complete replot because it is cluster change
 
         self.widget.step_button.click()
-        self.assertEqual(self.widget.scatter.count_replots, 4)  # just move centroids
+        self.assertEqual(self.widget.scatter.count_replots, 4)
+        # just move centroids
 
     def test_number_of_clusters_change(self):
-        # provide less data than clusters to check if k-menas initiated after that
+        # provide less data than clusters to check
+        # if k-menas initiated after that
         self.widget.centroid_numbers_spinner.setValue(5)
         self.widget.set_data(self.data[:3])
         self.widget.centroid_numbers_spinner.setValue(1)
@@ -236,7 +256,8 @@ class TestOWKmeans(GuiTest):
 
         self.widget.set_data(self.data)
         self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
-        self.widget.centroid_numbers_spinner.setValue(1)  # ok if number of clusters unchanged
+        self.widget.centroid_numbers_spinner.setValue(1)
+        # ok if number of clusters unchanged
         self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
         self.widget.centroid_numbers_spinner.setValue(5)
         self.assertEqual(self.widget.k_means.k, self.widget.number_of_clusters)
@@ -259,7 +280,8 @@ class TestOWKmeans(GuiTest):
 
         self.widget.lines_checkbox.nextCheckState()
         self.widget.replot_series()
-        self.assertEqual(self.widget.scatter.count_replots, 3)  # 3 because of nextState
+        self.assertEqual(self.widget.scatter.count_replots, 3)
+        # 3 because of nextState
 
         self.widget.replot_series()
         self.assertEqual(self.widget.scatter.count_replots, 3)

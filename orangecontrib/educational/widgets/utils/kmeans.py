@@ -20,9 +20,11 @@ class Kmeans:
     max_iter = 100
     threshold = 1e-3
 
-    def __init__(self, data, centroids=None, distance_metric=Orange.distance.Euclidean):
+    def __init__(self, data,
+                 centroids=None, distance_metric=Orange.distance.Euclidean):
         self.data = data
-        self.centroids = np.array(centroids) if centroids is not None else np.empty((0, 2))
+        self.centroids = (np.array(centroids)
+                          if centroids is not None else np.empty((0, 2)))
         self.distance_metric = distance_metric
         self.step_no = 0
         self.clusters = self.find_clusters(self.centroids)
@@ -43,8 +45,9 @@ class Kmeans:
         """
         Function check if algorithm already converged
         """
-        if len(self.centroids_history) <= 1 or len(self.centroids) != len(self.centroids_history[-1])\
-                or not self.step_completed:
+        if len(self.centroids_history) <= 1 or \
+                (len(self.centroids) != len(self.centroids_history[-1])) or \
+                not self.step_completed:
             return False
         dist = (np.sum(
             np.sqrt(np.sum(
@@ -72,7 +75,8 @@ class Kmeans:
             self.data = data
             self.clusters = self.find_clusters(self.centroids)
 
-            # with different data it does not make sense to have history, algorithm from begining
+            # with different data it does not make sense to have history,
+            # algorithm from begining
             self.centroids_history = []
             self.step_no = 0
         else:
@@ -102,18 +106,21 @@ class Kmeans:
             points = [d[self.clusters == i] for i in range(len(self.centroids))]
             for i in range(len(self.centroids)):
                 c_points = points[i]
-                self.centroids[i, :] = np.average(c_points, axis=0) if len(c_points) > 0 else np.nan
+                self.centroids[i, :] = (np.average(c_points, axis=0)
+                                        if len(c_points) > 0 else np.nan)
             # reinitialize empty centroids
 
             nan_c = np.isnan(self.centroids).any(axis=1)
             if np.count_nonzero(nan_c) > 0:
-                self.centroids[nan_c] = self.random_positioning(np.count_nonzero(nan_c))
+                self.centroids[nan_c] = self.random_positioning(
+                    np.count_nonzero(nan_c))
             self.centroids_moved = True
         else:
             self.clusters = self.find_clusters(self.centroids)
             self.centroids_moved = False
         self.step_no += 1
-        self.centroids_history = self.set_list(self.centroids_history, self.step_no, np.copy(self.centroids))
+        self.centroids_history = self.set_list(
+            self.centroids_history, self.step_no, np.copy(self.centroids))
 
     def step_back(self):
         """
@@ -121,11 +128,14 @@ class Kmeans:
         """
         if self.step_no > 0:
             if not self.step_completed:
-                self.centroids = np.copy(self.centroids_history[self.step_no - 1])
+                self.centroids = np.copy(
+                    self.centroids_history[self.step_no - 1])
                 self.centroids_moved = True
             else:
-                self.centroids = np.copy(self.centroids_history[self.step_no - 1])
-                self.clusters = self.find_clusters(self.centroids_history[self.step_no - 2])
+                self.centroids = np.copy(
+                    self.centroids_history[self.step_no - 1])
+                self.clusters = self.find_clusters(
+                    self.centroids_history[self.step_no - 2])
                 self.centroids_moved = False
             self.step_no -= 1
 
@@ -147,7 +157,9 @@ class Kmeans:
             return np.array([])
         centroids = np.empty((no_centroids, 2))
         for i in range(no_centroids):
-            idx = np.random.choice(len(self.data), np.random.randint(1, np.min((5, len(self.data) + 1))))
+            idx = np.random.choice(
+                len(self.data), np.random.randint(
+                    1, np.min((5, len(self.data) + 1))))
             centroids[i, :] = np.mean(self.data.X[idx], axis=0)
         return centroids
 
@@ -159,7 +171,8 @@ class Kmeans:
         self.centroids_moved = False
         if not self.step_completed:
             self.step_no += 1
-        self.centroids_history = self.set_list(self.centroids_history, self.step_no, np.copy(self.centroids))
+        self.centroids_history = self.set_list(
+            self.centroids_history, self.step_no, np.copy(self.centroids))
 
     def add_centroids(self, points=None):
         """
@@ -171,9 +184,11 @@ class Kmeans:
             Centroids or number of them
         """
         if points is None:  # if no point provided add one centroid
-            self.centroids = np.vstack((self.centroids, self.random_positioning(1)))
+            self.centroids = np.vstack(
+                (self.centroids, self.random_positioning(1)))
         elif isinstance(points, int):  # if int provided add as much of them
-            self.centroids = np.vstack((self.centroids, self.random_positioning(points)))
+            self.centroids = np.vstack(
+                (self.centroids, self.random_positioning(points)))
         else:   # else it is array of new centroids
             self.centroids = np.vstack((self.centroids, np.array(points)))
         self.recompute_clusters()
@@ -182,7 +197,8 @@ class Kmeans:
         """
         Remove last num centroids
         """
-        self.centroids = self.centroids[:(-num if num <= len(self.centroids) else len(self.centroids))]
+        self.centroids = self.centroids[:(-num if num <= len(self.centroids)
+                                          else len(self.centroids))]
         self.recompute_clusters()
 
     def move_centroid(self, _index, x, y):
