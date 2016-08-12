@@ -281,6 +281,9 @@ class OWGradientDescent(OWWidget):
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
 
+        self.step_size_lock()
+        self.step_back_button_lock()
+
     def set_data(self, data):
         """
         Function receives data from input and init part of widget if data
@@ -388,6 +391,7 @@ class OWGradientDescent(OWWidget):
         """
         if self.learner is not None:
             self.learner.stochastic = self.stochastic
+        self.step_size_lock()
 
     def change_step(self):
         if self.learner is not None:
@@ -444,8 +448,14 @@ class OWGradientDescent(OWWidget):
         self.step_back_button_lock()
 
     def step_back_button_lock(self):
+        """
+        Function lock or unlock step back button.
+        """
         self.step_back_button.setDisabled(
             self.learner is None or self.learner.step_no == 0)
+
+    def step_size_lock(self):
+        self.step_size_spin.setDisabled(not self.stochastic)
 
     def plot_point(self, x, y):
         """
