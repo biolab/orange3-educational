@@ -41,10 +41,15 @@ Description
 
 This widget interactively shows classification probabilities for classification in two classes using color gradient and
 contour lines for any classifiers form *Orange Classification* module.
-In the widget, `polynomial expansion <https://en.wikipedia.org/wiki/Polynomial_expansion>`__ can be set.
+In the widget, polynomial expansion can be set.
 Polynomial expansion is a regulation of the degree of polynom that is used to transform the input data and has an effect
 on classification. If polynomial expansion is set to 1 it means that untransformed data are used in the
-regression.
+regression. If polynomial expansion is set to 2 we get following additional attributes:
+
+* first attribute on power 2
+* first attribute  * second attribute
+* second attribute on power 2
+
 
 .. figure:: images/polynomial-classification.png
 
@@ -70,7 +75,7 @@ Example
 
 .. figure:: images/polyclassificationmain.png
 
-We loaded *iris* data set with the :doc:`File<../orange3/doc/visual-programming/source/widgets/data/file>` widget and
+We loaded *iris* data set with the File widget and
 connected it to *Polynomial Classification* widget.
 To demonstrate outputs connections we connected *Coefficients* to Data Table widget where we can inspect their values.
 *Learner* output can be connected to *Test & Score* widget and *Classifier* to *Predictions widget*.
