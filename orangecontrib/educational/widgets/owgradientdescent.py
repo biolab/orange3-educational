@@ -207,7 +207,7 @@ class OWGradientDescent(OWWidget):
         self.options_box = gui.widgetBox(self.controlArea, "Data")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
-            callback=self.restart, sendSelectedValue=True
+            callback=self.change_attributes, sendSelectedValue=True
         )
         self.cbx = gui.comboBox(value='attr_x', label='X:', **opts)
         self.cbx.setSizePolicy(policy)
@@ -357,6 +357,13 @@ class OWGradientDescent(OWWidget):
         Function render empty plot
         """
         self.scatter.clear()
+
+    def change_attributes(self):
+        """
+        Function changes when user changes attribute or target
+        """
+        self.learner = None  # that theta does not same equal
+        self.restart()
 
     def restart(self):
         """
