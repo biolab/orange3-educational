@@ -36,23 +36,23 @@ step by step. Gradient descent is demonstrated on two attributes that are select
 
 .. figure:: images/gradient-descent-stamped.png
 
-1. Select two attributes (**x** and **y**) on which logistic regression algorithm is preformed.
+1. Select two attributes (**x** and **y**) on which gradient descent algorithm is preformed.
    Select **target class**. It is class that is classified against all other classes.
 
-2. **Learning rate** is step size in gradient descent
+2. **Learning rate** is step size in a gradient descent
 
    With **stochastic** checkbox you can select whether gradient descent is
    `stochastic <https://en.wikipedia.org/wiki/Stochastic_gradient_descent>`__ or not.
    If stochastic is checked you can set **step size** that is amount of steps of stochastic gradient descent
-   performed in one step.
+   performed in one press on step button.
 
    **Restart**: start algorithm from beginning
 
 3. **Step**: perform one step of the algorithm
 
-   **Step back**: make a step back in algorithm
+   **Step back**: make a step back in the algorithm
 
-4. **Run**: perform several steps until algorithm converge automatically
+4. **Run**: automatically perform several steps until algorithm converge
 
    **Speed**: set speed of automatic stepping
 
@@ -75,7 +75,7 @@ We opened *Gradient Descent* widget and set *X* to *sepal width* and *Y* to *sep
 
 .. figure:: images/gradient-descent1.png
 
-We performs step of the algorithm with pressing **Step** button. When we get bored with clicking we can finish steping
+We performs step of the algorithm with pressing **Step** button. When we get bored with clicking we can finish stepping
 with press on **Run** button.
 
 .. figure:: images/gradient-descent2.png
@@ -89,4 +89,3 @@ In the end we want to see predictions for input data so we can open *Predictions
 left column. We can compare this predictions to real classes.
 
 .. figure:: images/gradient-descent4.png
-
