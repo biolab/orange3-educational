@@ -1,7 +1,7 @@
 Gradient Descent
 ================
 
-.. figure:: icons/gradient_descent.png
+.. figure:: icons/gradient-descent.png
 
 Educational widget that show gradient descent algorithm on logistic regression.
 
