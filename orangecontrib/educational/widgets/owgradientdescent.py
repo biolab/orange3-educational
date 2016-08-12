@@ -373,6 +373,7 @@ class OWGradientDescent(OWWidget):
         else:  # theta already exist
             self.change_theta(theta[0], theta[1])
         self.send_output()
+        self.step_back_button_lock()
 
     def change_alpha(self):
         """
@@ -426,6 +427,7 @@ class OWGradientDescent(OWWidget):
         theta = self.learner.theta
         self.plot_point(theta[0], theta[1])
         self.send_output()
+        self.step_back_button_lock()
 
     def step_back(self):
         """
@@ -439,6 +441,11 @@ class OWGradientDescent(OWWidget):
             theta = self.learner.theta
             self.plot_last_point(theta[0], theta[1])
             self.send_output()
+        self.step_back_button_lock()
+
+    def step_back_button_lock(self):
+        self.step_back_button.setDisabled(
+            self.learner is None or self.learner.step_no == 0)
 
     def plot_point(self, x, y):
         """
