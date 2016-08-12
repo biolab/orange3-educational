@@ -150,6 +150,9 @@ class OWGradientDescent(OWWidget):
                ("Coefficients", Table),
                ("Data", Table)]
 
+    send_report = True
+    graph_name = "Gradient descent graph"
+
     # selected attributes in chart
     attr_x = settings.Setting('')
     attr_y = settings.Setting('')
