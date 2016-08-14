@@ -6,7 +6,7 @@ from orangecontrib.educational.widgets.utils.gradient_descent import \
     GradientDescent
 
 
-class LogisticRegression(GradientDescent):
+class LinearRegression(GradientDescent):
     """
     Logistic regression algorithm with custom cost and gradient function,
     which allow to perform algorithm step by step
@@ -23,16 +23,14 @@ class LogisticRegression(GradientDescent):
         if self.theta is None or self.domain is None:
             return None
         else:
-            return LogisticRegressionModel(self.theta, self.domain)
+            return LinearRegressionModel(self.theta, self.domain)
 
     def j(self, theta):
         """
         Cost function for logistic regression
         """
-        yh = self.g(self.x.dot(theta.T)).T
-        y = self.y
-        return (-np.sum((y * np.log(yh) + (1 - y) * np.log(1 - yh)).T, axis=0) +
-                self.regularization_rate * np.sum(np.square(theta.T), axis=0))
+        h = self.h(self.x, theta)
+        return 1.0 / 2.0 * np.sum(np.square(h - self.y), axis=1) / len(self.y)
 
     def dj(self, theta, stochastic=False):
         """
@@ -42,29 +40,18 @@ class LogisticRegression(GradientDescent):
             ns = self.stochastic_step_size
             x = self.x[self.stochastic_i: self.stochastic_i + ns]
             y = self.y[self.stochastic_i: self.stochastic_i + ns]
-            return x.T.dot(self.g(x.dot(theta)) - y)
         else:
-            return ((self.g(self.x.dot(theta)) - self.y).dot(self.x) +
-                   self.regularization_rate * theta)
+            x = self.x
+            y = self.y
+        h = self.h(x, theta)
+        return x.T.dot(h - y) / len(y)
 
     @staticmethod
-    def g(z):
-        """
-        Sigmoid function
+    def h(x, theta):
+        return x.dot(theta.T).T
 
-        Parameters
-        ----------
-        z : array_like(float)
-            values to evaluate with function
-        """
 
-        # limit values in z to avoid log with 0 produced by values almost 0
-        z_mod = np.minimum(z, 20)
-        z_mod = np.maximum(z_mod, -20)
-
-        return 1.0 / (1 + np.exp(- z_mod))
-
-class LogisticRegressionModel(Model):
+class LinearRegressionModel(Model):
 
     def __init__(self, theta, domain):
         super().__init__(domain)
@@ -72,8 +59,4 @@ class LogisticRegressionModel(Model):
         self.name = "Logistic Regression"
 
     def predict_storage(self, data):
-        probabilities = LogisticRegression.g(data.X.dot(self.theta))
-        values = np.around(probabilities)
-        probabilities0 = 1 - probabilities
-        probabilities = np.column_stack((probabilities0, probabilities))
-        return values, probabilities
+        return LinearRegression.h(data.x, self.theta)
