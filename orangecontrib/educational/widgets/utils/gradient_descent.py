@@ -112,18 +112,17 @@ class GradientDescent:
         # calculates gradient and modify theta
         grad = self.dj(self.theta, self.stochastic)
         if self.stochastic:
-
             self.theta -= np.sum(np.float64(self.alpha) * grad, axis=0)
         else:
             self.theta -= self.alpha * grad
+
+        # increase index used by stochastic gradient descent
+        self.stochastic_i += self.stochastic_step_size
 
         # save history for step back
         self.history = self.set_list(
             self.history, self.step_no,
             (np.copy(self.theta), self.stochastic_i, seed))
-
-        # increase index used by stochastic gradient descent
-        self.stochastic_i += self.stochastic_step_size
 
     def step_back(self):
         if self.step_no > 0:
@@ -136,7 +135,7 @@ class GradientDescent:
             self.stochastic_i = self.history[self.step_no][1]
 
             # if necessary restore data shuffle
-            seed = self.history[self.step_no][2]
+            seed = self.history[self.step_no + 1][2]
             if seed is not None:  # it means data had been permuted on this pos
                 np.random.seed(seed)  # use same seed to revert
                 indices = np.random.permutation(len(self.x))

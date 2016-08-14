@@ -6,7 +6,7 @@ from numpy.testing import *
 import numpy as np
 
 
-class TestKmeans(unittest.TestCase):
+class TestLogisticRegression(unittest.TestCase):
 
     def setUp(self):
         self.iris = Table('iris')
@@ -131,7 +131,7 @@ class TestKmeans(unittest.TestCase):
         lr = self.logistic_regression
         lr.set_data(self.iris)
         lr.set_theta([1., 1., 1., 1.])
-        lr.set_alpha(1)
+        lr.set_alpha(100)
         # we found out for example in test convergence is faster with this alpha
 
         # it can not converge in the first step
@@ -180,7 +180,8 @@ class TestKmeans(unittest.TestCase):
         assert_array_equal(lr.history[3][0], lr.theta)
 
         # check if stochastic_i indices are ok
-        self.assertEqual(lr.history[3][1], lr.stochastic_i)
+        self.assertEqual(
+            lr.history[3][1], lr.stochastic_i)
 
         # reset algorithm
         lr.set_data(self.iris)

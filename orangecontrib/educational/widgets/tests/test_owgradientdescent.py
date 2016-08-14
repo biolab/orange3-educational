@@ -69,8 +69,8 @@ class TestOWGradientDescent(WidgetTest):
             Domain(
                 [ContinuousVariable("x"),
                  DiscreteVariable("y", values=["a", "b"])],
-                ContinuousVariable("a")),
-            [[1, 0], [2, 1]], [0, 0])
+                DiscreteVariable("a", values=['a', 'b'])),
+            [[1, 0], [2, 1]], [0, 1])
         self.send_signal("Data", table_no_enough_cont)
         self.assertIsNone(w.data)
         self.assertEqual(w.cbx.count(), 0)
