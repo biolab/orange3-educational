@@ -315,10 +315,10 @@ class OWGradientDescent(OWWidget):
             """
             reset_combos()
 
-            c_vars = [var for var in data.domain.variables if var.is_continuous]
+            c_vars = [var for var in d.domain.attributes if var.is_continuous]
 
             self.x_var_model[:] = c_vars
-            self.y_var_model[:] = c_vars
+            self.y_var_model[:] = c_vars if self.is_logistic else []
 
             for i, var in (enumerate(d.domain.class_var.values)
                            if d.domain.class_var.is_discrete else []):
@@ -326,6 +326,9 @@ class OWGradientDescent(OWWidget):
                 color = tuple(d.domain.class_var.colors[i].tolist())
                 pix_map.fill(QColor(*color))
                 self.target_class_combobox.addItem(QIcon(pix_map), var)
+
+            self.cby.setDisabled(not self.is_logistic)
+            self.target_class_combobox.setDisabled(not self.is_logistic)
 
         self.Warning.clear()
 
@@ -338,6 +341,9 @@ class OWGradientDescent(OWWidget):
 
         self.send_output()
 
+        self.cby.setDisabled(False)
+        self.target_class_combobox.setDisabled(False)
+
         if data is None or len(data) == 0:
             reset_combos()
         elif d.domain.class_var is None:
@@ -345,9 +351,9 @@ class OWGradientDescent(OWWidget):
             self.Warning.no_class()
         elif d.domain.class_var.is_continuous:
             self.data = data
+            self.learner_name = "Linear regression"
             init_combos()
             self.attr_x = self.cbx.itemText(0)
-            self.learner_name = "Linear regression"
             self.restart()
         else:  # is discrete, if discrete logistic regression is used
             if sum(True for var in d.domain.attributes
@@ -361,11 +367,11 @@ class OWGradientDescent(OWWidget):
                 self.set_empty_plot()
             else:
                 self.data = data
+                self.learner_name = "Logistic regression"
                 init_combos()
                 self.attr_x = self.cbx.itemText(0)
                 self.attr_y = self.cbx.itemText(1)
                 self.target_class = self.target_class_combobox.itemText(0)
-                self.learner_name = "Logistic regression"
                 self.restart()
 
     def set_empty_plot(self):
