@@ -29,10 +29,11 @@ class LogisticRegression(GradientDescent):
         """
         Cost function for logistic regression
         """
-        yh = self.g(self.x.dot(theta.T)).T
+        h = self.g(self.x.dot(theta.T)).T
         y = self.y
-        return (-np.sum((y * np.log(yh) + (1 - y) * np.log(1 - yh)).T, axis=0) +
-                self.regularization_rate * np.sum(np.square(theta.T), axis=0))
+        return ((-np.sum((y * np.log(h) + (1 - y) * np.log(1 - h)).T, axis=0) +
+                self.regularization_rate * np.sum(np.square(theta.T), axis=0)) /
+                len(y))
 
     def dj(self, theta, stochastic=False):
         """
@@ -42,10 +43,10 @@ class LogisticRegression(GradientDescent):
             ns = self.stochastic_step_size
             x = self.x[self.stochastic_i: self.stochastic_i + ns]
             y = self.y[self.stochastic_i: self.stochastic_i + ns]
-            return x.T.dot(self.g(x.dot(theta)) - y)
+            return x * (self.g(x.dot(theta)) - y)[:, None] / len(y)
         else:
             return ((self.g(self.x.dot(theta)) - self.y).dot(self.x) +
-                   self.regularization_rate * theta)
+                   self.regularization_rate * theta) / len(self.y)
 
     @staticmethod
     def g(z):

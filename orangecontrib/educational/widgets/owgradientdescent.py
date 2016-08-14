@@ -233,7 +233,7 @@ class OWGradientDescent(OWWidget):
         self.alpha_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_alpha,
             value="alpha", label="Learning rate: ",
-            minv=0.01, maxv=10, step=0.01, spinType=float)
+            minv=0.0001, maxv=100, step=0.001, spinType=float, decimals=4)
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
@@ -302,6 +302,7 @@ class OWGradientDescent(OWWidget):
         data : Table
             Input data
         """
+        d = data
 
         def reset_combos():
             self.x_var_model[:] = []
@@ -319,9 +320,10 @@ class OWGradientDescent(OWWidget):
             self.x_var_model[:] = c_vars
             self.y_var_model[:] = c_vars
 
-            for i, var in enumerate(data.domain.class_var.values):
+            for i, var in (enumerate(d.domain.class_var.values)
+                           if d.domain.class_var.is_discrete else []):
                 pix_map = QPixmap(60, 60)
-                color = tuple(data.domain.class_var.colors[i].tolist())
+                color = tuple(d.domain.class_var.colors[i].tolist())
                 pix_map.fill(QColor(*color))
                 self.target_class_combobox.addItem(QIcon(pix_map), var)
 
@@ -334,7 +336,6 @@ class OWGradientDescent(OWWidget):
         self.data = None
         self.set_empty_plot()
 
-        d = data
         self.send_output()
 
         if data is None or len(data) == 0:
@@ -393,7 +394,7 @@ class OWGradientDescent(OWWidget):
             data=self.selected_data,
             alpha=self.alpha, stochastic=self.stochastic,
             theta=theta, step_size=self.step_size,
-            intercept=self.name == "Linear regression")
+            intercept=(self.learner_name == "Linear regression"))
         self.replot()
         if theta is None:  # no previous theta exist
             self.change_theta(np.random.uniform(self.min_x, self.max_x),
@@ -623,24 +624,29 @@ class OWGradientDescent(OWWidget):
             return
 
         attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y]
+        attr_y = self.data.domain[self.attr_y] if self.is_logistic else None
         cols = []
-        for attr in (attr_x, attr_y):
+        for attr in (attr_x, attr_y) if attr_y is not None else (attr_x, ):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
-        if len(self.data.domain.class_var.values) == 2:
-            return self.data
 
-        domain = Domain(
-            [attr_x, attr_y],
-            [DiscreteVariable(name=self.data.domain.class_var.name + "-bin",
-                              values=[self.target_class, 'Others'])],
-            [self.data.domain.class_var])
-        y = [(0 if d.get_class().value == self.target_class else 1)
-             for d in self.data]
+        if self.is_logistic:
+            if len(self.data.domain.class_var.values) == 2:
+                return Normalize(self.data)
 
-        return Normalize(Table(domain, x, y, self.data.Y[:, None]))
+            domain = Domain(
+                [attr_x, attr_y],
+                [DiscreteVariable(name=self.data.domain.class_var.name + "-bin",
+                                  values=[self.target_class, 'Others'])],
+                [self.data.domain.class_var])
+            y = [(0 if d.get_class().value == self.target_class else 1)
+                 for d in self.data]
+
+            return Normalize(Table(domain, x, y, self.data.Y[:, None]))
+        else:
+            domain = Domain([attr_x], self.data.domain.class_var)
+            return Normalize(Table(domain, x, self.data.Y))
 
     def auto_play(self):
         """
@@ -729,3 +735,7 @@ class OWGradientDescent(OWWidget):
             fun(self)
         else:
             super(OWGradientDescent, self).keyPressEvent(e)
+
+    @property
+    def is_logistic(self):
+        return self.learner_name == "Logistic regression"

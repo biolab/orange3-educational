@@ -62,7 +62,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertIsNone(w.learner)
         self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Warning.no_class.is_shown())
+        self.assertTrue(w.Warning.to_few_values.is_shown())
 
         # not enough continuous variables
         table_no_enough_cont = Table(

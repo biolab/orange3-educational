@@ -64,7 +64,8 @@ class GradientDescent:
             self.theta = np.array(theta)
         else:
             self.theta = None
-        self.history = self.set_list(self.history, 0, (np.copy(self.theta), 0))
+        self.history = self.set_list(
+            self.history, 0, (np.copy(self.theta), 0, None))
         self.step_no = 0
 
     def set_alpha(self, alpha):
@@ -96,16 +97,9 @@ class GradientDescent:
         """
         self.step_no += 1
 
-        # calculates gradient and modify theta
-        grad = self.dj(self.theta, self.stochastic)
-        self.theta -= self.alpha * grad
-
-        # increase index used by stochastic gradient descent
-        self.stochastic_i += self.stochastic_step_size
-
         seed = None  # seed that will be stored to revert the shuffle
         # if we came around all data set index to zero and permute data
-        if self.stochastic_i >= len(self.x):
+        if self.stochastic_i + self.stochastic_step_size >= len(self.x):
             self.stochastic_i = 0
 
             # shuffle data
@@ -115,10 +109,21 @@ class GradientDescent:
             self.x = self.x[indices]  # permutation
             self.y = self.y[indices]
 
+        # calculates gradient and modify theta
+        grad = self.dj(self.theta, self.stochastic)
+        if self.stochastic:
+
+            self.theta -= np.sum(np.float64(self.alpha) * grad, axis=0)
+        else:
+            self.theta -= self.alpha * grad
+
         # save history for step back
         self.history = self.set_list(
             self.history, self.step_no,
             (np.copy(self.theta), self.stochastic_i, seed))
+
+        # increase index used by stochastic gradient descent
+        self.stochastic_i += self.stochastic_step_size
 
     def step_back(self):
         if self.step_no > 0:
@@ -131,7 +136,7 @@ class GradientDescent:
             self.stochastic_i = self.history[self.step_no][1]
 
             # if necessary restore data shuffle
-            seed = self.history[self.step_no + 1][2]
+            seed = self.history[self.step_no][2]
             if seed is not None:  # it means data had been permuted on this pos
                 np.random.seed(seed)  # use same seed to revert
                 indices = np.random.permutation(len(self.x))
@@ -156,6 +161,7 @@ class GradientDescent:
         """
         Function performs whole model training. Not step by step.
         """
+
         res = fmin_l_bfgs_b(self.j,
                             np.zeros(self.x.shape[1]),
                             self.dj)

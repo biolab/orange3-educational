@@ -30,7 +30,7 @@ class LinearRegression(GradientDescent):
         Cost function for logistic regression
         """
         h = self.h(self.x, theta)
-        return 1.0 / 2.0 * np.sum(np.square(h - self.y), axis=1) / len(self.y)
+        return 1.0 / 2.0 * np.sum(np.square(h - self.y).T, axis=0) / len(self.y)
 
     def dj(self, theta, stochastic=False):
         """
@@ -40,11 +40,14 @@ class LinearRegression(GradientDescent):
             ns = self.stochastic_step_size
             x = self.x[self.stochastic_i: self.stochastic_i + ns]
             y = self.y[self.stochastic_i: self.stochastic_i + ns]
+            h = self.h(x, theta)
+            print(x)
+            return x * (h - y)[:, None] / len(y)
         else:
             x = self.x
             y = self.y
-        h = self.h(x, theta)
-        return x.T.dot(h - y) / len(y)
+            h = self.h(x, theta)
+            return x.T.dot(h - y) / len(y)
 
     @staticmethod
     def h(x, theta):
