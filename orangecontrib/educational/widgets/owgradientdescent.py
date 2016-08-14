@@ -15,6 +15,8 @@ from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg
 from Orange.preprocess.preprocess import Normalize
 
+from orangecontrib.educational.widgets.utils.linear_regression import \
+    LinearRegression
 from orangecontrib.educational.widgets.utils.logistic_regression \
     import LogisticRegression
 from orangecontrib.educational.widgets.utils.contour import Contour
@@ -167,7 +169,7 @@ class OWGradientDescent(OWWidget):
     y_var_model = None
 
     # function used in gradient descent
-    default_learner = LogisticRegression
+    learner_name = ""
     learner = None
     cost_grid = None
     grid_size = 15
@@ -195,7 +197,8 @@ class OWGradientDescent(OWWidget):
         Class used fro widget warnings.
         """
         to_few_features = Msg("Too few Continuous feature. Min 2 required")
-        no_class = Msg("No class provided or only one class variable")
+        no_class = Msg("No class provided")
+        to_few_values = Msg("Class must have at least two values.")
 
     def __init__(self):
         super().__init__()
@@ -328,33 +331,41 @@ class OWGradientDescent(OWWidget):
         self.cost_grid = None
         self.learner = None
         self.selected_data = None
+        self.data = None
+        self.set_empty_plot()
 
         d = data
         self.send_output()
 
         if data is None or len(data) == 0:
-            self.data = None
             reset_combos()
-            self.set_empty_plot()
-        elif sum(True for var in d.domain.attributes
-                 if isinstance(var, ContinuousVariable)) < 2:
-            # not enough (2) continuous variable
-            self.data = None
-            reset_combos()
-            self.Warning.to_few_features()
-            self.set_empty_plot()
-        elif d.domain.class_var is None or len(d.domain.class_var.values) < 2:
-            self.data = None
+        elif d.domain.class_var is None:
             reset_combos()
             self.Warning.no_class()
-            self.set_empty_plot()
-        else:
+        elif d.domain.class_var.is_continuous:
             self.data = data
             init_combos()
             self.attr_x = self.cbx.itemText(0)
-            self.attr_y = self.cbx.itemText(1)
-            self.target_class = self.target_class_combobox.itemText(0)
+            self.learner_name = "Linear regression"
             self.restart()
+        else:  # is discrete, if discrete logistic regression is used
+            if sum(True for var in d.domain.attributes
+                   if isinstance(var, ContinuousVariable)) < 2:
+                # not enough (2) continuous variable
+                reset_combos()
+                self.Warning.to_few_features()
+            elif len(d.domain.class_var.values) < 2:
+                reset_combos()
+                self.Warning.to_few_values()
+                self.set_empty_plot()
+            else:
+                self.data = data
+                init_combos()
+                self.attr_x = self.cbx.itemText(0)
+                self.attr_y = self.cbx.itemText(1)
+                self.target_class = self.target_class_combobox.itemText(0)
+                self.learner_name = "Logistic regression"
+                self.restart()
 
     def set_empty_plot(self):
         """
@@ -375,17 +386,18 @@ class OWGradientDescent(OWWidget):
         """
         self.selected_data = self.select_data()
         theta = self.learner.history[0][0] if self.learner is not None else None
-        self.learner = self.default_learner(
+        selected_learner = (LogisticRegression
+                            if self.learner_name == "Logistic regression"
+                            else LinearRegression)
+        self.learner = selected_learner(
             data=self.selected_data,
             alpha=self.alpha, stochastic=self.stochastic,
-            theta=theta,
-            step_size=self.step_size)
+            theta=theta, step_size=self.step_size,
+            intercept=self.name == "Linear regression")
         self.replot()
         if theta is None:  # no previous theta exist
             self.change_theta(np.random.uniform(self.min_x, self.max_x),
                               np.random.uniform(self.min_y, self.max_y))
-        else:  # theta already exist
-            self.change_theta(theta[0], theta[1])
         self.send_output()
         self.step_back_button_lock()
 
