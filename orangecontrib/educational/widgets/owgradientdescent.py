@@ -705,3 +705,15 @@ class OWGradientDescent(OWWidget):
             self.send("Data", self.selected_data)
         else:
             self.send("Data", None)
+
+    key_actions = {(0, Qt.Key_Space): step}  # space button for step
+
+    def keyPressEvent(self, e):
+        """
+        Handle default key actions in this widget
+        """
+        if (int(e.modifiers()), e.key()) in self.key_actions:
+            fun = self.key_actions[(int(e.modifiers()), e.key())]
+            fun(self)
+        else:
+            super(OWGradientDescent, self).keyPressEvent(e)
