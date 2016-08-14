@@ -207,6 +207,10 @@ class OWGradientDescent(OWWidget):
         self.x_var_model = itemmodels.VariableListModel()
         self.y_var_model = itemmodels.VariableListModel()
 
+        # info box
+        self.info_box = gui.widgetBox(self.controlArea, "Info")
+        self.learner_label = gui.label(widget=self.info_box, master=self, label="")
+
         # options box
         policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
 
@@ -343,6 +347,7 @@ class OWGradientDescent(OWWidget):
 
         self.cby.setDisabled(False)
         self.target_class_combobox.setDisabled(False)
+        self.learner_name = ""
 
         if data is None or len(data) == 0:
             reset_combos()
@@ -375,6 +380,8 @@ class OWGradientDescent(OWWidget):
                 self.target_class = self.target_class_combobox.itemText(0)
                 self.step_size_spin.setMaximum(len(d))
                 self.restart()
+
+        self.learner_label.setText("Learner: " + self.learner_name)
 
     def set_empty_plot(self):
         """
