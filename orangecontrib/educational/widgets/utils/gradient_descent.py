@@ -31,8 +31,9 @@ class GradientDescent:
     # very small regularization rate to avoid big parameters
 
     def __init__(self, alpha=0.1, theta=None, data=None, stochastic=False,
-                 step_size=30):
+                 step_size=30, intercept=False):
         self.history = []
+        self.intercept=intercept
         self.set_alpha(alpha)
         self.set_data(data)
         self.set_theta(theta)
@@ -44,7 +45,8 @@ class GradientDescent:
         Function set the data
         """
         if data is not None:
-            self.x = data.X
+            x = data.X
+            self.x = np.c_[np.ones(len(x)), x] if self.intercept else x
             self.y = data.Y
             self.domain = data.domain
         else:
