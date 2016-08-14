@@ -450,7 +450,8 @@ class OWGradientDescent(OWWidget):
                      data=[dict(
                          x=x, y=y, dataLabels=dict(
                              enabled=True,
-                             format=str(self.learner.j(np.array([x, y]))),
+                             format='{0:.2f}'.format(
+                                 self.learner.j(np.array([x, y]))),
                              verticalAlign='middle',
                              align="right",
                              style=dict(
@@ -461,11 +462,19 @@ class OWGradientDescent(OWWidget):
                      showInLegend=False,
                      type="scatter", enableMouseTracking=False,
                      color="#ffcc00", marker=dict(radius=4)),
-                dict(id="path", data=[[x, y]], showInLegend=False,
-                     type="scatter", lineWidth=1, enableMouseTracking=False,
+                dict(id="path", data=[dict(
+                    x=x, y=y, h='{0:.2f}'.format(
+                        self.learner.j(np.array([x, y]))))],
+                     showInLegend=False,
+                     type="scatter", lineWidth=1,
                      color="#ff0000",
                      marker=dict(
-                         enabled=True, radius=2))])
+                         enabled=True, radius=2),
+                     tooltip=dict(
+                         pointFormat="Cost: {point.h}",
+                         shared=False,
+                         valueDecimals=2
+                     ))])
             self.send_output()
 
     def step(self):
@@ -513,7 +522,9 @@ class OWGradientDescent(OWWidget):
         """
         Function add point to the path
         """
-        self.scatter.add_point_to_series("path", [x, y])
+        self.scatter.add_point_to_series("path", dict(
+            x=x, y=y, h='{0:.2f}'.format(self.learner.j(np.array([x, y])))
+        ))
         self.plot_last_point(x, y)
 
     def plot_last_point(self, x, y):
@@ -523,7 +534,7 @@ class OWGradientDescent(OWWidget):
             dict(
                 x=x, y=y, dataLabels=dict(
                     enabled=True,
-                    format=str(self.learner.j(np.array([x, y]))),
+                    format='{0:.2f}'.format(self.learner.j(np.array([x, y]))),
                     verticalAlign='middle',
                     align="left" if self.label_right() else "right",
                     style=dict(
