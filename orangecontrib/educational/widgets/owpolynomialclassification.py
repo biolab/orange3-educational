@@ -343,9 +343,9 @@ class OWPolynomialClassification(OWBaseLearner):
             yAxis_max=max_y,
             colorAxis=dict(
                 stops=[
-                    [0, rgb_hash_brighter(rgb_to_hex(target_color), 0.5)],
+                    [0, rgb_hash_brighter(rgb_to_hex(other_color), 0.5)],
                     [0.5, '#ffffff'],
-                    [1, rgb_hash_brighter(rgb_to_hex(other_color), 0.5)]],
+                    [1, rgb_hash_brighter(rgb_to_hex(target_color), 0.5)]],
                 tickInterval=0.2, min=0, max=1),
             plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
@@ -401,7 +401,7 @@ class OWPolynomialClassification(OWBaseLearner):
                           np.array([[None]] * len(attr)))
 
         # results
-        self.probabilities_grid = self.model(attr_data, 1)[:, 1]\
+        self.probabilities_grid = self.model(attr_data, 1)[:, 0]\
             .reshape(self.xv.shape)
 
         blurred = self.blur_grid(self.probabilities_grid)
