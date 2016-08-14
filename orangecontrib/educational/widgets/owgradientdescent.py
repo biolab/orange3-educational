@@ -251,7 +251,8 @@ class OWGradientDescent(OWWidget):
         # step box
         self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
         self.step_button = gui.button(
-            widget=self.step_box, master=self, callback=self.step, label="Step")
+            widget=self.step_box, master=self, callback=self.step, label="Step",
+            default=True)
         self.step_back_button = gui.button(
             widget=self.step_box, master=self, callback=self.step_back,
             label="Step back")
