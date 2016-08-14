@@ -97,14 +97,15 @@ class Scatterplot(highcharts.Highchart):
             self.exposeObject('series%d' % i, series[i])
             self.evalJS("chart.addSeries(series%d, true);" % i)
 
-    def add_point_to_series(self, idx, x, y):
+    def add_point_to_series(self, idx, point):
         """
         Function add point to the series with id idx
         """
+        self.exposeObject('point', point)
         self.evalJS("""
             series = chart.get('{id}');
-            series.addPoint([{x}, {y}]);
-        """.format(id=idx, x=x, y=y))
+            series.addPoint(point);
+        """.format(id=idx))
 
 
 class Autoplay(QThread):
@@ -445,7 +446,19 @@ class OWGradientDescent(OWWidget):
             self.scatter.remove_series("path")
             self.scatter.remove_series("last_point")
             self.scatter.add_series([
-                dict(id="last_point", data=[[x, y]], showInLegend=False,
+                dict(id="last_point",
+                     data=[dict(
+                         x=x, y=y, dataLabels=dict(
+                             enabled=True,
+                             format=str(self.learner.j(np.array([x, y]))),
+                             verticalAlign='middle',
+                             align="right",
+                             style=dict(
+                                 fontWeight="normal",
+                                 textShadow=False
+                             ))
+                     )],
+                     showInLegend=False,
                      type="scatter", enableMouseTracking=False,
                      color="#ffcc00", marker=dict(radius=4)),
                 dict(id="path", data=[[x, y]], showInLegend=False,
@@ -500,12 +513,28 @@ class OWGradientDescent(OWWidget):
         """
         Function add point to the path
         """
-        self.scatter.add_point_to_series("path", x, y)
+        self.scatter.add_point_to_series("path", [x, y])
         self.plot_last_point(x, y)
 
     def plot_last_point(self, x, y):
         self.scatter.remove_last_point("last_point")
-        self.scatter.add_point_to_series("last_point", x, y)
+        self.scatter.add_point_to_series(
+            "last_point",
+            dict(
+                x=x, y=y, dataLabels=dict(
+                    enabled=True,
+                    format=str(self.learner.j(np.array([x, y]))),
+                    verticalAlign='middle',
+                    align="left" if self.label_right() else "right",
+                    style=dict(
+                        fontWeight="normal",
+                        textShadow=False
+                    ))
+            ))
+
+    def label_right(self):
+        l = self.learner
+        return l.step_no == 0 or l.history[l.step_no - 1][0][0] < l.theta[0]
 
     def replot(self):
         """
