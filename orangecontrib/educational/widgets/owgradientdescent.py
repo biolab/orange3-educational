@@ -234,7 +234,7 @@ class OWGradientDescent(OWWidget):
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
-            label="Stochastic: ")
+            label="Stochastic ")
         self.step_size_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_step,
             value="step_size", label="Step size: ",
