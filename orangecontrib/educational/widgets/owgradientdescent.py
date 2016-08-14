@@ -528,9 +528,11 @@ class OWGradientDescent(OWWidget):
 
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>".format(attr=self.attr_x),
+            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>"
+                .format(attr=self.attr_x if self.is_logistic else 0),
             xAxis_title_useHTML=True,
-            yAxis_title_text="&theta;<sub>{attr}</sub>".format(attr=self.attr_y),
+            yAxis_title_text="&theta;<sub>{attr}</sub>".
+                format(attr=self.attr_y if self.is_logistic else self.attr_x),
             yAxis_title_useHTML=True,
             xAxis_min=self.min_x,
             xAxis_max=self.max_x,
