@@ -142,11 +142,12 @@ class OWPolynomialClassification(OWBaseLearner):
         self.cby = gui.comboBox(
             value='attr_y', label='Y: ', callback=self.apply, **opts_combo)
         self.target_class_combobox = gui.comboBox(
-            value='target_class', label='Target class: ',
+            value='target_class', label='Target: ',
             callback=self.apply, **opts_combo)
         self.degree_spin = gui.spin(
             value='degree', label='Polynomial expansion:',
-            minv=1, maxv=5, step=1, callback=self.init_learner, **opts)
+            minv=1, maxv=5, step=1, callback=self.init_learner,
+            alignment=Qt.AlignRight, controlWidth=70, **opts)
         self.cbx.setSizePolicy(policy)
         self.cby.setSizePolicy(policy)
         self.target_class_combobox.setSizePolicy(policy)
@@ -166,7 +167,8 @@ class OWPolynomialClassification(OWBaseLearner):
         self.contour_step_slider = gui.spin(
             self.plot_properties_box, self, 'contour_step',
             minv=0.10, maxv=0.50, step=0.05, callback=self.plot_contour,
-            label='Contour step:', decimals=2, spinType=float)
+            label='Contour step:', decimals=2, spinType=float,
+            alignment=Qt.AlignRight, controlWidth=70)
 
         gui.rubber(self.controlArea)
 
