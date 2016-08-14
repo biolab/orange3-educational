@@ -354,6 +354,7 @@ class OWGradientDescent(OWWidget):
             self.learner_name = "Linear regression"
             init_combos()
             self.attr_x = self.cbx.itemText(0)
+            self.step_size_spin.setMaximum(len(d))
             self.restart()
         else:  # is discrete, if discrete logistic regression is used
             if sum(True for var in d.domain.attributes
@@ -372,6 +373,7 @@ class OWGradientDescent(OWWidget):
                 self.attr_x = self.cbx.itemText(0)
                 self.attr_y = self.cbx.itemText(1)
                 self.target_class = self.target_class_combobox.itemText(0)
+                self.step_size_spin.setMaximum(len(d))
                 self.restart()
 
     def set_empty_plot(self):
