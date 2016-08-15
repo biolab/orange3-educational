@@ -14,6 +14,7 @@ from Orange.widgets import highcharts
 from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg
 from Orange.preprocess.preprocess import Normalize
+from scipy.interpolate import splprep, splev
 
 from orangecontrib.educational.widgets.utils.linear_regression import \
     LinearRegression
@@ -654,7 +655,13 @@ class OWGradientDescent(OWWidget):
         count = 0
         for key, value in contour_lines.items():
             for line in value:
-                interpol_line = line
+                if len(line) > 3:
+                    tck, u = splprep(np.array(line).T, u=None, s=0.0, per=0)
+                    u_new = np.linspace(u.min(), u.max(), 100)
+                    x_new, y_new = splev(u_new, tck, der=0)
+                    interpol_line = np.c_[x_new, y_new]
+                else:
+                    interpol_line = line
 
                 series.append(dict(data=interpol_line,
                                    color=self.contour_color,

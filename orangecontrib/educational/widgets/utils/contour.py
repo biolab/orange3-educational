@@ -40,10 +40,24 @@ class Contour:
     def contours(self, thresholds):
         contours = {}
         for t in thresholds:
-            points = self.find_contours(t)
+            points = self.clean(self.find_contours(t))
             if len(points) > 0:
                 contours[t] = points
         return contours
+
+    def clean(self, contours):
+        """
+        Function removes duplicated points
+        """
+        corrected_contorus = []
+        for contour in contours:
+            points = np.array(contour)
+            to_delete = []
+            for i in range(len(points) - 1):
+                if np.array_equal(points[i, :], points[i + 1, :]):
+                    to_delete.append(i)
+            corrected_contorus.append(np.delete(points, to_delete, axis=0))
+        return corrected_contorus
 
     def find_contours(self, threshold):
         contours = []
