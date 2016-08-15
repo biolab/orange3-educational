@@ -23,7 +23,8 @@ class LinearRegression(GradientDescent):
         if self.theta is None or self.domain is None:
             return None
         else:
-            return LinearRegressionModel(self.theta, self.domain)
+            return LinearRegressionModel(
+                self.theta, self.domain, intercept=self.intercept)
 
     def j(self, theta):
         """
@@ -55,10 +56,12 @@ class LinearRegression(GradientDescent):
 
 class LinearRegressionModel(Model):
 
-    def __init__(self, theta, domain):
+    def __init__(self, theta, domain, intercept=False):
         super().__init__(domain)
         self.theta = theta
-        self.name = "Logistic Regression"
+        self.name = "Linear Regression"
+        self.intercept = intercept
 
     def predict_storage(self, data):
-        return LinearRegression.h(data.x, self.theta)
+        x = np.c_[np.ones(len(data.X)), data.X] if self.intercept else data.X
+        return LinearRegression.h(x, self.theta)
