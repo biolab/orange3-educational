@@ -10,83 +10,7 @@ class TestLogisticRegression(unittest.TestCase):
 
     def setUp(self):
         self.iris = Table('iris')
-        # new_domain = Domain(self.data.domain.attributes[:2])
-        # self.data = Table(new_domain, self.data)
         self.logistic_regression = LogisticRegression()
-
-    def test_set_data(self):
-        """
-        Test set data
-        """
-
-        # check if None on beginning
-        self.assertIsNone(self.logistic_regression.x, None)
-        self.assertIsNone(self.logistic_regression.y, None)
-        self.assertIsNone(self.logistic_regression.domain, None)
-
-        # check if correct data are provided
-        self.logistic_regression.set_data(self.iris)
-
-        assert_array_equal(self.logistic_regression.x, self.iris.X)
-        assert_array_equal(self.logistic_regression.y, self.iris.Y)
-        self.assertEqual(self.logistic_regression.domain, self.iris.domain)
-
-        # check data remove
-        self.logistic_regression.set_data(None)
-
-        self.assertIsNone(self.logistic_regression.x, None)
-        self.assertIsNone(self.logistic_regression.y, None)
-        self.assertIsNone(self.logistic_regression.domain, None)
-
-    def test_set_theta(self):
-        """
-        Check set theta
-        """
-
-        lr = self.logistic_regression
-
-        # theta must be none on beginning
-        self.assertIsNone(lr.theta, None)
-
-        # check if theta set correctly
-        # theta from np array
-        lr.set_theta(np.array([1, 2]))
-        assert_array_equal(lr.theta, np.array([1, 2]))
-        # history of 0 have to be equal theta
-        assert_array_equal(lr.history[0][0], np.array([1, 2]))
-        # step no have to reset to 0
-        self.assertEqual(lr.step_no, 0)
-
-        # theta from list
-        lr.set_theta([2, 3])
-        assert_array_equal(lr.theta, np.array([2, 3]))
-        assert_array_equal(lr.history[0][0], np.array([2, 3]))
-        self.assertEqual(lr.step_no, 0)
-
-        # theta None
-        lr.set_theta(None)
-        self.assertIsNone(lr.theta)
-
-        # theta anything else
-        lr.set_theta("abc")
-        self.assertIsNone(lr.theta)
-
-    def test_set_alpha(self):
-        """
-        Check if alpha set correctly
-        """
-        lr = self.logistic_regression
-
-        # check alpha 0.1 in the beginning
-        self.assertEqual(lr.alpha, 0.1)
-
-        # check if alpha set correctly
-        lr.set_alpha(0.2)
-        self.assertEqual(lr.alpha, 0.2)
-
-        # check if alpha removed correctly
-        lr.set_alpha(None)
-        self.assertIsNone(lr.alpha)
 
     def test_model(self):
         """
@@ -281,8 +205,16 @@ class TestLogisticRegression(unittest.TestCase):
         lr.set_data(self.iris)
         # check length with stochastic and usual
         self.assertEqual(len(lr.dj(np.array([1, 1, 1, 1]))), 4)
-        lr.stochastic = True
-        self.assertEqual(len(lr.dj(np.array([1, 1, 1, 1]))), 4)
+        self.assertTupleEqual(
+            lr.dj(np.array([1, 1, 1, 1]), stochastic=True).shape, (30, 4))
+
+        lr.stochastic_step_size = 2
+        self.assertTupleEqual(
+            lr.dj(np.array([1, 1, 1, 1]), stochastic=True).shape, (2, 4))
+
+        lr.stochastic_step_size = 1
+        self.assertTupleEqual(
+            lr.dj(np.array([1, 1, 1, 1]), stochastic=True).shape, (1, 4))
 
     def test_optimized(self):
         """

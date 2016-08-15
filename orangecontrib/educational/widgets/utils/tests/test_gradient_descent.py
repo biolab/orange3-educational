@@ -42,7 +42,6 @@ class TestGradientDescent(unittest.TestCase):
         """
         Check set theta
         """
-
         gd = self.gradient_descent
 
         # theta must be none on beginning
