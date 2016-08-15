@@ -13,6 +13,7 @@ class TestOWGradientDescent(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWGradientDescent)
         self.iris = Table('iris')
+        self.housing = Table('housing')
 
     def test_set_data(self):
         """
@@ -80,7 +81,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(w.cost_grid)
         self.assertTrue(w.Warning.to_few_features.is_shown())
 
-        # init with ok data
+        # init with ok data, discrete class - logistic regression
         num_continuous_attributes = sum(
             True for var in self.iris.domain.attributes
             if isinstance(var, ContinuousVariable))
@@ -125,6 +126,43 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(w.learner)
         self.assertIsNone(w.cost_grid)
 
+        # not enough continuous variables when continuous class
+        table_no_enough_cont = Table(
+            Domain(
+                [DiscreteVariable("y", values=["a", "b"])],
+                ContinuousVariable("a")),
+            [[1, 0], [2, 1]], [0, 1])
+        self.send_signal("Data", table_no_enough_cont)
+        self.assertIsNone(w.data)
+        self.assertEqual(w.cbx.count(), 0)
+        self.assertEqual(w.cby.count(), 0)
+        self.assertEqual(w.target_class_combobox.count(), 0)
+        self.assertIsNone(w.learner)
+        self.assertIsNone(w.cost_grid)
+        self.assertTrue(w.Warning.to_few_features.is_shown())
+
+        # init with ok data, discrete class - linear regression
+        num_continuous_attributes = sum(
+            True for var in self.housing.domain.attributes
+            if isinstance(var, ContinuousVariable))
+
+        self.send_signal("Data", self.housing)
+        self.assertEqual(w.cbx.count(), num_continuous_attributes)
+        self.assertEqual(w.cby.count(), 0)
+        self.assertEqual(w.target_class_combobox.count(), 0)
+        self.assertFalse(w.cby.isEnabled())
+        self.assertFalse(w.target_class_combobox.isEnabled())
+        self.assertEqual(w.cbx.currentText(), self.housing.domain[0].name)
+
+        self.assertEqual(w.attr_x, self.housing.domain[0].name)
+
+        # change showed attributes
+        w.attr_x = self.housing.domain[1].name
+
+        self.assertEqual(w.cbx.currentText(), self.housing.domain[1].name)
+
+        self.assertEqual(w.attr_x, self.housing.domain[1].name)
+
     def test_restart(self):
         """
         Test if restart works fine
@@ -135,10 +173,21 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(w.selected_data)
         self.assertIsNone(w.learner)
 
-        # with data
+        # with logistic regression
         self.send_signal("Data", self.iris)
         self.assertEqual(len(w.selected_data), len(self.iris))
         assert_array_equal(w.learner.x, w.selected_data.X)
+        assert_array_equal(w.learner.y, w.selected_data.Y)
+        assert_array_equal(w.learner.domain, w.selected_data.domain)
+        self.assertEqual(w.learner.alpha, w.alpha)
+        self.assertEqual(w.learner.stochastic, False)
+        self.assertEqual(w.learner.stochastic_step_size, w.step_size)
+
+        # with linear regression
+        self.send_signal("Data", self.housing)
+        self.assertEqual(len(w.selected_data), len(self.housing))
+        assert_array_equal(w.learner.x[:, 1][:, None], w.selected_data.X)
+        # because of intercept
         assert_array_equal(w.learner.y, w.selected_data.Y)
         assert_array_equal(w.learner.domain, w.selected_data.domain)
         self.assertEqual(w.learner.alpha, w.alpha)
@@ -262,6 +311,18 @@ class TestOWGradientDescent(WidgetTest):
         w.step()
         self.assertNotEqual(sum(old_theta - w.learner.theta), 0)
 
+        # with linear regression
+        self.send_signal("Data", self.housing)
+
+        # test theta set after step if not set yet
+        w.step()
+        self.assertIsNotNone(w.learner.theta)
+
+        # check theta is changing when step
+        old_theta = np.copy(w.learner.theta)
+        w.step()
+        self.assertNotEqual(sum(old_theta - w.learner.theta), 0)
+
     def test_step_back(self):
         """
         Test stepping back
@@ -272,6 +333,83 @@ class TestOWGradientDescent(WidgetTest):
         w.step_back()
 
         self.send_signal("Data", self.iris)
+
+        # test step back not performed when step_no == 0
+        old_theta = np.copy(w.learner.theta)
+        w.step_back()
+        assert_array_equal(w.learner.theta, old_theta)
+
+        # test same theta when step performed
+        w.change_theta(1.0, 1.0)
+        theta = np.copy(w.learner.theta)
+        w.step()
+        w.step_back()
+        assert_array_equal(theta, w.learner.theta)
+
+        w.change_theta(1.0, 1.0)
+        theta1 = np.copy(w.learner.theta)
+        w.step()
+        theta2 = np.copy(w.learner.theta)
+        w.step()
+        theta3 = np.copy(w.learner.theta)
+        w.step()
+        w.step_back()
+        assert_array_equal(theta3, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta2, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta1, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta1, w.learner.theta)
+
+        # test for stochastic
+        w.stochastic_checkbox.click()
+
+        w.change_theta(1.0, 1.0)
+        theta = np.copy(w.learner.theta)
+        w.step()
+        w.step_back()
+        assert_array_equal(theta, w.learner.theta)
+
+        w.change_theta(1.0, 1.0)
+        theta1 = np.copy(w.learner.theta)
+        w.step()
+        theta2 = np.copy(w.learner.theta)
+        w.step()
+        theta3 = np.copy(w.learner.theta)
+        w.step()
+        w.step_back()
+        assert_array_equal(theta3, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta2, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta1, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta1, w.learner.theta)
+
+        # test mix stochastic and normal
+        # now it is stochastic
+
+        w.change_theta(1.0, 1.0)
+        theta1 = np.copy(w.learner.theta)
+        w.step()
+        theta2 = np.copy(w.learner.theta)
+        w.step()
+        w.stochastic_checkbox.click()
+        theta3 = np.copy(w.learner.theta)
+        w.step()
+        w.step_back()
+        assert_array_equal(theta3, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta2, w.learner.theta)
+        w.step_back()
+        w.stochastic_checkbox.click()
+        assert_array_equal(theta1, w.learner.theta)
+        w.step_back()
+        assert_array_equal(theta1, w.learner.theta)
+
+        # with linear regression
+        self.send_signal("Data", self.housing)
 
         # test step back not performed when step_no == 0
         old_theta = np.copy(w.learner.theta)
@@ -371,6 +509,20 @@ class TestOWGradientDescent(WidgetTest):
         self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
         self.assertEqual(w.scatter.count_replots, 3)
 
+        # with linear regression
+        self.send_signal("Data", self.housing)
+        self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
+        self.assertEqual(w.scatter.count_replots, 4)
+
+        # when step no new re-plots
+        w.step()
+        self.assertEqual(w.scatter.count_replots, 4)
+
+        # triggered new re-plot
+        self.send_signal("Data", self.iris)
+        self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
+        self.assertEqual(w.scatter.count_replots, 5)
+
     def test_select_data(self):
         """
         Test select data function
@@ -392,6 +544,13 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.select_data().domain.attributes[1].name, w.attr_y)
         self.assertEqual(
             w.select_data().domain.class_var.values[0], w.target_class)
+
+        # test on housing - continuous class
+        self.send_signal("Data", self.housing)
+        self.assertEqual(len(w.select_data()), len(self.housing))
+        self.assertEqual(len(w.select_data().domain.attributes), 1)
+        self.assertEqual(w.select_data().domain.attributes[0].name, w.attr_x)
+        self.assertTrue(w.select_data().domain.class_var.is_continuous)
 
     def test_autoplay(self):
         """
@@ -468,19 +627,31 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # when no learner
-        self.assertIsNone(self.get_output("Classifier"))
+        self.assertIsNone(self.get_output("Model"))
 
         # when learner theta set automatically
         self.send_signal("Data", self.iris)
-        self.assertIsNotNone(self.get_output("Classifier"))
+        self.assertIsNotNone(self.get_output("Model"))
 
         # when everything fine
         w.change_theta(1., 1.)
-        assert_array_equal(self.get_output("Classifier").theta, [1., 1.])
+        assert_array_equal(self.get_output("Model").theta, [1., 1.])
 
         # when data deleted
         self.send_signal("Data", None)
-        self.assertIsNone(self.get_output("Classifier"))
+        self.assertIsNone(self.get_output("Model"))
+
+        # when learner theta set automatically
+        self.send_signal("Data", self.housing)
+        self.assertIsNotNone(self.get_output("Model"))
+
+        # when everything fine
+        w.change_theta(1., 1.)
+        assert_array_equal(self.get_output("Model").theta, [1., 1.])
+
+        # when data deleted
+        self.send_signal("Data", None)
+        self.assertIsNone(self.get_output("Model"))
 
     def test_send_coefficients(self):
         w = self.widget
@@ -504,6 +675,20 @@ class TestOWGradientDescent(WidgetTest):
         # when data deleted
         self.send_signal("Data", None)
         self.assertIsNone(self.get_output("Coefficients"))
+
+        # for linear regression
+        # when learner but no theta
+        self.send_signal("Data", self.housing)
+        self.assertIsNotNone(self.get_output("Coefficients"))
+
+        # when everything fine
+        w.change_theta(1., 1.)
+        coef_out = self.get_output("Coefficients")
+        self.assertEqual(len(coef_out), 2)
+        self.assertEqual(len(coef_out.domain.attributes), 1)
+        self.assertEqual(coef_out.domain.attributes[0].name, "Coefficients")
+        self.assertEqual(len(coef_out.domain.metas), 1)
+        self.assertEqual(coef_out.domain.metas[0].name, "Name")
 
     def test_send_data(self):
         """
