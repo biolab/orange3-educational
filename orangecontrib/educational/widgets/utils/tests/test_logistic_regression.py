@@ -65,8 +65,9 @@ class TestLogisticRegression(unittest.TestCase):
         converge = False
         while not converge:
             lr.step()
-            converge = np.sum(
-                np.abs(lr.theta - lr.history[lr.step_no - 1][0])) < 1e-2
+            converge = (np.sum(
+                np.abs(lr.theta - lr.history[lr.step_no - 1][0])) /
+                        len(lr.theta) < 1e-2)
             self.assertEqual(lr.converged, converge)
 
     def test_step(self):

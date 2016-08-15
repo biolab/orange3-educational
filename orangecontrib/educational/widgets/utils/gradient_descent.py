@@ -88,8 +88,8 @@ class GradientDescent:
         """
         if self.step_no == 0:
             return False
-        return (np.sum(np.abs(self.theta - self.history[self.step_no - 1][0])) <
-                (1e-2 if not self.stochastic else 1e-5))
+        return (np.sum(np.abs(self.theta - self.history[self.step_no - 1][0])) /
+                len(self.theta) < (1e-2 if not self.stochastic else 1e-5))
 
     def step(self):
         """
