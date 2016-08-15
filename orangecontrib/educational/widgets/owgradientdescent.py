@@ -150,7 +150,7 @@ class OWGradientDescent(OWWidget):
     want_main_area = True
 
     inputs = [("Data", Table, "set_data")]
-    outputs = [("Classifier", Model),
+    outputs = [("Model", Model),
                ("Coefficients", Table),
                ("Data", Table)]
 
@@ -198,7 +198,7 @@ class OWGradientDescent(OWWidget):
         """
         Class used fro widget warnings.
         """
-        to_few_features = Msg("Too few Continuous feature. Min 2 required")
+        to_few_features = Msg("Too few Continuous feature.")
         no_class = Msg("No class provided")
         to_few_values = Msg("Class must have at least two values.")
 
@@ -358,12 +358,18 @@ class OWGradientDescent(OWWidget):
             reset_combos()
             self.Warning.no_class()
         elif d.domain.class_var.is_continuous:
-            self.data = data
-            self.learner_name = "Linear regression"
-            init_combos()
-            self.attr_x = self.cbx.itemText(0)
-            self.step_size_spin.setMaximum(len(d))
-            self.restart()
+            if sum(True for var in d.domain.attributes
+                   if isinstance(var, ContinuousVariable)) < 1:
+                # not enough (2) continuous variable
+                reset_combos()
+                self.Warning.to_few_features()
+            else:
+                self.data = data
+                self.learner_name = "Linear regression"
+                init_combos()
+                self.attr_x = self.cbx.itemText(0)
+                self.step_size_spin.setMaximum(len(d))
+                self.restart()
         else:  # is discrete, if discrete logistic regression is used
             if sum(True for var in d.domain.attributes
                    if isinstance(var, ContinuousVariable)) < 2:
@@ -761,9 +767,9 @@ class OWGradientDescent(OWWidget):
         Function sends model on output.
         """
         if self.learner is not None and self.learner.theta is not None:
-            self.send("Classifier", self.learner.model)
+            self.send("Model", self.learner.model)
         else:
-            self.send("Classifier", None)
+            self.send("Model", None)
 
     def send_coefficients(self):
         """
