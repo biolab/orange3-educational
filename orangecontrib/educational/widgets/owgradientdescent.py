@@ -703,7 +703,8 @@ class OWGradientDescent(OWWidget):
             return Normalize(Table(domain, x, y, self.data.Y[:, None]))
         else:
             domain = Domain([attr_x], self.data.domain.class_var)
-            return Normalize(Table(domain, x, self.data.Y))
+            return Normalize(
+                Table(domain, x, self.data.Y), transform_class=True)
 
     def auto_play(self):
         """

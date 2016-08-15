@@ -41,7 +41,6 @@ class LinearRegression(GradientDescent):
             x = self.x[self.stochastic_i: self.stochastic_i + ns]
             y = self.y[self.stochastic_i: self.stochastic_i + ns]
             h = self.h(x, theta)
-            print(x)
             return x * (h - y)[:, None] / len(y)
         else:
             x = self.x
