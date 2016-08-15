@@ -238,7 +238,7 @@ class OWGradientDescent(OWWidget):
         self.alpha_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_alpha,
             value="alpha", label="Learning rate: ",
-            minv=0.0001, maxv=100, step=0.001, spinType=float, decimals=4)
+            minv=0.001, maxv=100, step=0.001, spinType=float, decimals=3)
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
