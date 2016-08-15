@@ -238,7 +238,8 @@ class OWGradientDescent(OWWidget):
         self.alpha_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_alpha,
             value="alpha", label="Learning rate: ",
-            minv=0.001, maxv=100, step=0.001, spinType=float, decimals=3)
+            minv=0.001, maxv=100, step=0.001, spinType=float, decimals=3,
+            alignment=Qt.AlignRight, controlWidth=80)
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
@@ -246,7 +247,7 @@ class OWGradientDescent(OWWidget):
         self.step_size_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_step,
             value="step_size", label="Step size: ",
-            minv=1, maxv=100, step=1)
+            minv=1, maxv=100, step=1, alignment=Qt.AlignRight, controlWidth=80)
         self.restart_button = gui.button(
             widget=self.properties_box, master=self,
             callback=self.restart, label="Restart")
