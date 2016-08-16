@@ -511,9 +511,8 @@ class TestOWPolynomialClassification(WidgetTest):
         # check correct number of attributes
         for j in range(1, 6):
             w.degree_spin.setValue(j)
-            num_coefficients = sum(i + 1 for i in range(1, w.degree + 1))
             self.assertEqual(
-                len(self.get_output("Data").domain.attributes), num_coefficients)
+                len(self.get_output("Data").domain.attributes), 2)
 
         self.assertEqual(len(self.get_output("Data").domain.metas), 1)
         self.assertIsNotNone(self.get_output("Data").domain.class_var)
