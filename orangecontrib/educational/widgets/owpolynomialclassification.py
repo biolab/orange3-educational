@@ -588,8 +588,6 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         if self.data is not None:
             data = self.selected_data
-            for preprocessor in self.learner.preprocessors:
-                data = preprocessor(data)
             self.send("Data", data)
             return
         self.send("Data", None)
