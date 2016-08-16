@@ -514,10 +514,19 @@ class OWPolynomialClassification(OWBaseLearner):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
+
+        cls_domain = self.data.domain.class_var
+        target_idx = cls_domain.values.index(self.target_class)
+        other_value = cls_domain.values[(target_idx + 1) % 2]
+
+        class_domain = [DiscreteVariable(
+            name=self.data.domain.class_var.name,
+            values=[self.target_class, 'Others'
+            if len(cls_domain.values) > 2 else other_value])]
+
         domain = Domain(
             [attr_x, attr_y],
-            [DiscreteVariable(name=self.data.domain.class_var.name,
-                              values=[self.target_class, 'Others'])],
+            class_domain,
             [self.data.domain.class_var])
         y = [(0 if d.get_class().value == self.target_class else 1)
              for d in self.data]
