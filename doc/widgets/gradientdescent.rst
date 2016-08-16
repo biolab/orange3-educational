@@ -3,7 +3,7 @@ Gradient Descent
 
 .. figure:: icons/gradient-descent.png
 
-Educational widget that shows gradient descent algorithm on a logistic regression.
+Educational widget that shows gradient descent algorithm on a logistic regression or a linear regression.
 
 Signals
 -------
@@ -33,6 +33,9 @@ Description
 
 This widget shows steps of `gradient descent <https://en.wikipedia.org/wiki/Gradient_descent>`__ for logistic regression
 step by step. Gradient descent is demonstrated on two attributes that are selected by user.
+
+Gradient descent is performed on logistic regression if class in data set is discrete and linear regression if class is
+continuous.
 
 .. figure:: images/gradient-descent-stamped.png
 
@@ -64,9 +67,10 @@ step by step. Gradient descent is demonstrated on two attributes that are select
 Example
 -------
 
-In Orange we connected *File* widget with *Iris* data set to *Gradient Descent* widget. We connected outputs of
-the widget to *Predictions* widget to see how data are classified and *Data Table* widget where we inspect coefficients
-of logistic regression.
+In Orange we connected *File* widget with *Iris* data set to *Gradient Descent* widget. Iris data set has discrete class
+so *Logistic regression* will be used this time.
+We connected outputs of the widget to *Predictions* widget to see how data are classified and *Data Table* widget where
+we inspect coefficients of logistic regression.
 
 .. figure:: images/gradient-descent-flow.png
 
@@ -89,3 +93,16 @@ In the end we want to see predictions for input data so we can open *Predictions
 left column. We can compare this predictions to real classes.
 
 .. figure:: images/gradient-descent4.png
+
+If we want to demonstrate *linear regression* we can change data set to *Housing*. That data set has a
+continuous class variable. When using linear regression we can select only one feature what means that our function
+is linear. The another parameter that is plotted in the graph is
+`intercept <https://en.wikipedia.org/wiki/Y-intercept>`__ of a
+`linear function <https://en.wikipedia.org/wiki/Linear_function>`__.
+
+This time we selected *INDUS* as a
+`independent variable <https://en.wikipedia.org/wiki/Dependent_and_independent_variables>`__.
+In widget we can make same actions as before. In the end we can also check predictions for each point with *Predictions*
+widget. And coefficients of linear regression in a *Data Table*.
+
+.. figure:: images/gradient-descent-housing.png
