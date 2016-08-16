@@ -196,6 +196,11 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.learner.stochastic, False)
         self.assertEqual(w.learner.stochastic_step_size, w.step_size)
 
+        # click on restart
+        old_theta = np.copy(w.learner.theta)
+        w.restart_button.click()
+        assert_array_equal(w.learner.theta, old_theta)
+
         # again no data
         self.send_signal("Data", None)
         self.assertIsNone(w.selected_data)
