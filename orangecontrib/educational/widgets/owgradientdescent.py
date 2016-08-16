@@ -423,6 +423,8 @@ class OWGradientDescent(OWWidget):
         if theta is None:  # no previous theta exist
             self.change_theta(np.random.uniform(self.min_x, self.max_x),
                               np.random.uniform(self.min_y, self.max_y))
+        else:
+            self.change_theta(theta[0], theta[1])
         self.send_output()
         self.step_back_button_lock()
 
@@ -493,9 +495,6 @@ class OWGradientDescent(OWWidget):
             return
         if self.learner.step_no > 500:  # limit step no to avoid freezes
             return
-        if self.learner.theta is None:
-            self.change_theta(np.random.uniform(self.min_x, self.max_x),
-                              np.random.uniform(self.min_y, self.max_y))
         self.learner.step()
         theta = self.learner.theta
         self.plot_point(theta[0], theta[1])

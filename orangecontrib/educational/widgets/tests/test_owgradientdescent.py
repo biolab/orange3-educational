@@ -1,5 +1,7 @@
 from numpy.testing import *
 import numpy as np
+from PyQt4.QtCore import Qt, QEvent
+from PyQt4.QtGui import QKeyEvent
 
 from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 from Orange.widgets.tests.base import WidgetTest
@@ -323,6 +325,55 @@ class TestOWGradientDescent(WidgetTest):
         w.step()
         self.assertNotEqual(sum(old_theta - w.learner.theta), 0)
 
+        # check steps not allowed after 500
+        for i in range(500):
+            w.step()
+        self.assertEqual(w.learner.step_no, 501)
+
+    def test_step_space(self):
+        """
+        Test step
+        """
+        w = self.widget
+
+        event = QKeyEvent(
+            QEvent.KeyPress, Qt.Key_Space, Qt.KeyboardModifiers(0))
+
+        # test function not crashes when no data and learner
+        w.keyPressEvent(event)
+
+        self.send_signal("Data", self.iris)
+
+        # test theta set after step if not set yet
+        w.keyPressEvent(event)
+        self.assertIsNotNone(w.learner.theta)
+
+        # check theta is changing when step
+        old_theta = np.copy(w.learner.theta)
+        w.keyPressEvent(event)
+        self.assertNotEqual(sum(old_theta - w.learner.theta), 0)
+
+        # with linear regression
+        self.send_signal("Data", self.housing)
+
+        # test theta set after step if not set yet
+        w.keyPressEvent(event)
+        self.assertIsNotNone(w.learner.theta)
+
+        # check theta is changing when step
+        old_theta = np.copy(w.learner.theta)
+        w.keyPressEvent(event)
+        self.assertNotEqual(sum(old_theta - w.learner.theta), 0)
+
+        old_theta = np.copy(w.learner.theta)
+        # to cover else example and check not crashes
+        event = QKeyEvent(
+            QEvent.KeyPress, Qt.Key_Q, Qt.KeyboardModifiers(0))
+        w.keyPressEvent(event)
+
+        # check nothing changes
+        assert_array_equal(old_theta, w.learner.theta)
+
     def test_step_back(self):
         """
         Test stepping back
@@ -552,6 +603,27 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.select_data().domain.attributes[0].name, w.attr_x)
         self.assertTrue(w.select_data().domain.class_var.is_continuous)
 
+        # test with data set for logistic regression - class discrete
+        # there no other class value is provided
+        domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                        DiscreteVariable('c', values=['a', 'b']))
+        data = Table(domain, [[1, 2], [1, 2]], [0, 1])
+
+        self.send_signal("Data", data)
+        self.assertEqual(len(w.select_data()), len(data))
+        self.assertEqual(len(w.select_data().domain.attributes), 2)
+        self.assertEqual(len(w.select_data().domain.class_var.values), 2)
+        self.assertEqual(
+            w.select_data().domain.class_var.values[1],
+            data.domain.class_var.values[1])
+        self.assertEqual(
+            w.select_data().domain.class_var.values[0],
+            data.domain.class_var.values[0])
+        self.assertEqual(w.select_data().domain.attributes[0].name, w.attr_x)
+        self.assertEqual(w.select_data().domain.attributes[1].name, w.attr_y)
+        self.assertEqual(
+            w.select_data().domain.class_var.values[0], w.target_class)
+
     def test_autoplay(self):
         """
         Test autoplay functionalities
@@ -707,3 +779,16 @@ class TestOWGradientDescent(WidgetTest):
         # when data deleted
         self.send_signal("Data", None)
         self.assertIsNone(self.get_output("Data"))
+
+    def test_change_attributes(self):
+        """
+        Check if reset is ok
+        """
+        w = self.widget
+
+        # when everything fine
+        self.send_signal("Data", self.iris)
+
+        w.change_attributes()
+        self.assertIsNotNone(w.learner)
+        self.assertIsNotNone(w.learner.theta)
