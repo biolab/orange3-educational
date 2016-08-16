@@ -460,9 +460,10 @@ class OWGradientDescent(OWWidget):
                      data=[dict(
                          x=x, y=y, dataLabels=dict(
                              enabled=True,
-                             format='{0:.2f}'.format(
+                             format='&nbsp;{0:.2f}&nbsp;'.format(
                                  self.learner.j(np.array([x, y]))),
                              verticalAlign='middle',
+                             useHTML=True,
                              align="right",
                              style=dict(
                                  fontWeight="normal",
@@ -541,7 +542,8 @@ class OWGradientDescent(OWWidget):
             dict(
                 x=x, y=y, dataLabels=dict(
                     enabled=True,
-                    format='{0:.2f}'.format(self.learner.j(np.array([x, y]))),
+                    format='&nbsp;{0:.2f}&nbsp;'.format(self.learner.j(np.array([x, y]))),
+                    useHTML=True,
                     verticalAlign='middle',
                     align="left" if self.label_right() else "right",
                     style=dict(
