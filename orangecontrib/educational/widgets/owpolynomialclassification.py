@@ -137,8 +137,8 @@ class OWPolynomialClassification(OWBaseLearner):
         self.options_box = gui.widgetBox(self.controlArea, "Options")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal)
-        opts_combo = dict(opts, **dict(sendSelectedValue=True))
-        policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        opts_combo = dict(opts, **dict(sendSelectedValue=True,
+                                       maximumContentsLength=15))
         self.cbx = gui.comboBox(
             value='attr_x', label='X: ', callback=self.apply, **opts_combo)
         self.cby = gui.comboBox(
@@ -150,9 +150,6 @@ class OWPolynomialClassification(OWBaseLearner):
             value='degree', label='Polynomial expansion:',
             minv=1, maxv=5, step=1, callback=self.init_learner,
             alignment=Qt.AlignRight, controlWidth=70, **opts)
-        self.cbx.setSizePolicy(policy)
-        self.cby.setSizePolicy(policy)
-        self.target_class_combobox.setSizePolicy(policy)
 
         self.cbx.setModel(self.x_var_model)
         self.cby.setModel(self.y_var_model)
