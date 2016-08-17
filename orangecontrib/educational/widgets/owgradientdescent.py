@@ -702,24 +702,36 @@ class OWGradientDescent(OWWidget):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
+        y_c = self.data.Y
+
+        # remove nans
+        indices = ~np.isnan(x).any(axis=1) & ~np.isnan(y_c)
+        x = x[indices]
+        y_c = y_c[indices]
+
 
         if self.is_logistic:
-            if len(self.data.domain.class_var.values) == 2:
-                return Normalize(self.data)
+            two_classes = len(self.data.domain.class_var.values) == 2
+            if two_classes:
+                domain = Domain([attr_x, attr_y], [self.data.domain.class_var])
+            else:
+                domain = Domain(
+                    [attr_x, attr_y],
+                    [DiscreteVariable(
+                        name=self.data.domain.class_var.name + "-bin",
+                        values=[self.target_class, 'Others'])],
+                    [self.data.domain.class_var])
 
-            domain = Domain(
-                [attr_x, attr_y],
-                [DiscreteVariable(name=self.data.domain.class_var.name + "-bin",
-                                  values=[self.target_class, 'Others'])],
-                [self.data.domain.class_var])
-            y = [(0 if d.get_class().value == self.target_class else 1)
-                 for d in self.data]
+            y = [(0 if self.data.domain.class_var.values[int(d)] ==
+                       self.target_class else 1)
+                 for d in y_c]
 
-            return Normalize(Table(domain, x, y, self.data.Y[:, None]))
+            return Normalize(Table(domain, x, y_c) if two_classes
+                             else Table(domain, x, y, y_c[:, None]))
         else:
             domain = Domain([attr_x], self.data.domain.class_var)
             return Normalize(
-                Table(domain, x, self.data.Y), transform_class=True)
+                Table(domain, x, y_c), transform_class=True)
 
     def auto_play(self):
         """
