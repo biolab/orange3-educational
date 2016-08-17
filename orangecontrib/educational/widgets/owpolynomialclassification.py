@@ -123,10 +123,10 @@ class OWPolynomialClassification(OWBaseLearner):
     y_var_model = None
 
     class Error(OWWidget.Error):
-        to_few_features = Msg("Too few Continuous feature. Min 2 required")
-        no_class = Msg("No discrete class provided or only one class variable")
-        all_none_data = Msg("One of features you selected has all"
-                            " missing values.")
+        to_few_features = Msg(
+            "Polynomial classification requires at least two numeric features")
+        no_class = Msg("Data must have a single discrete class attribute")
+        all_none_data = Msg("One of the features has no defined values")
 
     def add_main_layout(self):
         # var models
