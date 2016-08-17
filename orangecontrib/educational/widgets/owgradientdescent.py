@@ -194,7 +194,7 @@ class OWGradientDescent(OWWidget):
     step_trigger = pyqtSignal()
     stop_auto_play_trigger = pyqtSignal()
 
-    class Warning(OWWidget.Warning):
+    class Error(OWWidget.Error):
         """
         Class used fro widget warnings.
         """
@@ -337,7 +337,7 @@ class OWGradientDescent(OWWidget):
             self.cby.setDisabled(not self.is_logistic)
             self.target_class_combobox.setDisabled(not self.is_logistic)
 
-        self.Warning.clear()
+        self.Error.clear()
 
         # clear variables
         self.cost_grid = None
@@ -356,13 +356,13 @@ class OWGradientDescent(OWWidget):
             reset_combos()
         elif d.domain.class_var is None:
             reset_combos()
-            self.Warning.no_class()
+            self.Error.no_class()
         elif d.domain.class_var.is_continuous:
             if sum(True for var in d.domain.attributes
                    if isinstance(var, ContinuousVariable)) < 1:
                 # not enough (2) continuous variable
                 reset_combos()
-                self.Warning.to_few_features()
+                self.Error.to_few_features()
             else:
                 self.data = data
                 self.learner_name = "Linear regression"
@@ -375,10 +375,10 @@ class OWGradientDescent(OWWidget):
                    if isinstance(var, ContinuousVariable)) < 2:
                 # not enough (2) continuous variable
                 reset_combos()
-                self.Warning.to_few_features()
+                self.Error.to_few_features()
             elif len(d.domain.class_var.values) < 2:
                 reset_combos()
-                self.Warning.to_few_values()
+                self.Error.to_few_values()
                 self.set_empty_plot()
             else:
                 self.data = data

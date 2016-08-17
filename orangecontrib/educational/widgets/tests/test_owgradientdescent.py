@@ -51,7 +51,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertIsNone(w.learner)
         self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Warning.no_class.is_shown())
+        self.assertTrue(w.Error.no_class.is_shown())
 
         # with only one class value
         table_one_class = Table(
@@ -65,7 +65,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertIsNone(w.learner)
         self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Warning.to_few_values.is_shown())
+        self.assertTrue(w.Error.to_few_values.is_shown())
 
         # not enough continuous variables
         table_no_enough_cont = Table(
@@ -81,7 +81,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertIsNone(w.learner)
         self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Warning.to_few_features.is_shown())
+        self.assertTrue(w.Error.to_few_features.is_shown())
 
         # init with ok data, discrete class - logistic regression
         num_continuous_attributes = sum(
@@ -141,7 +141,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertIsNone(w.learner)
         self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Warning.to_few_features.is_shown())
+        self.assertTrue(w.Error.to_few_features.is_shown())
 
         # init with ok data, discrete class - linear regression
         num_continuous_attributes = sum(
