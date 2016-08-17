@@ -482,8 +482,10 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function labels data with contour levels
         """
-        point = (no * 5) % len(data)  # to avoid points on same positions
+        point = (no * 5) # to avoid points on same positions
         point += (1 if point == 0 else 0)
+        point %= len(data)
+
         data[point] = dict(
             x=data[point][0],
             y=data[point][1],
