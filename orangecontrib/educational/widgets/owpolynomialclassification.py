@@ -16,6 +16,7 @@ from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import (LogisticRegressionLearner, Learner,
                                    RandomForestLearner, TreeLearner)
 from Orange.widgets.widget import Msg, OWWidget
+from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
@@ -71,7 +72,6 @@ class OWPolynomialClassification(OWBaseLearner):
     icon = "icons/polynomialclassification.svg"
     want_main_area = True
     resizing_enabled = True
-    send_report = True
 
     # inputs and outputs
     inputs = [("Data", Table, "set_data"),
@@ -604,3 +604,13 @@ class OWPolynomialClassification(OWBaseLearner):
 
     def add_bottom_buttons(self):
         pass
+
+    def send_report(self):
+        if self.data is None:
+            return
+        caption = report.render_items_vert((
+             ("Polynomial Expansion", self.degree),
+        ))
+        self.report_plot(self.scatter)
+        if caption:
+            self.report_caption(caption)
