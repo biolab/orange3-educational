@@ -547,9 +547,12 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         if self.data is not None:
             self.selected_data = self.select_data()
-            self.model = self.learner(self.selected_data)
-            self.model.name = self.learner_name
-            self.model.instances = self.selected_data
+            if self.selected_data is not None:
+                self.model = self.learner(self.selected_data)
+                self.model.name = self.learner_name
+                self.model.instances = self.selected_data
+            else:
+                self.model = None
         else:
             self.model = None
 

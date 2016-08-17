@@ -201,6 +201,7 @@ class OWGradientDescent(OWWidget):
         to_few_features = Msg("Too few Continuous feature.")
         no_class = Msg("No class provided")
         to_few_values = Msg("Class must have at least two values.")
+        all_none = Msg("All values in one of selected features are missing")
 
     def __init__(self):
         super().__init__()
@@ -410,6 +411,10 @@ class OWGradientDescent(OWWidget):
         Function restarts the algorithm
         """
         self.selected_data = self.select_data()
+        if self.selected_data is None:
+            self.set_empty_plot()
+            return
+
         theta = self.learner.history[0][0] if self.learner is not None else None
         selected_learner = (LogisticRegression
                             if self.learner_name == "Logistic regression"
@@ -560,7 +565,8 @@ class OWGradientDescent(OWWidget):
         """
         This function performs complete replot of the graph
         """
-        if self.data is None:
+        if self.data is None or self.selected_data is None:
+            self.set_empty_plot()
             return
 
         optimal_theta = self.learner.optimized()
@@ -695,6 +701,8 @@ class OWGradientDescent(OWWidget):
         if self.data is None:
             return
 
+        self.Error.clear()
+
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y] if self.is_logistic else None
         cols = []
@@ -709,6 +717,9 @@ class OWGradientDescent(OWWidget):
         x = x[indices]
         y_c = y_c[indices]
 
+        if len(x) == 0:
+            self.Error.all_none()
+            return None
 
         if self.is_logistic:
             two_classes = len(self.data.domain.class_var.values) == 2
