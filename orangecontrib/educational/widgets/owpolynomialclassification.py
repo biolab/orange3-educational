@@ -124,7 +124,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     class Warning(OWWidget.Warning):
         to_few_features = Msg("Too few Continuous feature. Min 2 required")
-        no_class = Msg("No class provided or only one class variable")
+        no_class = Msg("No discrete class provided or only one class variable")
 
     def add_main_layout(self):
         # var models
@@ -252,6 +252,7 @@ class OWPolynomialClassification(OWBaseLearner):
             self.Warning.to_few_features()
             self.set_empty_plot()
         elif (data.domain.class_var is None or
+              data.domain.class_var.is_continuous or
               len(data.domain.class_var.values) < 2):
             self.data = None
             reset_combos()
@@ -583,7 +584,7 @@ class OWPolynomialClassification(OWBaseLearner):
             data = self.model.instances
             for preprocessor in self.learner.preprocessors:
                 data = preprocessor(data)
-            names = [1] + [x.name for x in data.domain.attributes]
+            names = ["Intercept"] + [x.name for x in data.domain.attributes]
 
             coefficients_table = Table(
                 domain, list(zip(coefficients, names)))
