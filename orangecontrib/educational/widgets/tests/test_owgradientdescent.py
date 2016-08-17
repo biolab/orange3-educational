@@ -629,6 +629,21 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(
             w.select_data().domain.class_var.values[0], w.target_class)
 
+        # selected data none when one column only Nones
+        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                            DiscreteVariable('c', values=['a', 'b'])),
+                     [[1, None], [1, None]], [0, 1])
+        self.send_signal("Data", data)
+        selected_data = w.select_data()
+        self.assertIsNone(selected_data)
+
+        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                            DiscreteVariable('c', values=['a', 'b'])),
+                     [[None, None], [None, None]], [0, 1])
+        self.send_signal("Data", data)
+        selected_data = w.select_data()
+        self.assertIsNone(selected_data)
+
     def test_autoplay(self):
         """
         Test autoplay functionalities
