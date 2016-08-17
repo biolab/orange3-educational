@@ -520,3 +520,12 @@ class TestOWPolynomialClassification(WidgetTest):
         # check again none
         self.send_signal("Data", None)
         self.assertIsNone(self.get_output("Data"))
+
+    def test_send_report(self):
+        """
+        Just test everything not crashes
+        """
+        w = self.widget
+
+        self.send_signal("Data", self.iris)
+        w.report_button.click()
