@@ -401,6 +401,21 @@ class TestOWPolynomialClassification(WidgetTest):
         # meta with information about real cluster
         self.assertEqual(len(selected_data), len(self.iris))
 
+        # selected data none when one column only Nones
+        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                            DiscreteVariable('c', values=['a', 'b'])),
+                     [[1, None], [1, None]], [0, 1])
+        self.send_signal("Data", data)
+        selected_data = w.select_data()
+        self.assertIsNone(selected_data)
+
+        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                            DiscreteVariable('c', values=['a', 'b'])),
+                     [[None, None], [None, None]], [0, 1])
+        self.send_signal("Data", data)
+        selected_data = w.select_data()
+        self.assertIsNone(selected_data)
+
     def test_send_learner(self):
         """
         Test if correct learner on output

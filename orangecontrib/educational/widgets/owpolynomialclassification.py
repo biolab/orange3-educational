@@ -125,6 +125,8 @@ class OWPolynomialClassification(OWBaseLearner):
     class Error(OWWidget.Error):
         to_few_features = Msg("Too few Continuous feature. Min 2 required")
         no_class = Msg("No discrete class provided or only one class variable")
+        all_none_data = Msg("One of features you selected has all"
+                            " missing values.")
 
     def add_main_layout(self):
         # var models
@@ -253,6 +255,7 @@ class OWPolynomialClassification(OWBaseLearner):
             self.set_empty_plot()
         elif (data.domain.class_var is None or
               data.domain.class_var.is_continuous or
+              sum(line.get_class() == None for line in data) == len(data) or
               len(data.domain.class_var.values) < 2):
             self.data = None
             reset_combos()
@@ -288,7 +291,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph
         """
-        if self.data is None:
+        if self.data is None or self.selected_data is None:
+            self.set_empty_plot()
             return
 
         attr_x = self.data.domain[self.attr_x]
@@ -510,6 +514,8 @@ class OWPolynomialClassification(OWBaseLearner):
         Table
             Table with selected columns
         """
+        self.Error.clear()
+
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y]
         cols = []
@@ -517,6 +523,10 @@ class OWPolynomialClassification(OWBaseLearner):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
+
+        if np.isnan(x).all(axis=0).any():
+            self.Error.all_none_data()
+            return None
 
         cls_domain = self.data.domain.class_var
         target_idx = cls_domain.values.index(self.target_class)
@@ -561,9 +571,12 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         if self.data is not None:
             self.selected_data = self.select_data()
-            self.model = self.learner(self.selected_data)
-            self.model.name = self.learner_name
-            self.model.instances = self.selected_data
+            if self.selected_data is not None:
+                self.model = self.learner(self.selected_data)
+                self.model.name = self.learner_name
+                self.model.instances = self.selected_data
+            else:
+                self.model = None
         else:
             self.model = None
 
