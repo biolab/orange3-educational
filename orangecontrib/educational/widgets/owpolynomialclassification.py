@@ -122,7 +122,7 @@ class OWPolynomialClassification(OWBaseLearner):
     x_var_model = None
     y_var_model = None
 
-    class Warning(OWWidget.Warning):
+    class Error(OWWidget.Error):
         to_few_features = Msg("Too few Continuous feature. Min 2 required")
         no_class = Msg("No discrete class provided or only one class variable")
 
@@ -234,7 +234,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 pix_map.fill(QColor(*color))
                 self.target_class_combobox.addItem(QIcon(pix_map), var)
 
-        self.Warning.clear()
+        self.Error.clear()
 
         # clear variables
         self.xv = None
@@ -249,14 +249,14 @@ class OWPolynomialClassification(OWBaseLearner):
                  if isinstance(var, ContinuousVariable)) < 2:
             self.data = None
             reset_combos()
-            self.Warning.to_few_features()
+            self.Error.to_few_features()
             self.set_empty_plot()
         elif (data.domain.class_var is None or
               data.domain.class_var.is_continuous or
               len(data.domain.class_var.values) < 2):
             self.data = None
             reset_combos()
-            self.Warning.no_class()
+            self.Error.no_class()
             self.set_empty_plot()
         else:
             self.data = data

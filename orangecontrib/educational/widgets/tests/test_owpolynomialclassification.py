@@ -229,7 +229,7 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cbx.count(), 0)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertTrue(w.Warning.no_class.is_shown())
+        self.assertTrue(w.Error.no_class.is_shown())
 
         # set data with one class variable
         table_one_class = Table(
@@ -241,7 +241,7 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cbx.count(), 0)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertTrue(w.Warning.no_class.is_shown())
+        self.assertTrue(w.Error.no_class.is_shown())
 
         # set data with not enough continuous variables
         table_no_enough_cont = Table(
@@ -255,7 +255,7 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cbx.count(), 0)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertTrue(w.Warning.to_few_features.is_shown())
+        self.assertTrue(w.Error.to_few_features.is_shown())
 
     def test_init_learner(self):
         """
