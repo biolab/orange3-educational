@@ -1,3 +1,4 @@
+from Orange.canvas import report
 from os import path
 import time
 
@@ -154,7 +155,6 @@ class OWGradientDescent(OWWidget):
                ("Coefficients", Table),
                ("Data", Table)]
 
-    send_report = True
     graph_name = "Gradient descent graph"
 
     # selected attributes in chart
@@ -824,3 +824,13 @@ class OWGradientDescent(OWWidget):
     @property
     def is_logistic(self):
         return self.learner_name == "Logistic regression"
+
+    def send_report(self):
+        if self.data is None:
+            return
+        caption = report.render_items_vert((
+             ("Stochastic", str(self.stochastic)),
+        ))
+        self.report_plot(self.scatter)
+        if caption:
+            self.report_caption(caption)

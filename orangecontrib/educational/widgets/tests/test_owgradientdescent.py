@@ -797,3 +797,14 @@ class TestOWGradientDescent(WidgetTest):
         w.change_attributes()
         self.assertIsNotNone(w.learner)
         self.assertIsNotNone(w.learner.theta)
+
+    def test_send_report(self):
+        """
+        Test if report does not chrashes
+        """
+        w = self.widget
+
+        # when everything fine
+        self.send_signal("Data", self.iris)
+
+        w.report_button.click()
