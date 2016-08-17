@@ -843,5 +843,4 @@ class OWGradientDescent(OWWidget):
              ("Stochastic", str(self.stochastic)),
         ))
         self.report_plot(self.scatter)
-        if caption:
-            self.report_caption(caption)
+        self.report_caption(caption)
