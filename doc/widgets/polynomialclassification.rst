@@ -51,7 +51,7 @@ regression. If polynomial expansion is set to 2 we get following additional attr
 * second attribute on power 2
 
 
-.. figure:: images/polynomial-classification.png
+.. figure:: images/polynomial-classification-stamped.png
 
 1. Classifier name.
 
@@ -64,8 +64,11 @@ regression. If polynomial expansion is set to 2 we get following additional attr
 
    *Polynomial expansion*: Degree of polynom that is used to transform the input data.
 
+3. *Show contours*: Enable contour lines in the graph.
 
-3. *Save Image* saves the image to the computer in a .svg or .png
+   *Contour step*: Density of contour lines.
+
+4. *Save Image* saves the image to the computer in a .svg or .png
    format.
 
    *Report* includes widget parameters and visualization in the report.

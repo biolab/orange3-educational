@@ -229,7 +229,7 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cbx.count(), 0)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertTrue(w.Warning.no_class.is_shown())
+        self.assertTrue(w.Error.no_class.is_shown())
 
         # set data with one class variable
         table_one_class = Table(
@@ -241,7 +241,7 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cbx.count(), 0)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertTrue(w.Warning.no_class.is_shown())
+        self.assertTrue(w.Error.no_class.is_shown())
 
         # set data with not enough continuous variables
         table_no_enough_cont = Table(
@@ -255,7 +255,7 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cbx.count(), 0)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertTrue(w.Warning.to_few_features.is_shown())
+        self.assertTrue(w.Error.to_few_features.is_shown())
 
     def test_init_learner(self):
         """
@@ -401,6 +401,21 @@ class TestOWPolynomialClassification(WidgetTest):
         # meta with information about real cluster
         self.assertEqual(len(selected_data), len(self.iris))
 
+        # selected data none when one column only Nones
+        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                            DiscreteVariable('c', values=['a', 'b'])),
+                     [[1, None], [1, None]], [0, 1])
+        self.send_signal("Data", data)
+        selected_data = w.select_data()
+        self.assertIsNone(selected_data)
+
+        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                            DiscreteVariable('c', values=['a', 'b'])),
+                     [[None, None], [None, None]], [0, 1])
+        self.send_signal("Data", data)
+        selected_data = w.select_data()
+        self.assertIsNone(selected_data)
+
     def test_send_learner(self):
         """
         Test if correct learner on output
@@ -511,9 +526,8 @@ class TestOWPolynomialClassification(WidgetTest):
         # check correct number of attributes
         for j in range(1, 6):
             w.degree_spin.setValue(j)
-            num_coefficients = sum(i + 1 for i in range(1, w.degree + 1))
             self.assertEqual(
-                len(self.get_output("Data").domain.attributes), num_coefficients)
+                len(self.get_output("Data").domain.attributes), 2)
 
         self.assertEqual(len(self.get_output("Data").domain.metas), 1)
         self.assertIsNotNone(self.get_output("Data").domain.class_var)
@@ -521,3 +535,12 @@ class TestOWPolynomialClassification(WidgetTest):
         # check again none
         self.send_signal("Data", None)
         self.assertIsNone(self.get_output("Data"))
+
+    def test_send_report(self):
+        """
+        Just test everything not crashes
+        """
+        w = self.widget
+
+        self.send_signal("Data", self.iris)
+        w.report_button.click()

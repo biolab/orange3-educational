@@ -16,6 +16,7 @@ from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import (LogisticRegressionLearner, Learner,
                                    RandomForestLearner, TreeLearner)
 from Orange.widgets.widget import Msg, OWWidget
+from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
@@ -71,7 +72,6 @@ class OWPolynomialClassification(OWBaseLearner):
     icon = "icons/polynomialclassification.svg"
     want_main_area = True
     resizing_enabled = True
-    send_report = True
 
     # inputs and outputs
     inputs = [("Data", Table, "set_data"),
@@ -122,9 +122,11 @@ class OWPolynomialClassification(OWBaseLearner):
     x_var_model = None
     y_var_model = None
 
-    class Warning(OWWidget.Warning):
-        to_few_features = Msg("Too few Continuous feature. Min 2 required")
-        no_class = Msg("No class provided or only one class variable")
+    class Error(OWWidget.Error):
+        to_few_features = Msg(
+            "Polynomial classification requires at least two numeric features")
+        no_class = Msg("Data must have a single discrete class attribute")
+        all_none_data = Msg("One of the features has no defined values")
 
     def add_main_layout(self):
         # var models
@@ -135,21 +137,19 @@ class OWPolynomialClassification(OWBaseLearner):
         self.options_box = gui.widgetBox(self.controlArea, "Options")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal)
-        opts_combo = dict(opts, **dict(sendSelectedValue=True))
-        policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        opts_combo = dict(opts, **dict(sendSelectedValue=True,
+                                       maximumContentsLength=15))
         self.cbx = gui.comboBox(
             value='attr_x', label='X: ', callback=self.apply, **opts_combo)
         self.cby = gui.comboBox(
             value='attr_y', label='Y: ', callback=self.apply, **opts_combo)
         self.target_class_combobox = gui.comboBox(
-            value='target_class', label='Target class: ',
+            value='target_class', label='Target: ',
             callback=self.apply, **opts_combo)
         self.degree_spin = gui.spin(
             value='degree', label='Polynomial expansion:',
-            minv=1, maxv=5, step=1, callback=self.init_learner, **opts)
-        self.cbx.setSizePolicy(policy)
-        self.cby.setSizePolicy(policy)
-        self.target_class_combobox.setSizePolicy(policy)
+            minv=1, maxv=5, step=1, callback=self.init_learner,
+            alignment=Qt.AlignRight, controlWidth=70, **opts)
 
         self.cbx.setModel(self.x_var_model)
         self.cby.setModel(self.y_var_model)
@@ -166,7 +166,8 @@ class OWPolynomialClassification(OWBaseLearner):
         self.contour_step_slider = gui.spin(
             self.plot_properties_box, self, 'contour_step',
             minv=0.10, maxv=0.50, step=0.05, callback=self.plot_contour,
-            label='Contour step:', decimals=2, spinType=float)
+            label='Contour step:', decimals=2, spinType=float,
+            alignment=Qt.AlignRight, controlWidth=70)
 
         gui.rubber(self.controlArea)
 
@@ -232,7 +233,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 pix_map.fill(QColor(*color))
                 self.target_class_combobox.addItem(QIcon(pix_map), var)
 
-        self.Warning.clear()
+        self.Error.clear()
 
         # clear variables
         self.xv = None
@@ -247,13 +248,15 @@ class OWPolynomialClassification(OWBaseLearner):
                  if isinstance(var, ContinuousVariable)) < 2:
             self.data = None
             reset_combos()
-            self.Warning.to_few_features()
+            self.Error.to_few_features()
             self.set_empty_plot()
         elif (data.domain.class_var is None or
+              data.domain.class_var.is_continuous or
+              sum(line.get_class() == None for line in data) == len(data) or
               len(data.domain.class_var.values) < 2):
             self.data = None
             reset_combos()
-            self.Warning.no_class()
+            self.Error.no_class()
             self.set_empty_plot()
         else:
             self.data = data
@@ -285,7 +288,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         This function performs complete replot of the graph
         """
-        if self.data is None:
+        if self.data is None or self.selected_data is None:
+            self.set_empty_plot()
             return
 
         attr_x = self.data.domain[self.attr_x]
@@ -341,9 +345,9 @@ class OWPolynomialClassification(OWBaseLearner):
             yAxis_max=max_y,
             colorAxis=dict(
                 stops=[
-                    [0, rgb_hash_brighter(rgb_to_hex(target_color), 0.5)],
+                    [0, rgb_hash_brighter(rgb_to_hex(other_color), 0.5)],
                     [0.5, '#ffffff'],
-                    [1, rgb_hash_brighter(rgb_to_hex(other_color), 0.5)]],
+                    [1, rgb_hash_brighter(rgb_to_hex(target_color), 0.5)]],
                 tickInterval=0.2, min=0, max=1),
             plotOptions_contour_colsize=(max_y - min_y) / 1000,
             plotOptions_contour_rowsize=(max_x - min_x) / 1000,
@@ -399,7 +403,7 @@ class OWPolynomialClassification(OWBaseLearner):
                           np.array([[None]] * len(attr)))
 
         # results
-        self.probabilities_grid = self.model(attr_data, 1)[:, 1]\
+        self.probabilities_grid = self.model(attr_data, 1)[:, 0]\
             .reshape(self.xv.shape)
 
         blurred = self.blur_grid(self.probabilities_grid)
@@ -479,8 +483,10 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function labels data with contour levels
         """
-        point = (no * 5) % len(data)  # to avoid points on same positions
+        point = (no * 5) # to avoid points on same positions
         point += (1 if point == 0 else 0)
+        point %= len(data)
+
         data[point] = dict(
             x=data[point][0],
             y=data[point][1],
@@ -505,6 +511,8 @@ class OWPolynomialClassification(OWBaseLearner):
         Table
             Table with selected columns
         """
+        self.Error.clear()
+
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y]
         cols = []
@@ -512,10 +520,23 @@ class OWPolynomialClassification(OWBaseLearner):
             subset = self.data[:, attr]
             cols.append(subset.X)
         x = np.column_stack(cols)
+
+        if np.isnan(x).all(axis=0).any():
+            self.Error.all_none_data()
+            return None
+
+        cls_domain = self.data.domain.class_var
+        target_idx = cls_domain.values.index(self.target_class)
+        other_value = cls_domain.values[(target_idx + 1) % 2]
+
+        class_domain = [DiscreteVariable(
+            name=self.data.domain.class_var.name,
+            values=[self.target_class, 'Others'
+            if len(cls_domain.values) > 2 else other_value])]
+
         domain = Domain(
             [attr_x, attr_y],
-            [DiscreteVariable(name=self.data.domain.class_var.name,
-                              values=[self.target_class, 'Others'])],
+            class_domain,
             [self.data.domain.class_var])
         y = [(0 if d.get_class().value == self.target_class else 1)
              for d in self.data]
@@ -547,9 +568,12 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         if self.data is not None:
             self.selected_data = self.select_data()
-            self.model = self.learner(self.selected_data)
-            self.model.name = self.learner_name
-            self.model.instances = self.selected_data
+            if self.selected_data is not None:
+                self.model = self.learner(self.selected_data)
+                self.model.name = self.learner_name
+                self.model.instances = self.selected_data
+            else:
+                self.model = None
         else:
             self.model = None
 
@@ -572,7 +596,7 @@ class OWPolynomialClassification(OWBaseLearner):
             data = self.model.instances
             for preprocessor in self.learner.preprocessors:
                 data = preprocessor(data)
-            names = [1] + [x.name for x in data.domain.attributes]
+            names = ["Intercept"] + [x.name for x in data.domain.attributes]
 
             coefficients_table = Table(
                 domain, list(zip(coefficients, names)))
@@ -586,11 +610,19 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         if self.data is not None:
             data = self.selected_data
-            for preprocessor in self.learner.preprocessors:
-                data = preprocessor(data)
             self.send("Data", data)
             return
         self.send("Data", None)
 
     def add_bottom_buttons(self):
         pass
+
+    def send_report(self):
+        if self.data is None:
+            return
+        caption = report.render_items_vert((
+             ("Polynomial Expansion", self.degree),
+        ))
+        self.report_plot(self.scatter)
+        if caption:
+            self.report_caption(caption)
