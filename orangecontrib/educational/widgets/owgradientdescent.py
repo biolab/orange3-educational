@@ -198,10 +198,10 @@ class OWGradientDescent(OWWidget):
         """
         Class used fro widget warnings.
         """
-        to_few_features = Msg("Too few Continuous feature.")
-        no_class = Msg("No class provided")
-        to_few_values = Msg("Class must have at least two values.")
-        all_none = Msg("All values in one of selected features are missing")
+        to_few_features = Msg("Too few numeric features.")
+        no_class = Msg("Data must have a single class attribute")
+        to_few_values = Msg("Class attribute must have at least two values.")
+        all_none = Msg("One of the features has no defined values")
 
     def __init__(self):
         super().__init__()
