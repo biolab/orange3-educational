@@ -3,7 +3,7 @@ Gradient Descent
 
 .. figure:: icons/gradient-descent.png
 
-Educational widget that shows gradient descent algorithm on a logistic regression or a linear regression.
+Educational widget that shows gradient descent algorithm on a logistic or linear regression.
 
 Signals
 -------
@@ -31,8 +31,8 @@ Logistic regression coefficients on the current step of the algorithm.
 Description
 -----------
 
-This widget shows steps of `gradient descent <https://en.wikipedia.org/wiki/Gradient_descent>`__ for logistic regression
-step by step. Gradient descent is demonstrated on two attributes that are selected by user.
+This widget shows steps of `gradient descent <https://en.wikipedia.org/wiki/Gradient_descent>`__ for a logistic and
+linear regression step by step. Gradient descent is demonstrated on two attributes that are selected by user.
 
 Gradient descent is performed on logistic regression if class in data set is discrete and linear regression if class is
 continuous.
