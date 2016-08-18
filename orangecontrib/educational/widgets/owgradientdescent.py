@@ -220,15 +220,13 @@ class OWGradientDescent(OWWidget):
         self.options_box = gui.widgetBox(self.controlArea, "Data")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
-            callback=self.change_attributes, sendSelectedValue=True
+            callback=self.change_attributes, sendSelectedValue=True,
+            maximumContentsLength=15
         )
         self.cbx = gui.comboBox(value='attr_x', label='X:', **opts)
-        self.cbx.setSizePolicy(policy)
         self.cby = gui.comboBox(value='attr_y', label='Y:', **opts)
-        self.cby.setSizePolicy(policy)
         self.target_class_combobox = gui.comboBox(
             value='target_class', label='Target class: ', **opts)
-        self.target_class_combobox.setSizePolicy(policy)
 
         self.cbx.setModel(self.x_var_model)
         self.cby.setModel(self.y_var_model)
