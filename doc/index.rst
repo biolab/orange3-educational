@@ -13,6 +13,7 @@ Widgets
 
    widgets/kmeans
    widgets/univariatepolynomialregression
+   widgets/gradientdescent
    widgets/polynomialclassification
 
 Indices and tables
