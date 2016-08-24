@@ -66,9 +66,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.x_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesX = gui.comboBox(
             box, self, value='x_var_index', label="Input: ",
-            orientation=Qt.Horizontal, callback=self.apply, contentsLength=12)
-        self.comboBoxAttributesX.setSizePolicy(
-            QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            orientation=Qt.Horizontal, callback=self.apply, maximumContentsLength=15)
         self.comboBoxAttributesX.setModel(self.x_var_model)
         self.expansion_spin = gui.doubleSpin(
             gui.indentedBox(box),
@@ -79,9 +77,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.y_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesY = gui.comboBox(
             box, self, value="y_var_index", label="Target: ",
-            orientation=Qt.Horizontal, callback=self.apply, contentsLength=12)
-        self.comboBoxAttributesY.setSizePolicy(
-            QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            orientation=Qt.Horizontal, callback=self.apply, maximumContentsLength=15)
         self.comboBoxAttributesY.setModel(self.y_var_model)
 
         gui.rubber(self.controlArea)
