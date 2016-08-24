@@ -1,12 +1,13 @@
+from Orange.data import Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.educational.widgets.owunivariateregression \
+from orangecontrib.educational.widgets.owpolynomialregression \
     import OWUnivariateRegression
 from Orange.data.table import Table
 from Orange.regression import (LinearRegressionLearner,
                                RandomForestRegressionLearner)
 from Orange.preprocess.preprocess import Normalize
 
-class TestOWUnivariateRegression(WidgetTest):
+class TestOWPolynomialRegression(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWUnivariateRegression)
@@ -47,6 +48,15 @@ class TestOWUnivariateRegression(WidgetTest):
                          len(continuous_variables) - 1
                          if len(class_variables) == 0
                          else len(continuous_variables) - len(class_variables))
+
+        # check with data with all none
+        data = Table(Domain([ContinuousVariable('a'),
+                             ContinuousVariable('b')]),
+                     [[None, None], [None, None]])
+        self.widget.set_data(data)
+        self.widget.apply()
+        self.assertIsNone(self.widget.plot_item)
+        self.assertIsNone(self.widget.scatterplot_item)
 
     def test_add_main_layout(self):
         self.assertEqual(self.widget.data, None)
