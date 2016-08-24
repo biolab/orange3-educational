@@ -1,3 +1,6 @@
+import math
+
+from Orange.widgets.widget import OWWidget, Msg
 from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
 from PyQt4.QtCore import Qt, QRectF
 
@@ -39,6 +42,12 @@ class OWUnivariateRegression(OWBaseLearner):
 
     want_main_area = True
     graph_name = 'Regression graph'
+
+    class Error(OWWidget.Error):
+        """
+        Class used fro widget warnings.
+        """
+        all_none = Msg("One of the features has no defined values")
 
     def add_main_layout(self):
 
@@ -194,10 +203,19 @@ class OWUnivariateRegression(OWBaseLearner):
         learner.name = self.learner_name
         predictor = None
 
+        self.Error.clear()
+
         if self.data is not None:
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
             data_table = Table(Domain([attributes], class_vars=[class_var]), self.data)
+
+            # all lines has nan
+            if sum(math.isnan(line[0]) or math.isnan(line.get_class())
+                   for line in data_table) == len(data_table):
+                self.Error.all_none()
+                self.clear_plot()
+                return
 
             predictor = learner(data_table)
 
@@ -209,7 +227,7 @@ class OWUnivariateRegression(OWBaseLearner):
             x = preprocessed_data.X.ravel()
             y = preprocessed_data.Y.ravel()
 
-            linspace = np.linspace(min(x), max(x), 1000).reshape(-1,1)
+            linspace = np.linspace(np.nanmin(x), np.nanmax(x), 1000).reshape(-1,1)
             values = predictor(linspace, predictor.Value)
 
             self.plot_scatter_points(x, y)
@@ -258,7 +276,9 @@ class OWUnivariateRegression(OWBaseLearner):
                 Domain([attributes], class_vars=[class_var]), self.data)
             polyfeatures = skl_preprocessing.PolynomialFeatures(
                 int(self.polynomialexpansion))
-            x = polyfeatures.fit_transform(data_table.X)
+
+            x = data_table.X[~np.isnan(data_table.X).any(axis=1)]
+            x = polyfeatures.fit_transform(x)
 
             x_label = data_table.domain.attributes[0].name
             out_domain = Domain(
