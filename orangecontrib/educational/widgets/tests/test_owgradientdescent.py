@@ -247,6 +247,13 @@ class TestOWGradientDescent(WidgetTest):
         w.stochastic_checkbox.click()
         self.assertFalse(w.learner.stochastic)
 
+        # Change optimizers
+        w.combobox_opt.currentIndexChanged.connect(w._opt_changed)
+        for i in range(w.combobox_opt.count()):
+            w.opt_type = i  # Set item
+            w.combobox_opt.setCurrentIndex(i)  # Fire signal
+            self.assertTrue(w.opt_type == i)  # Check index kept
+
         # just check if nothing happens when no learner
         self.send_signal("Data", None)
         self.assertIsNone(w.learner)

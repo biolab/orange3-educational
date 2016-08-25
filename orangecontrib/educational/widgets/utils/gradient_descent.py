@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 
-from Orange.classification import Model
+import orangecontrib.educational.optimizers as opt
 
 
 class GradientDescent:
@@ -39,6 +39,7 @@ class GradientDescent:
         self.set_theta(theta)
         self.stochastic = stochastic
         self.stochastic_step_size = step_size
+        self.sgd_optimizer = opt.SGD()
 
     def set_data(self, data):
         """
@@ -112,7 +113,9 @@ class GradientDescent:
         # calculates gradient and modify theta
         grad = self.dj(self.theta, self.stochastic)
         if self.stochastic:
-            self.theta -= np.sum(np.float64(self.alpha) * grad, axis=0)
+            dj = np.sum(np.float64(self.alpha) * grad, axis=0)
+            self.sgd_optimizer.learning_rate = self.alpha
+            self.sgd_optimizer.update(dj, self.theta, None)
         else:
             self.theta -= self.alpha * grad
 
