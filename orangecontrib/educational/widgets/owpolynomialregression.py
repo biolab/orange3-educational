@@ -30,6 +30,11 @@ class OWUnivariateRegression(OWBaseLearner):
     outputs = [("Coefficients", Table),
                ("Data", Table)]
 
+    replaces = [
+        "Orange.widgets.regression.owunivariateregression."
+        "OWUnivariateRegression"
+    ]
+
     LEARNER = PolynomialLearner
 
     learner_name = settings.Setting("Univariate Regression")
