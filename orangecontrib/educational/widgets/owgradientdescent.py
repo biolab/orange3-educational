@@ -19,8 +19,8 @@ from Orange.widgets.widget import OWWidget, Msg
 from Orange.preprocess.preprocess import Normalize
 from scipy.interpolate import splprep, splev
 
-from orangecontrib.educational.widgets.utils.color_transform import rgb_to_hex, \
-    hex_to_rgb
+from orangecontrib.educational.widgets.utils.color_transform import (
+    rgb_to_hex, hex_to_rgb)
 from orangecontrib.educational.widgets.utils.linear_regression import \
     LinearRegression
 from orangecontrib.educational.widgets.utils.logistic_regression \
@@ -186,6 +186,7 @@ class OWGradientDescent(OWWidget):
     max_x = None
     min_y = None
     max_y = None
+    current_gradient_color = None
 
     # data
     data = None
@@ -218,7 +219,8 @@ class OWGradientDescent(OWWidget):
 
         # info box
         self.info_box = gui.widgetBox(self.controlArea, "Info")
-        self.learner_label = gui.label(widget=self.info_box, master=self, label="")
+        self.learner_label = gui.label(
+            widget=self.info_box, master=self, label="")
 
         # options box
         policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
@@ -290,10 +292,10 @@ class OWGradientDescent(OWWidget):
                                    yAxis_gridLineWidth=0,
                                    title_text='',
                                    tooltip_shared=False,
-                                   debug=True,
+                                   debug=False,
                                    legend_symbolWidth=0,
                                    legend_symbolHeight=0)
-        # TODO: set false when end of development
+
         gui.rubber(self.controlArea)
 
         # Just render an empty chart so it shows a nice 'No data to display'
@@ -605,11 +607,11 @@ class OWGradientDescent(OWWidget):
 
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>"
-                .format(attr=self.attr_x if self.is_logistic else 0),
+            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>".format(
+                attr=self.attr_x if self.is_logistic else 0),
             xAxis_title_useHTML=True,
-            yAxis_title_text="&theta;<sub>{attr}</sub>".
-                format(attr=self.attr_y if self.is_logistic else self.attr_x),
+            yAxis_title_text="&theta;<sub>{attr}</sub>".format(
+                attr=self.attr_y if self.is_logistic else self.attr_x),
             yAxis_title_useHTML=True,
             xAxis_min=self.min_x,
             xAxis_max=self.max_x,
