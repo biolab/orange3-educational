@@ -861,8 +861,15 @@ class OWGradientDescent(OWWidget):
     def send_report(self):
         if self.data is None:
             return
-        caption = report.render_items_vert((
-             ("Stochastic", str(self.stochastic)),
-        ))
+        caption_items = (
+            ("X", self.attr_x),
+            ("Y", self.attr_y),
+            ("Target class", self.target_class),
+            ("Learning rate", self.alpha),
+            ("Stochastic", str(self.stochastic))
+        )
+        if self.stochastic:
+            caption_items += (("Stochastic step size", self.step_size),)
+        caption = report.render_items_vert(caption_items)
         self.report_plot(self.scatter)
         self.report_caption(caption)
