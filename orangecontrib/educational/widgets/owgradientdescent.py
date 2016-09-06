@@ -864,8 +864,6 @@ class OWGradientDescent(OWWidget):
         if self.data is None:
             return
         caption_items = (
-            ("X", self.attr_x),
-            ("Y", self.attr_y),
             ("Target class", self.target_class),
             ("Learning rate", self.alpha),
             ("Stochastic", str(self.stochastic))
