@@ -825,7 +825,11 @@ class TestOWGradientDescent(WidgetTest):
         w.report_button.click()
 
         # when no data
-         # when everything fine
         self.send_signal("Data", None)
 
+        w.report_button.click()
+
+        # for stochastic
+        self.send_signal("Data", self.iris)
+        w.stochastic_checkbox.click()
         w.report_button.click()

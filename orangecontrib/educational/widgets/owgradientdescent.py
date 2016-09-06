@@ -1,3 +1,5 @@
+import operator
+
 from Orange.canvas import report
 from os import path
 import time
@@ -17,6 +19,8 @@ from Orange.widgets.widget import OWWidget, Msg
 from Orange.preprocess.preprocess import Normalize
 from scipy.interpolate import splprep, splev
 
+from orangecontrib.educational.widgets.utils.color_transform import (
+    rgb_to_hex, hex_to_rgb)
 from orangecontrib.educational.widgets.utils.linear_regression import \
     LinearRegression
 from orangecontrib.educational.widgets.utils.logistic_regression \
@@ -155,7 +159,7 @@ class OWGradientDescent(OWWidget):
                ("Coefficients", Table),
                ("Data", Table)]
 
-    graph_name = "Gradient descent graph"
+    graph_name = "scatter"
 
     # selected attributes in chart
     attr_x = settings.Setting('')
@@ -176,10 +180,13 @@ class OWGradientDescent(OWWidget):
     cost_grid = None
     grid_size = 15
     contour_color = "#aaaaaa"
+    default_background_color = "#00BFFF"
+    line_colors = ["#00BFFF", "#ff0000", "#33cc33"]
     min_x = None
     max_x = None
     min_y = None
     max_y = None
+    current_gradient_color = None
 
     # data
     data = None
@@ -212,7 +219,8 @@ class OWGradientDescent(OWWidget):
 
         # info box
         self.info_box = gui.widgetBox(self.controlArea, "Info")
-        self.learner_label = gui.label(widget=self.info_box, master=self, label="")
+        self.learner_label = gui.label(
+            widget=self.info_box, master=self, label="")
 
         # options box
         policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
@@ -284,10 +292,10 @@ class OWGradientDescent(OWWidget):
                                    yAxis_gridLineWidth=0,
                                    title_text='',
                                    tooltip_shared=False,
-                                   debug=True,
+                                   debug=False,
                                    legend_symbolWidth=0,
                                    legend_symbolHeight=0)
-        # TODO: set false when end of development
+
         gui.rubber(self.controlArea)
 
         # Just render an empty chart so it shows a nice 'No data to display'
@@ -481,7 +489,7 @@ class OWGradientDescent(OWWidget):
                         self.learner.j(np.array([x, y]))))],
                      showInLegend=False,
                      type="scatter", lineWidth=1,
-                     color="#ff0000",
+                     color=self.line_color(),
                      marker=dict(
                          enabled=True, radius=2),
                      tooltip=dict(
@@ -545,7 +553,8 @@ class OWGradientDescent(OWWidget):
             dict(
                 x=x, y=y, dataLabels=dict(
                     enabled=True,
-                    format='&nbsp;{0:.2f}&nbsp;'.format(self.learner.j(np.array([x, y]))),
+                    format='&nbsp;{0:.2f}&nbsp;'.format(
+                        self.learner.j(np.array([x, y]))),
                     useHTML=True,
                     verticalAlign='middle',
                     align="left" if self.label_right() else "right",
@@ -558,6 +567,20 @@ class OWGradientDescent(OWWidget):
     def label_right(self):
         l = self.learner
         return l.step_no == 0 or l.history[l.step_no - 1][0][0] < l.theta[0]
+
+    def gradient_color(self):
+        if not self.is_logistic:
+            return self.default_background_color
+        else:
+            target_class_idx = self.data.domain.class_var.values.\
+                index(self.target_class)
+            color = self.data.domain.class_var.colors[target_class_idx]
+            return rgb_to_hex(tuple(color))
+
+    def line_color(self):
+        rgb_tuple = hex_to_rgb(self.current_gradient_color)
+        max_index, _ = max(enumerate(rgb_tuple), key=operator.itemgetter(1))
+        return self.line_colors[max_index]
 
     def replot(self):
         """
@@ -579,13 +602,16 @@ class OWGradientDescent(OWWidget):
         options['series'] += self.plot_gradient_and_contour(
             self.min_x, self.max_x, self.min_y, self.max_y)
 
+        # select gradient color
+        self.current_gradient_color = self.gradient_color()
+
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>"
-                .format(attr=self.attr_x if self.is_logistic else 0),
+            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>".format(
+                attr=self.attr_x if self.is_logistic else 0),
             xAxis_title_useHTML=True,
-            yAxis_title_text="&theta;<sub>{attr}</sub>".
-                format(attr=self.attr_y if self.is_logistic else self.attr_x),
+            yAxis_title_text="&theta;<sub>{attr}</sub>".format(
+                attr=self.attr_y if self.is_logistic else self.attr_x),
             yAxis_title_useHTML=True,
             xAxis_min=self.min_x,
             xAxis_max=self.max_x,
@@ -596,7 +622,7 @@ class OWGradientDescent(OWWidget):
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
             colorAxis=dict(
-                minColor="#ffffff", maxColor="#00BFFF",
+                minColor="#ffffff", maxColor=self.current_gradient_color,
                 endOnTick=False, startOnTick=False),
             plotOptions_contour_colsize=(self.max_y - self.min_y) / 1000,
             plotOptions_contour_rowsize=(self.max_x - self.min_x) / 1000,
@@ -837,8 +863,13 @@ class OWGradientDescent(OWWidget):
     def send_report(self):
         if self.data is None:
             return
-        caption = report.render_items_vert((
-             ("Stochastic", str(self.stochastic)),
-        ))
+        caption_items = (
+            ("Target class", self.target_class),
+            ("Learning rate", self.alpha),
+            ("Stochastic", str(self.stochastic))
+        )
+        if self.stochastic:
+            caption_items += (("Stochastic step size", self.step_size),)
+        caption = report.render_items_vert(caption_items)
         self.report_plot(self.scatter)
         self.report_caption(caption)
