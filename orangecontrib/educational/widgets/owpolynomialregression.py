@@ -1,3 +1,5 @@
+import math
+
 from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
 from PyQt4.QtCore import Qt, QRectF
 
@@ -5,12 +7,12 @@ import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
 import numpy as np
 
+from Orange.widgets.widget import OWWidget, Msg
 from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
-                                      LinearRegressionLearner, LinearModel)
+                                      LinearRegressionLearner)
 from Orange.regression import Learner
-from Orange.preprocess.preprocess import Preprocess
 from Orange.widgets import settings, gui
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
@@ -28,6 +30,11 @@ class OWUnivariateRegression(OWBaseLearner):
     outputs = [("Coefficients", Table),
                ("Data", Table)]
 
+    replaces = [
+        "Orange.widgets.regression.owunivariateregression."
+        "OWUnivariateRegression"
+    ]
+
     LEARNER = PolynomialLearner
 
     learner_name = settings.Setting("Univariate Regression")
@@ -39,6 +46,12 @@ class OWUnivariateRegression(OWBaseLearner):
 
     want_main_area = True
     graph_name = 'Regression graph'
+
+    class Error(OWWidget.Error):
+        """
+        Class used fro widget warnings.
+        """
+        all_none = Msg("One of the features has no defined values")
 
     def add_main_layout(self):
 
@@ -57,9 +70,8 @@ class OWUnivariateRegression(OWBaseLearner):
         self.x_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesX = gui.comboBox(
             box, self, value='x_var_index', label="Input: ",
-            orientation=Qt.Horizontal, callback=self.apply, contentsLength=12)
-        self.comboBoxAttributesX.setSizePolicy(
-            QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            orientation=Qt.Horizontal, callback=self.apply,
+            maximumContentsLength=15)
         self.comboBoxAttributesX.setModel(self.x_var_model)
         self.expansion_spin = gui.doubleSpin(
             gui.indentedBox(box),
@@ -70,9 +82,8 @@ class OWUnivariateRegression(OWBaseLearner):
         self.y_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesY = gui.comboBox(
             box, self, value="y_var_index", label="Target: ",
-            orientation=Qt.Horizontal, callback=self.apply, contentsLength=12)
-        self.comboBoxAttributesY.setSizePolicy(
-            QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            orientation=Qt.Horizontal, callback=self.apply,
+            maximumContentsLength=15)
         self.comboBoxAttributesY.setModel(self.y_var_model)
 
         gui.rubber(self.controlArea)
@@ -135,7 +146,8 @@ class OWUnivariateRegression(OWBaseLearner):
         self.data = data
         if data is not None:
             cvars = [var for var in data.domain.variables if var.is_continuous]
-            class_cvars = [var for var in data.domain.class_vars if var.is_continuous]
+            class_cvars = [var for var in data.domain.class_vars
+                           if var.is_continuous]
 
             self.x_var_model[:] = cvars
             self.y_var_model[:] = cvars
@@ -187,17 +199,27 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def apply(self):
         degree = int(self.polynomialexpansion)
-        learner = self.LEARNER(preprocessors=self.preprocessors,
-                               degree=degree,
-                               learner=LinearRegressionLearner() if self.learner is None
-                               else self.learner)
+        learner = self.LEARNER(
+            preprocessors=self.preprocessors, degree=degree,
+            learner=LinearRegressionLearner() if self.learner is None
+            else self.learner)
         learner.name = self.learner_name
         predictor = None
+
+        self.Error.clear()
 
         if self.data is not None:
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
-            data_table = Table(Domain([attributes], class_vars=[class_var]), self.data)
+            data_table = Table(
+                Domain([attributes], class_vars=[class_var]), self.data)
+
+            # all lines has nan
+            if sum(math.isnan(line[0]) or math.isnan(line.get_class())
+                   for line in data_table) == len(data_table):
+                self.Error.all_none()
+                self.clear_plot()
+                return
 
             predictor = learner(data_table)
 
@@ -209,7 +231,8 @@ class OWUnivariateRegression(OWBaseLearner):
             x = preprocessed_data.X.ravel()
             y = preprocessed_data.Y.ravel()
 
-            linspace = np.linspace(min(x), max(x), 1000).reshape(-1,1)
+            linspace = np.linspace(
+                np.nanmin(x), np.nanmax(x), 1000).reshape(-1,1)
             values = predictor(linspace, predictor.Value)
 
             self.plot_scatter_points(x, y)
@@ -258,7 +281,9 @@ class OWUnivariateRegression(OWBaseLearner):
                 Domain([attributes], class_vars=[class_var]), self.data)
             polyfeatures = skl_preprocessing.PolynomialFeatures(
                 int(self.polynomialexpansion))
-            x = polyfeatures.fit_transform(data_table.X)
+
+            x = data_table.X[~np.isnan(data_table.X).any(axis=1)]
+            x = polyfeatures.fit_transform(x)
 
             x_label = data_table.domain.attributes[0].name
             out_domain = Domain(
@@ -289,5 +314,3 @@ if __name__ == "__main__":
     ow.show()
     a.exec_()
     ow.saveSettings()
-
-
