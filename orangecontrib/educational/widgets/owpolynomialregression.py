@@ -330,7 +330,9 @@ class OWUnivariateRegression(OWBaseLearner):
 
             x_label = data_table.domain.attributes[0].name
             out_domain = Domain(
-                [ContinuousVariable("1"), data_table.domain.attributes[0]] +
+                [ContinuousVariable("1")] + ([data_table.domain.attributes[0]]
+                                             if self.polynomialexpansion > 0
+                                             else []) +
                 [ContinuousVariable("{}^{}".format(x_label, i))
                  for i in range(2, int(self.polynomialexpansion) + 1)])
 
