@@ -44,7 +44,13 @@ class OWUnivariateRegression(OWBaseLearner):
 
     x_var_index = settings.ContextSetting(0)
     y_var_index = settings.ContextSetting(1)
+    error_bars_enabled = settings.Setting(False)
+
     default_learner_name = "Linear Regression"
+    error_plot_items = []
+
+    RMSE_text = "RMSE: {}"
+    regressor_text = "Regressor: {}"
 
     want_main_area = True
     graph_name = 'Regression graph'
@@ -71,9 +77,9 @@ class OWUnivariateRegression(OWBaseLearner):
         info_box = gui.vBox(self.controlArea, "Info")
         self.regressor_label = gui.label(
             widget=info_box, master=self,
-            label='Regressor: {}'.format(self.default_learner_name))
+            label=self.regressor_text.format(self.default_learner_name))
         self.rmse_label = gui.label(
-            widget=info_box, master=self, label='RMSE:')
+            widget=info_box, master=self, label=self.RMSE_text)
 
         box = gui.vBox(self.controlArea, "Variables")
 
@@ -95,6 +101,11 @@ class OWUnivariateRegression(OWBaseLearner):
             orientation=Qt.Horizontal, callback=self.apply,
             maximumContentsLength=15)
         self.comboBoxAttributesY.setModel(self.y_var_model)
+
+        properties_box = gui.vBox(self.controlArea, "Properties")
+        self.error_bars_checkbox = gui.checkBox(
+            widget=properties_box, master=self, value='error_bars_enabled',
+            label="Show error bars", callback=self.apply)
 
         gui.rubber(self.controlArea)
 
@@ -174,7 +185,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def set_learner(self, learner):
         self.learner = learner
-        self.regressor_label.setText('Regressor: {}'.format(
+        self.regressor_label.setText(self.regressor_text.format(
             learner.name if learner is not None else self.default_learner_name))
 
     def handleNewSignals(self):
@@ -211,8 +222,6 @@ class OWUnivariateRegression(OWBaseLearner):
         self.plotview.addItem(self.plot_item)
         self.plotview.replot()
 
-    error_plot_items = []
-
     def remove_error_items(self):
         for it in self.error_plot_items:
             self.plotview.removeItem(it)
@@ -220,13 +229,14 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def plot_error_bars(self, x,  actual, predicted):
         self.remove_error_items()
-        for x, a, p in zip(x, actual, predicted):
-            line = pg.PlotCurveItem(
-                x=[x, x], y=[a, p],
-                pen=pg.mkPen(QColor(150, 150, 150), width=1),
-                antialias=True)
-            self.plotview.addItem(line)
-            self.error_plot_items.append(line)
+        if self.error_bars_enabled:
+            for x, a, p in zip(x, actual, predicted):
+                line = pg.PlotCurveItem(
+                    x=[x, x], y=[a, p],
+                    pen=pg.mkPen(QColor(150, 150, 150), width=1),
+                    antialias=True)
+                self.plotview.addItem(line)
+                self.error_plot_items.append(line)
         self.plotview.replot()
 
     def apply(self):
@@ -270,7 +280,7 @@ class OWUnivariateRegression(OWBaseLearner):
             # calculate prediction for x from data
             predicted = TestOnTrainingData(preprocessed_data, [learner])
             rmse = RMSE(predicted)
-            self.rmse_label.setText("RMSE: {}".format(rmse[0].round(4)))
+            self.rmse_label.setText(self.RMSE_text.format(rmse[0].round(4)))
 
             # plot error bars
             self.plot_error_bars(
