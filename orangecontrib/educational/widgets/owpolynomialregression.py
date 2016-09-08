@@ -32,7 +32,9 @@ class OWUnivariateRegression(OWBaseLearner):
 
     replaces = [
         "Orange.widgets.regression.owunivariateregression."
-        "OWUnivariateRegression"
+        "OWUnivariateRegression",
+        "orangecontrib.prototypes.widgets.owpolynomialregression."
+        "OWPolynomialRegression"
     ]
 
     LEARNER = PolynomialLearner
