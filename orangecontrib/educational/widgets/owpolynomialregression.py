@@ -148,6 +148,8 @@ class OWUnivariateRegression(OWBaseLearner):
             self.plotview.removeItem(self.scatterplot_item)
             self.scatterplot_item = None
 
+        self.remove_error_items()
+
         self.plotview.clear()
 
     @check_sql_input
@@ -209,13 +211,22 @@ class OWUnivariateRegression(OWBaseLearner):
         self.plotview.addItem(self.plot_item)
         self.plotview.replot()
 
-    def plot_error_bars(self, x_data, y_data):
-        self.plot_item = pg.PlotCurveItem(
-            x=x_data, y=y_data,
-            pen=pg.mkPen(QColor(255, 0, 0), width=1),
-            antialias=True
-        )
-        self.plotview.addItem(self.plot_item)
+    error_plot_items = []
+
+    def remove_error_items(self):
+        for it in self.error_plot_items:
+            self.plotview.removeItem(it)
+        self.error_plot_items = []
+
+    def plot_error_bars(self, x,  actual, predicted):
+        self.remove_error_items()
+        for x, a, p in zip(x, actual, predicted):
+            line = pg.PlotCurveItem(
+                x=[x, x], y=[a, p],
+                pen=pg.mkPen(QColor(150, 150, 150), width=1),
+                antialias=True)
+            self.plotview.addItem(line)
+            self.error_plot_items.append(line)
         self.plotview.replot()
 
     def apply(self):
@@ -256,14 +267,20 @@ class OWUnivariateRegression(OWBaseLearner):
                 np.nanmin(x), np.nanmax(x), 1000).reshape(-1,1)
             values = predictor(linspace, predictor.Value)
 
+            # calculate prediction for x from data
+            predicted = TestOnTrainingData(preprocessed_data, [learner])
+            rmse = RMSE(predicted)
+            self.rmse_label.setText("RMSE: {}".format(rmse[0].round(4)))
+
+            # plot error bars
+            self.plot_error_bars(
+                x, predicted.actual, predicted.predicted.ravel())
+
+            # plot data points
             self.plot_scatter_points(x, y)
 
+            # plot regression line
             self.plot_regression_line(linspace.ravel(), values.ravel())
-
-            # calculate prediction for x from data
-            y_predicted = TestOnTrainingData(preprocessed_data, [learner])
-            rmse = RMSE(y_predicted)
-            self.rmse_label.setText("RMSE: {}".format(rmse[0].round(4)))
 
             x_label = self.x_var_model[self.x_var_index]
             axis = self.plot.getAxis("bottom")
