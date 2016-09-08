@@ -43,6 +43,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
     x_var_index = settings.ContextSetting(0)
     y_var_index = settings.ContextSetting(1)
+    default_learner_name = "Linear Regression"
 
     want_main_area = True
     graph_name = 'Regression graph'
@@ -64,6 +65,12 @@ class OWUnivariateRegression(OWBaseLearner):
 
         self.x_label = 'x'
         self.y_label = 'y'
+
+        # info box
+        info_box = gui.vBox(self.controlArea, "Info")
+        self.regressor_label = gui.label(
+            widget=info_box, master=self,
+            label='Regressor: {}'.format(self.default_learner_name))
 
         box = gui.vBox(self.controlArea, "Variables")
 
@@ -162,6 +169,8 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def set_learner(self, learner):
         self.learner = learner
+        self.regressor_label.setText('Regressor: {}'.format(
+            learner.name if learner is not None else self.default_learner_name))
 
     def handleNewSignals(self):
         self.apply()
