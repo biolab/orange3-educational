@@ -4,7 +4,8 @@ from orangecontrib.educational.widgets.owpolynomialregression \
     import OWUnivariateRegression
 from Orange.data.table import Table
 from Orange.regression import (LinearRegressionLearner,
-                               RandomForestRegressionLearner)
+                               RandomForestRegressionLearner,
+                               TreeRegressionLearner)
 from Orange.preprocess.preprocess import Normalize
 
 class TestOWPolynomialRegression(WidgetTest):
@@ -59,13 +60,17 @@ class TestOWPolynomialRegression(WidgetTest):
         self.assertIsNone(self.widget.scatterplot_item)
 
     def test_add_main_layout(self):
-        self.assertEqual(self.widget.data, None)
-        self.assertEqual(self.widget.preprocessors, None)
-        self.assertEqual(self.widget.learner, None)
-        self.assertEqual(self.widget.scatterplot_item, None)
-        self.assertEqual(self.widget.plot_item, None)
-        self.assertEqual(self.widget.x_label, 'x')
-        self.assertEqual(self.widget.y_label, 'y')
+        w = self.widget
+        self.assertEqual(w.data, None)
+        self.assertEqual(w.preprocessors, None)
+        self.assertEqual(w.learner, None)
+        self.assertEqual(w.scatterplot_item, None)
+        self.assertEqual(w.plot_item, None)
+        self.assertEqual(w.x_label, 'x')
+        self.assertEqual(w.y_label, 'y')
+
+        self.assertEqual(
+            w.regressor_label.text(), "Regressor: Linear Regression")
 
     def test_send_report(self):
         # check if nothing happens when polynomialexpansion is None
@@ -82,7 +87,6 @@ class TestOWPolynomialRegression(WidgetTest):
 
         self.assertNotEqual(self.widget.report_html, "")
 
-
     def test_clear(self):
         self.widget.set_data(self.data)
         self.widget.clear()
@@ -91,6 +95,7 @@ class TestOWPolynomialRegression(WidgetTest):
         #just check if clear function also call clear_plot
         self.assertEqual(self.widget.plot_item, None)
         self.assertEqual(self.widget.scatterplot_item, None)
+        self.assertEqual(len(self.widget.error_plot_items), 0)
 
     def test_clear_plot(self):
         self.widget.set_data(self.data)
@@ -101,8 +106,24 @@ class TestOWPolynomialRegression(WidgetTest):
         self.assertEqual(self.widget.scatterplot_item, None)
 
     def test_set_learner(self):
-        self.widget.set_learner(LinearRegressionLearner)
-        self.assertEqual(self.widget.learner, LinearRegressionLearner)
+        w = self.widget
+
+        lin = LinearRegressionLearner
+        lin.name = "Linear Regression"
+        self.widget.set_learner(lin)
+        self.assertEqual(self.widget.learner, lin)
+
+        self.assertEqual(
+            w.regressor_label.text(), "Regressor: Linear Regression")
+
+        tree = TreeRegressionLearner
+        tree.name = "Tree Learner"
+
+        self.widget.set_learner(tree)
+        self.assertEqual(self.widget.learner, tree)
+        self.assertEqual(
+            w.regressor_label.text(), "Regressor: Tree Learner")
+
 
     def test_plot_scatter_points(self):
         x_data = [1, 2, 3]
@@ -137,6 +158,28 @@ class TestOWPolynomialRegression(WidgetTest):
         self.widget.plot_regression_line(x_data, y_data)
 
         self.assertNotEqual(self.widget.plot_item, None)
+
+    def test_plot_error_bars(self):
+        w = self.widget
+
+        w.error_bars_checkbox.click()
+
+        x_data = [1, 2, 3]
+        y_data = [2, 3, 4]
+        y_data_fake = [1, 2, 4]
+
+        self.widget.plot_error_bars(x_data, y_data, y_data_fake)
+        self.assertEqual(len(w.error_plot_items), len(x_data))
+
+        w.error_bars_checkbox.click()
+
+        self.widget.plot_error_bars(x_data, y_data, y_data_fake)
+        self.assertEqual(len(w.error_plot_items), 0)
+
+        w.error_bars_checkbox.click()
+
+        self.send_signal("Data", self.data)
+        self.assertEqual(len(w.error_plot_items), len(self.data))
 
     def test_apply(self):
         self.widget.set_data(self.data)
