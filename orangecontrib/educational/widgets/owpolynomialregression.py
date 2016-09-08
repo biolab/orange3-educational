@@ -1,5 +1,6 @@
 import math
 
+from Orange.evaluation import RMSE, TestOnTrainingData
 from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
 from PyQt4.QtCore import Qt, QRectF
 
@@ -71,6 +72,8 @@ class OWUnivariateRegression(OWBaseLearner):
         self.regressor_label = gui.label(
             widget=info_box, master=self,
             label='Regressor: {}'.format(self.default_learner_name))
+        self.rmse_label = gui.label(
+            widget=info_box, master=self, label='RMSE:')
 
         box = gui.vBox(self.controlArea, "Variables")
 
@@ -206,6 +209,15 @@ class OWUnivariateRegression(OWBaseLearner):
         self.plotview.addItem(self.plot_item)
         self.plotview.replot()
 
+    def plot_error_bars(self, x_data, y_data):
+        self.plot_item = pg.PlotCurveItem(
+            x=x_data, y=y_data,
+            pen=pg.mkPen(QColor(255, 0, 0), width=1),
+            antialias=True
+        )
+        self.plotview.addItem(self.plot_item)
+        self.plotview.replot()
+
     def apply(self):
         degree = int(self.polynomialexpansion)
         learner = self.LEARNER(
@@ -247,6 +259,11 @@ class OWUnivariateRegression(OWBaseLearner):
             self.plot_scatter_points(x, y)
 
             self.plot_regression_line(linspace.ravel(), values.ravel())
+
+            # calculate prediction for x from data
+            y_predicted = TestOnTrainingData(preprocessed_data, [learner])
+            rmse = RMSE(y_predicted)
+            self.rmse_label.setText("RMSE: {}".format(rmse[0].round(4)))
 
             x_label = self.x_var_model[self.x_var_index]
             axis = self.plot.getAxis("bottom")
