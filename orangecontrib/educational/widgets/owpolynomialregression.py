@@ -1,6 +1,6 @@
 import math
 
-from Orange.evaluation import RMSE, TestOnTrainingData
+from Orange.evaluation import RMSE, TestOnTrainingData, MAE
 from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
 from PyQt4.QtCore import Qt, QRectF
 
@@ -49,8 +49,9 @@ class OWUnivariateRegression(OWBaseLearner):
     default_learner_name = "Linear Regression"
     error_plot_items = []
 
-    RMSE_text = "RMSE: {}"
-    regressor_text = "Regressor: {}"
+    rmse = ""
+    mae = ""
+    regressor_name = ""
 
     want_main_area = True
     graph_name = 'Regression graph'
@@ -73,13 +74,19 @@ class OWUnivariateRegression(OWBaseLearner):
         self.x_label = 'x'
         self.y_label = 'y'
 
+        self.rmse = ""
+        self.mae = ""
+        self.regressor_name = self.default_learner_name
+
         # info box
         info_box = gui.vBox(self.controlArea, "Info")
         self.regressor_label = gui.label(
             widget=info_box, master=self,
-            label=self.regressor_text.format(self.default_learner_name))
-        self.rmse_label = gui.label(
-            widget=info_box, master=self, label=self.RMSE_text)
+            label="Regressor: %(regressor_name).30s")
+        gui.label(widget=info_box, master=self,
+            label="Mean absolute error: %(mae).6s")
+        gui.label(widget=info_box, master=self,
+                  label="Root mean square error: %(rmse).6s")
 
         box = gui.vBox(self.controlArea, "Variables")
 
@@ -146,6 +153,8 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def clear(self):
         self.data = None
+        self.rmse = ""
+        self.mae = ""
         self.clear_plot()
 
     def clear_plot(self):
@@ -185,8 +194,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def set_learner(self, learner):
         self.learner = learner
-        self.regressor_label.setText(self.regressor_text.format(
-            learner.name if learner is not None else self.default_learner_name))
+        self.regressor_name = (learner.name if learner is not None else self.default_learner_name)
 
     def handleNewSignals(self):
         self.apply()
@@ -279,8 +287,8 @@ class OWUnivariateRegression(OWBaseLearner):
 
             # calculate prediction for x from data
             predicted = TestOnTrainingData(preprocessed_data, [learner])
-            rmse = RMSE(predicted)
-            self.rmse_label.setText(self.RMSE_text.format(rmse[0].round(4)))
+            self.rmse = round(RMSE(predicted)[0], 6)
+            self.mae = round(MAE(predicted)[0], 6)
 
             # plot error bars
             self.plot_error_bars(
