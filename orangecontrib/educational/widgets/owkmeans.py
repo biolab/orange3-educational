@@ -175,7 +175,7 @@ class OWKmeans(OWWidget):
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
             callback=self.restart, sendSelectedValue=True,
             maximumContentsLength=15)
-        policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+
         self.cbx = gui.comboBox(value='attr_x', label='X: ', **opts)
         self.cby = gui.comboBox(value='attr_y', label='Y: ', **opts)
 
@@ -183,8 +183,7 @@ class OWKmeans(OWWidget):
         self.centroid_numbers_spinner = gui.spin(
             self.centroids_box, self, 'number_of_clusters',
             minv=1, maxv=10, step=1, label='Number of centroids:',
-            alignment=Qt.AlignRight, callback=self.number_of_clusters_change,
-            sizePolicy=policy)
+            alignment=Qt.AlignRight, callback=self.number_of_clusters_change)
         self.restart_button = gui.button(
             self.centroids_box, self, "Randomize Positions",
             callback=self.restart)
