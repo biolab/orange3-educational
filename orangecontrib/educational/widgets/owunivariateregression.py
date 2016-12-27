@@ -5,6 +5,8 @@ import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
 import numpy as np
 
+from Orange.evaluation import TestOnTrainingData, RMSE, MAE
+
 from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
@@ -205,6 +207,10 @@ class OWUnivariateRegression(OWBaseLearner):
             if self.preprocessors is not None:
                 for preprocessor in self.preprocessors:
                     preprocessed_data = preprocessor(preprocessed_data)
+
+            test = TestOnTrainingData(preprocessed_data, [learner])
+            print("RMSE: ", round(RMSE(test)[0], 4))
+            print("MAE: ", round(MAE(test)[0], 4))
 
             x = preprocessed_data.X.ravel()
             y = preprocessed_data.Y.ravel()
