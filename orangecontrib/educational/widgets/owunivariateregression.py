@@ -38,7 +38,10 @@ class OWUnivariateRegression(OWBaseLearner):
 
     x_var_index = settings.ContextSetting(0)
     y_var_index = settings.ContextSetting(1)
-
+    
+    rmse = ""
+    mae = ""
+    
     want_main_area = True
     graph_name = 'Regression graph'
 
@@ -53,7 +56,9 @@ class OWUnivariateRegression(OWBaseLearner):
 
         self.x_label = 'x'
         self.y_label = 'y'
-
+        self.rmse = ""
+        self.mae = ""
+        
         box = gui.vBox(self.controlArea, "Variables")
 
         self.x_var_model = itemmodels.VariableListModel()
@@ -78,7 +83,10 @@ class OWUnivariateRegression(OWBaseLearner):
         self.comboBoxAttributesY.setModel(self.y_var_model)
 
         gui.rubber(self.controlArea)
-
+        
+        gui.label(self.controlArea, label="MAE: %(mae).8s", master=self)
+        gui.label(self.controlArea, label="RMSE: %(rmse).8s", master=self)
+        
         # main area GUI
         self.plotview = pg.PlotWidget(background="w")
         self.plot = self.plotview.getPlotItem()
@@ -209,8 +217,8 @@ class OWUnivariateRegression(OWBaseLearner):
                     preprocessed_data = preprocessor(preprocessed_data)
 
             test = TestOnTrainingData(preprocessed_data, [learner])
-            print("RMSE: ", round(RMSE(test)[0], 4))
-            print("MAE: ", round(MAE(test)[0], 4))
+            self.rmse = round(RMSE(test)[0], 8)
+            self.mae = round(MAE(test)[0], 8)
 
             x = preprocessed_data.X.ravel()
             y = preprocessed_data.Y.ravel()
