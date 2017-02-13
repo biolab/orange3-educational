@@ -290,7 +290,7 @@ class TestOWGradientDescent(WidgetTest):
         # change theta
         w.change_theta(1, 1)
         assert_array_equal(w.learner.theta, [1, 1])
-        w.scatter.chart_clicked(1, 2)
+        w.scatter.bridge.chart_clicked(1, 2)
         assert_array_equal(w.learner.theta, [1, 2])
 
         # just check if nothing happens when no learner

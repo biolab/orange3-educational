@@ -41,7 +41,6 @@ class Scatterplot(highcharts.Highchart):
             contour_js = f.read()
 
         super().__init__(enable_zoom=False,
-                         bridge=self,
                          enable_select='',
                          plotOptions_series_cursor="move",
                          javascript=contour_js,

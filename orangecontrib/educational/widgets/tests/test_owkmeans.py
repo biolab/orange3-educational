@@ -289,18 +289,18 @@ class TestOWKmeans(GuiTest):
     def test_scatter_chart_clicked(self):
         self.widget.set_data(self.data)
         self.widget.centroid_numbers_spinner.setValue(1)
-        self.widget.scatter.chart_clicked(1, 2)
+        self.widget.scatter.bridge.chart_clicked(1, 2)
 
         self.assertEqual(self.widget.k_means.k, 2)
 
         self.widget.set_data(None)
-        self.widget.scatter.chart_clicked(1, 2)
+        self.widget.scatter.bridge.chart_clicked(1, 2)
         self.assertEqual(self.widget.k_means.k, 2)  # no changes when no data
 
     def test_scatter_point_dropped(self):
         self.widget.set_data(self.data)
         self.widget.centroid_numbers_spinner.setValue(1)
-        self.widget.scatter.point_dropped(0, 1, 2)
+        self.widget.scatter.bridge.point_dropped(0, 1, 2)
 
         self.assertEqual(self.widget.k_means.k, 1)
 

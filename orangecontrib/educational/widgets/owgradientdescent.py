@@ -5,7 +5,7 @@ from os import path
 import time
 
 import numpy as np
-from PyQt4.QtCore import pyqtSlot, Qt, QThread, pyqtSignal
+from PyQt4.QtCore import pyqtSlot, Qt, QThread, pyqtSignal, QObject
 from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
 
 from Orange.widgets.utils import itemmodels
@@ -53,8 +53,16 @@ class Scatterplot(highcharts.Highchart):
                           'highcharts-contour.js'), 'r') as f:
             contours_js = f.read()
 
+        class Bridge(QObject):
+            @pyqtSlot(float, float)
+            def chart_clicked(self, x, y):
+                """
+                Function is called from javascript when click event happens
+                """
+                click_callback(x, y)
+
         super().__init__(enable_zoom=True,
-                         bridge=self,
+                         bridge=Bridge(),
                          enable_select='',
                          chart_events_click=self.js_click_function,
                          plotOptions_series_states_hover_enabled=False,
@@ -67,13 +75,6 @@ class Scatterplot(highcharts.Highchart):
     def chart(self, *args, **kwargs):
         self.count_replots += 1
         super(Scatterplot, self).chart(*args, **kwargs)
-
-    @pyqtSlot(float, float)
-    def chart_clicked(self, x, y):
-        """
-        Function is called from javascript when click event happens
-        """
-        self.click_callback(x, y)
 
     def remove_series(self, idx):
         """

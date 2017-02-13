@@ -3,7 +3,7 @@ from os import path
 from itertools import chain
 import time
 
-from PyQt4.QtCore import pyqtSlot, QThread, Qt, pyqtSignal
+from PyQt4.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
 from PyQt4.QtGui import QSizePolicy
 
 import Orange
@@ -77,9 +77,18 @@ class Scatterplot(highcharts.Highchart):
                             'draggable-points.js'), 'r') as f:
             drag_drop_js = f.read()
 
+        class Bridge(QObject):
+            @pyqtSlot(float, float)
+            def chart_clicked(_, x, y):
+                self.click_callback(x, y)
+
+            @pyqtSlot(int, float, float)
+            def point_dropped(_, index, x, y):
+                self.drop_callback(index, x, y)
+
         super().__init__(
             enable_zoom=True,
-            bridge=self,
+            bridge=Bridge(),
             enable_select='',
             chart_events_click=self.js_click_function,
             plotOptions_series_point_events_drop=self.js_drop_function,
@@ -94,14 +103,6 @@ class Scatterplot(highcharts.Highchart):
     def chart(self, *args, **kwargs):
         self.count_replots += 1
         super(Scatterplot, self).chart(*args, **kwargs)
-
-    @pyqtSlot(float, float)
-    def chart_clicked(self, x, y):
-        self.click_callback(x, y)
-
-    @pyqtSlot(int, float, float)
-    def point_dropped(self, index, x, y):
-        self.drop_callback(index, x, y)
 
     def update_series(self, series_no, data):
         for i, d in enumerate(data):
