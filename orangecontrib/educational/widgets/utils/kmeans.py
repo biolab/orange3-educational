@@ -18,7 +18,7 @@ class Kmeans:
     """
 
     max_iter = 100
-    threshold = 1e-3
+    threshold = 1e-1
 
     def __init__(self, data,
                  centroids=None, distance_metric=Orange.distance.Euclidean):
@@ -46,7 +46,7 @@ class Kmeans:
         Function check if algorithm already converged
         """
         if len(self.centroids_history) <= 1 or \
-                (len(self.centroids) != len(self.centroids_history[-1])) or \
+                (len(self.centroids) != len(self.centroids_history[self.step_no - 2])) or \
                 not self.step_completed:
             return False
         dist = (np.sum(
@@ -71,20 +71,7 @@ class Kmeans:
         data : Orange.data.Table or None
             Data used for k-means
         """
-        if data is not None and len(data) > 0:
-            self.data = data
-            self.clusters = self.find_clusters(self.centroids)
-
-            # with different data it does not make sense to have history,
-            # algorithm from begining
-            self.centroids_history = []
-            self.step_no = 0
-        else:
-            self.data = None
-            self.clusters = None
-            self.centroids_history = []
-            self.step_no = 0
-        self.centroids_moved = False
+        self.__init__(data, self.centroids, distance_metric=self.distance_metric)
 
     def find_clusters(self, centroids):
         """
@@ -214,7 +201,6 @@ class Kmeans:
         try:
             l[i] = v
         except IndexError:
-            for _ in range(i-len(l)):
-                l.append(None)
+            assert i == len(l)
             l.append(v)
         return l
