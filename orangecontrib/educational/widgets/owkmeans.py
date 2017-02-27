@@ -52,19 +52,6 @@ class Scatterplot(highcharts.Highchart):
     * enables moving of centroids points
     * include drag_drop_js script by highchart
     """
-
-    js_click_function = """/**/(function(event) {
-            window.pybridge.chart_clicked(event.xAxis[0].value,
-                                          event.yAxis[0].value);
-        })
-        """
-
-    js_drop_function = """/**/(function(event) {
-                var index = this.series.data.indexOf( this );
-                window.pybridge.point_dropped(index, this.x, this.y);
-            })
-            """
-
     prew_time = 0
 
     # to make unit tesest
@@ -87,13 +74,22 @@ class Scatterplot(highcharts.Highchart):
                 self.drop_callback(index, x, y)
 
         super().__init__(
-            enable_zoom=True,
+            enable_zoom=False,
             bridge=Bridge(),
             enable_select='',
-            chart_events_click=self.js_click_function,
-            plotOptions_series_point_events_drop=self.js_drop_function,
+            chart_events_click="""/**/ (function(event) {
+                window.pybridge.chart_clicked(event.xAxis[0].value,
+                                              event.yAxis[0].value);
+            })
+            """,
+            plotOptions_series_point_events_drop="""/**/(function(event) {
+                var index = this.series.data.indexOf( this );
+                window.pybridge.point_dropped(index, this.x, this.y);
+                return false;
+            })
+            """,
             plotOptions_series_states_hover_enabled=False,
-            plotOptions_series_cursor="move",
+            plotOptions_series_showInLegend=False,
             javascript=drag_drop_js,
             **kwargs)
 
@@ -224,7 +220,7 @@ class OWKmeans(OWWidget):
             click_callback=self.graph_clicked,
             drop_callback=self.centroid_dropped,
             xAxis_gridLineWidth=0, yAxis_gridLineWidth=0,
-            title_text='', tooltip_shared=False,
+            tooltip_enabled=False,
             debug=False)
 
         # Just render an empty chart so it shows a nice 'No data to display'
@@ -424,9 +420,9 @@ class OWKmeans(OWWidget):
                 type="scatter",
                 draggableX=True,
                 draggableY=True,
-                showInLegend=False,
+                cursor="move",
                 zIndex=10,
-                marker=dict(symbol='square', radius=6)))
+                marker=dict(symbol='square', radius=8)))
 
         # plot lines between centroids and points
         if self.lines_to_centroids:
@@ -437,7 +433,6 @@ class OWKmeans(OWWidget):
                         chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
                                             for p in pts)),
                     type="line",
-                    showInLegend=False,
                     lineWidth=0.2,
                     enableMouseTracking=False,
                     color="#ccc"))
@@ -447,7 +442,6 @@ class OWKmeans(OWWidget):
             options['series'].append(dict(
                 data=points,
                 type="scatter",
-                showInLegend=False,
                 color=rgb_hash_brighter(
                     self.colors[i % len(self.colors)], 0.3)))
 
