@@ -63,7 +63,7 @@ ENTRY_POINTS = {
 
 NAMESPACE_PACKAGES = ["orangecontrib"]
 
-TEST_SUITE = "orangecontrib.educational.tests.suite"
+TEST_SUITE = "orangecontrib.educational.tests"
 
 AUTHOR = 'Bioinformatics Laboratory, FRI UL'
 AUTHOR_EMAIL = 'contact@orange.biolab.si'

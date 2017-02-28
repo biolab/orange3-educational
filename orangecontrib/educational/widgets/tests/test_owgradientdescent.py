@@ -13,7 +13,7 @@ from orangecontrib.educational.widgets.owgradientdescent import \
 class TestOWGradientDescent(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWGradientDescent)
+        self.widget = self.create_widget(OWGradientDescent)  # type: OWGradientDescent
         self.iris = Table('iris')
         self.housing = Table('housing')
 
@@ -819,17 +819,22 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
 
+        def _svg_ready():
+            return getattr(w, w.graph_name).svg()
+
         # when everything fine
         self.send_signal("Data", self.iris)
-
-        w.report_button.click()
+        self.process_events(_svg_ready)
+        w.send_report()
 
         # when no data
         self.send_signal("Data", None)
-
-        w.report_button.click()
+        self.process_events(_svg_ready)
+        w.send_report()
 
         # for stochastic
-        self.send_signal("Data", self.iris)
         w.stochastic_checkbox.click()
-        w.report_button.click()
+        self.send_signal("Data", self.iris)
+        self.process_events(_svg_ready)
+        w.send_report()
+        self.process_events()
