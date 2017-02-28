@@ -293,9 +293,7 @@ class OWGradientDescent(OWWidget):
                                    yAxis_gridLineWidth=0,
                                    title_text='',
                                    tooltip_shared=False,
-                                   debug=False,
-                                   legend_symbolWidth=0,
-                                   legend_symbolHeight=0)
+                                   legend=dict(enabled=False),)
 
         gui.rubber(self.controlArea)
 
@@ -482,13 +480,11 @@ class OWGradientDescent(OWWidget):
                                  textShadow=False
                              ))
                      )],
-                     showInLegend=False,
                      type="scatter", enableMouseTracking=False,
                      color="#ffcc00", marker=dict(radius=4)),
                 dict(id="path", data=[dict(
                     x=x, y=y, h='{0:.2f}'.format(
                         self.learner.j(np.array([x, y]))))],
-                     showInLegend=False,
                      type="scatter", lineWidth=1,
                      color=self.line_color(),
                      marker=dict(
@@ -623,6 +619,7 @@ class OWGradientDescent(OWWidget):
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
             colorAxis=dict(
+                labels=dict(enabled=False),
                 minColor="#ffffff", maxColor=self.current_gradient_color,
                 endOnTick=False, startOnTick=False),
             plotOptions_contour_colsize=(self.max_y - self.min_y) / 1000,
@@ -633,8 +630,6 @@ class OWGradientDescent(OWWidget):
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
-        # to remove the colorAxis legend
-        self.scatter.evalJS("chart.colorAxis[0].axisParent.destroy();")
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -705,7 +700,6 @@ class OWGradientDescent(OWWidget):
                                    color=self.contour_color,
                                    type="spline",
                                    lineWidth=0.5,
-                                   showInLegend=False,
                                    marker=dict(enabled=False),
                                    name="%g" % round(key, 2),
                                    enableMouseTracking=False

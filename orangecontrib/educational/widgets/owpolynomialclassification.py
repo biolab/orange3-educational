@@ -42,7 +42,6 @@ class Scatterplot(highcharts.Highchart):
 
         super().__init__(enable_zoom=False,
                          enable_select='',
-                         plotOptions_series_cursor="move",
                          javascript=contour_js,
                          **kwargs)
 
@@ -176,9 +175,9 @@ class OWPolynomialClassification(OWBaseLearner):
             xAxis_startOnTick=False, xAxis_endOnTick=False,
             yAxis_startOnTick=False, yAxis_endOnTick=False,
             xAxis_lineWidth=0, yAxis_lineWidth=0,
-            yAxis_tickWidth=1, title_text='', tooltip_shared=False,
-            debug=True)  # TODO: set false when end of development
+            yAxis_tickWidth=1, title_text='', tooltip_shared=False)
 
+        # Just render an empty chart so it shows a nice 'No data to display'
         self.scatter.chart()
         self.mainArea.layout().addWidget(self.scatter)
 
@@ -343,6 +342,7 @@ class OWPolynomialClassification(OWBaseLearner):
             yAxis_min=min_y,
             yAxis_max=max_y,
             colorAxis=dict(
+                labels=dict(enabled=False),
                 stops=[
                     [0, rgb_hash_brighter(rgb_to_hex(other_color), 0.5)],
                     [0.5, '#ffffff'],
@@ -365,8 +365,6 @@ class OWPolynomialClassification(OWBaseLearner):
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
-        self.scatter.evalJS("chart.colorAxis[0].axisParent.destroy();")
-            # hack to destroy the legend for coloraxis
         self.plot_contour()
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
@@ -584,7 +582,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
 
         if (self.model is not None and
-                isinstance(self.learner, LogisticRegressionLearner)):
+                isinstance(self.learner, LogisticRegressionLearner) and
+                hasattr(self.model, 'skl_model')):
             model = self.model.skl_model
             domain = Domain(
                 [ContinuousVariable("coef", number_of_decimals=7)],
