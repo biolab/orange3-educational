@@ -1,14 +1,13 @@
-from Orange.widgets.tests.base import GuiTest
+from Orange.widgets.tests.base import WidgetTest
 import Orange
 from Orange.data.domain import ContinuousVariable
 import numpy as np
 from orangecontrib.educational.widgets.owkmeans import OWKmeans
 
 
-class TestOWKmeans(GuiTest):
-
+class TestOWKmeans(WidgetTest):
     def setUp(self):
-        self.widget = OWKmeans()
+        self.widget = self.create_widget(OWKmeans)  # type: OWKmeans
         self.data = Orange.data.Table("iris")
 
     def test_button_labels(self):
