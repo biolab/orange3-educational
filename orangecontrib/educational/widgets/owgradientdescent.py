@@ -470,10 +470,9 @@ class OWGradientDescent(OWWidget):
                      data=[dict(
                          x=x, y=y, dataLabels=dict(
                              enabled=True,
-                             format='&nbsp;{0:.2f}&nbsp;'.format(
+                             format='{0:.2f}'.format(
                                  self.learner.j(np.array([x, y]))),
                              verticalAlign='middle',
-                             useHTML=True,
                              align="right",
                              style=dict(
                                  fontWeight="normal",
@@ -550,9 +549,8 @@ class OWGradientDescent(OWWidget):
             dict(
                 x=x, y=y, dataLabels=dict(
                     enabled=True,
-                    format='&nbsp;{0:.2f}&nbsp;'.format(
+                    format='{0:.2f}'.format(
                         self.learner.j(np.array([x, y]))),
-                    useHTML=True,
                     verticalAlign='middle',
                     align="left" if self.label_right() else "right",
                     style=dict(
@@ -604,12 +602,10 @@ class OWGradientDescent(OWWidget):
 
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>".format(
+            xAxis_title_text="Θ {attr}".format(
                 attr=self.attr_x if self.is_logistic else 0),
-            xAxis_title_useHTML=True,
-            yAxis_title_text="&theta;<sub>{attr}</sub>".format(
+            yAxis_title_text="Θ {attr}".format(
                 attr=self.attr_y if self.is_logistic else self.attr_x),
-            yAxis_title_useHTML=True,
             xAxis_min=self.min_x,
             xAxis_max=self.max_x,
             yAxis_min=self.min_y,
