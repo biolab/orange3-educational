@@ -63,7 +63,14 @@ ENTRY_POINTS = {
 
 NAMESPACE_PACKAGES = ["orangecontrib"]
 
-TEST_SUITE = "orangecontrib.educational.tests"
+
+def _discover_tests():
+    import unittest
+    return unittest.defaultTestLoader.discover('orangecontrib.educational',
+                                               pattern='test_*.py',
+                                               top_level_dir='.')
+
+TEST_SUITE = "setup._discover_tests"
 
 AUTHOR = 'Bioinformatics Laboratory, FRI UL'
 AUTHOR_EMAIL = 'contact@orange.biolab.si'
