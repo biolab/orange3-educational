@@ -4,8 +4,8 @@ from orangecontrib.educational.widgets.owpolynomialregression \
     import OWUnivariateRegression
 from Orange.data.table import Table
 from Orange.regression import (LinearRegressionLearner,
-                               RandomForestRegressionLearner,
-                               TreeRegressionLearner)
+                               RandomForestRegressionLearner)
+from Orange.regression.tree import TreeLearner as TreeRegressionLearner
 from Orange.preprocess.preprocess import Normalize
 
 class TestOWPolynomialRegression(WidgetTest):
@@ -209,7 +209,7 @@ class TestOWPolynomialRegression(WidgetTest):
         self.assertNotEqual(self.widget.plot_item, None)
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
-        self.widget.set_preprocessor(Normalize())
+        self.widget.set_preprocessor((Normalize(),))
         self.assertNotEqual(self.widget.plot_item, None)
         self.assertNotEqual(self.widget.scatterplot_item, None)
 

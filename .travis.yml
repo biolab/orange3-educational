@@ -1,39 +1,29 @@
 language: python
 
 sudo: false
+dist: trusty
 
 python:
-    - "3.4"
+    - "3.6"
 
 cache:
     apt: true
     pip: true
     ccache: true
-    directories:
-        - $TRAVIS_BUILD_DIR/pyqt
-        - $TRAVIS_BUILD_DIR/orange
-
-addons:
-    apt:
-        packages:
-            - libblas-dev
-            - liblapack-dev
-            - gfortran
-            - libqt4-dev
-            - xvfb
 
 before_install:
     - set -e  # fail on any error
 
 install:
-    - source $TRAVIS_BUILD_DIR/.travis/install_pyqt.sh
+    - pip install pyqt5
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel
-    - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
-    - pip install -e .
+    - pip install git+https://github.com/biolab/orange3.git
+    - pip install .
     - pip install codecov
 
-script: catchsegv xvfb-run coverage run setup.py test
+script:
+    - catchsegv xvfb-run -a -s "-screen 0 800x600x24" coverage run setup.py test
 
 after_success:
     codecov

@@ -428,11 +428,13 @@ class TestOWPolynomialClassification(WidgetTest):
         # set new learner
         learner = TreeLearner
         self.send_signal("Learner", learner())
+        self.process_events()
         self.assertEqual(self.get_output("Learner"), w.learner)
         self.assertTrue(isinstance(self.get_output("Learner"), learner))
 
         # back to default learner
         self.send_signal("Learner", None)
+        self.process_events()
         self.assertEqual(self.get_output("Learner"), w.learner)
         self.assertTrue(isinstance(self.get_output("Learner"), w.LEARNER))
 
@@ -543,4 +545,5 @@ class TestOWPolynomialClassification(WidgetTest):
         w = self.widget
 
         self.send_signal("Data", self.iris)
-        w.report_button.click()
+        self.process_events(lambda: getattr(w, w.graph_name).svg())
+        w.send_report()
