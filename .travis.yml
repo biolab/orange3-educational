@@ -15,7 +15,7 @@ before_install:
     - set -e  # fail on any error
 
 install:
-    - pip install pyqt5
+    - pip install pyqt5==5.7.1
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel
     - pip install git+https://github.com/biolab/orange3.git
