@@ -56,7 +56,7 @@ class OWUnivariateRegression(OWBaseLearner):
     regressor_name = ""
 
     want_main_area = True
-    graph_name = 'Regression graph'
+    graph_name = 'plot'
 
     class Error(OWWidget.Error):
         """
@@ -149,7 +149,7 @@ class OWUnivariateRegression(OWBaseLearner):
         caption = report.render_items_vert((
              ("Polynomial Expansion: ", self.polynomialexpansion),
         ))
-        self.report_plot(self.plot)
+        self.report_plot()
         if caption:
             self.report_caption(caption)
 
