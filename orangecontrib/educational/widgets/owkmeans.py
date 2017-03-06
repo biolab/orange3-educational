@@ -77,11 +77,6 @@ class Scatterplot(highcharts.Highchart):
             enable_zoom=False,
             bridge=Bridge(),
             enable_select='',
-            chart_events_click="""/**/ (function(event) {
-                window.pybridge.chart_clicked(event.xAxis[0].value,
-                                              event.yAxis[0].value);
-            })
-            """,
             plotOptions_series_point_events_drop="""/**/(function(event) {
                 var index = this.series.data.indexOf( this );
                 window.pybridge.point_dropped(index, this.x, this.y);
