@@ -29,15 +29,20 @@ class Autoplay(QThread):
     def __init__(self, owkmeans):
         QThread.__init__(self)
         self.owkmeans = owkmeans
+        self.is_running = True
 
     def __del__(self):
         self.wait()
+
+    def stop(self):
+        self.is_running = False
 
     def run(self):
         """
         Stepping through the algorithm until converge or user interrupts
         """
-        while ((not self.owkmeans.k_means.converged) and
+        while (self.is_running and
+               not self.owkmeans.k_means.converged and
                self.owkmeans.auto_play_enabled):
             self.owkmeans.step_trigger.emit()
             time.sleep(2 - self.owkmeans.auto_play_speed)
@@ -296,6 +301,9 @@ class OWKmeans(OWWidget):
         self.warning(1)  # remove warning about too less continuous attributes
         self.warning(2)  # remove warning about not enough data
 
+        if self.auto_play_thread:
+            self.auto_play_thread.stop()
+
         if data is None or len(data) == 0:
             reset_combos()
             self.set_empty_plot()
@@ -409,8 +417,11 @@ class OWKmeans(OWWidget):
         """
         This function performs complete replot of the graph without animation
         """
-        attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y]
+        try:
+            attr_x = self.data.domain[self.attr_x]
+            attr_y = self.data.domain[self.attr_y]
+        except KeyError:
+            return
 
         # plot centroids
         options = dict(series=[])

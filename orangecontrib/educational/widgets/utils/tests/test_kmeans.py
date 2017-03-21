@@ -44,7 +44,6 @@ class TestKmeans(unittest.TestCase):
         self.kmeans.step()
         self.assertTrue(self.kmeans.converged)
 
-
     def test_centroids_belonging_points(self):
         centroids = [[5.2, 3.6]]
         self.kmeans.add_centroids(centroids)
@@ -74,7 +73,7 @@ class TestKmeans(unittest.TestCase):
     def test_set_data(self):
         self.kmeans.set_data(self.data)
         self.assertEqual(self.kmeans.data, self.data)
-        self.assertEqual(self.kmeans.centroids_history, [])
+        self.assertEqual(self.kmeans.centroids_history[0].size, 0)
         self.assertEqual(self.kmeans.step_no, 0)
         self.assertEqual(self.kmeans.step_completed, True)
         self.assertEqual(self.kmeans.centroids_moved, False)
@@ -82,7 +81,7 @@ class TestKmeans(unittest.TestCase):
         # try with none data
         self.kmeans.set_data(None)
         self.assertEqual(self.kmeans.data, None)
-        self.assertEqual(self.kmeans.centroids_history, [])
+        self.assertEqual(self.kmeans.centroids_history[0].size, 0)
         self.assertEqual(self.kmeans.clusters, None)
         self.assertEqual(self.kmeans.step_no, 0)
         self.assertEqual(self.kmeans.step_completed, True)
@@ -199,10 +198,6 @@ class TestKmeans(unittest.TestCase):
         self.assertEqual(self.kmeans.step_no, 2)
 
     def test_set_list(self):
-        # test adding Nones if list too short
-        self.assertEqual(self.kmeans.set_list([], 2, 1), [None, None, 1])
-        # test adding Nones if list too short
-        self.assertEqual(self.kmeans.set_list([2], 2, 1), [2, None, 1])
         # adding to end
         self.assertEqual(self.kmeans.set_list([2, 1], 2, 1), [2, 1, 1])
         # changing the element in the last place

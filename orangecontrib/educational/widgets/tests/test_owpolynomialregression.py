@@ -1,8 +1,7 @@
-from Orange.data import Domain, ContinuousVariable
+from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.educational.widgets.owpolynomialregression \
     import OWUnivariateRegression
-from Orange.data.table import Table
 from Orange.regression import (LinearRegressionLearner,
                                RandomForestRegressionLearner)
 from Orange.regression.tree import TreeLearner as TreeRegressionLearner
