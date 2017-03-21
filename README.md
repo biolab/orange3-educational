@@ -1,7 +1,14 @@
-# orange3-educational
+Orange3-Educational
+===================
 
 Educational widgets for machine learning and data mining in 
-[Orange3](http://orange.biolab.si).
+[Orange](http://orange.biolab.si).
+
+**License: CC-BY-NC-3.0**
+
+In order to use this package commercially, please obtain a [Highcharts] license.
+
+[Highcharts]: http://www.highcharts.com/
 
 Widgets in Educational Add-on demonstrate several key data mining and machine learning procedures.
 The widgets are useful for beginners to understand the inner working of key algorithms in the data

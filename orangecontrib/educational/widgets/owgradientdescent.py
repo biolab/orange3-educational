@@ -13,7 +13,6 @@ from Orange.classification import Model
 from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable, \
     StringVariable
 from Orange.widgets import gui
-from Orange.widgets import highcharts
 from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg
 from Orange.preprocess.preprocess import Normalize
@@ -26,9 +25,10 @@ from orangecontrib.educational.widgets.utils.linear_regression import \
 from orangecontrib.educational.widgets.utils.logistic_regression \
     import LogisticRegression
 from orangecontrib.educational.widgets.utils.contour import Contour
+from orangecontrib.educational.widgets.highcharts import Highchart
 
 
-class Scatterplot(highcharts.Highchart):
+class Scatterplot(Highchart):
     """
     Scatterplot extends Highchart and just defines some sane defaults:
     * enables scroll-wheel zooming,

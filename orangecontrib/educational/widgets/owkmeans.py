@@ -9,11 +9,12 @@ from PyQt4.QtGui import QSizePolicy
 import Orange
 from Orange.widgets.widget import OWWidget
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
-from Orange.widgets import gui, settings, highcharts, widget
+from Orange.widgets import gui, settings, widget
 
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 from orangecontrib.educational.widgets.utils.color_transform import \
     rgb_hash_brighter
+from orangecontrib.educational.widgets.highcharts import Highchart
 
 
 class Autoplay(QThread):
@@ -49,7 +50,7 @@ class Autoplay(QThread):
         self.owkmeans.stop_auto_play_trigger.emit()
 
 
-class Scatterplot(highcharts.Highchart):
+class Scatterplot(Highchart):
     """
     Scatterplot extends Highchart and just defines some sane defaults:
     * enables scroll-wheel zooming,
