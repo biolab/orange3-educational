@@ -26,6 +26,7 @@ from orangecontrib.educational.widgets.utils.linear_regression import \
 from orangecontrib.educational.widgets.utils.logistic_regression \
     import LogisticRegression
 from orangecontrib.educational.widgets.utils.contour import Contour
+import orangecontrib.educational.optimizers as opt
 
 
 class Scatterplot(highcharts.Highchart):
@@ -171,6 +172,17 @@ class OWGradientDescent(OWWidget):
     auto_play_speed = settings.Setting(1)
     stochastic = settings.Setting(False)
 
+    # SGD optimizers
+    class _Optimizer:
+        SGD, MOMENTUM, NAG, ADAGRAD, RMSPROP, ADADELTA, ADAM, ADAMAX = range(8)
+        names = ['Vanilla SGD', 'Momentum', "Nesterov momentum", 'AdaGrad',
+                 'RMSprop', 'AdaDelta', 'Adam', 'Adamax']
+    opt_type = settings.Setting(_Optimizer.SGD)
+    momentum = settings.Setting(0.9)
+    rho = settings.Setting(0.9)
+    beta1 = settings.Setting(0.9)
+    beta2 = settings.Setting(0.999)
+
     # models
     x_var_model = None
     y_var_model = None
@@ -247,16 +259,56 @@ class OWGradientDescent(OWWidget):
         self.alpha_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_alpha,
             value="alpha", label="Learning rate: ",
-            minv=0.001, maxv=100, step=0.001, spinType=float, decimals=3,
+            minv=1e-5, maxv=1e5, step=0.001, spinType=float, decimals=3,
             alignment=Qt.AlignRight, controlWidth=80)
+        self.step_size_spin = gui.spin(
+            widget=self.properties_box, master=self, callback=self.change_step,
+            value="step_size", label="Num. samples: ",
+            minv=1, maxv=100, step=1, alignment=Qt.AlignRight, controlWidth=80)
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
             label="Stochastic ")
-        self.step_size_spin = gui.spin(
-            widget=self.properties_box, master=self, callback=self.change_step,
-            value="step_size", label="Step size: ",
-            minv=1, maxv=100, step=1, alignment=Qt.AlignRight, controlWidth=80)
+
+        self.combobox_opt = gui.comboBox(
+            widget=self.properties_box, master=self, value="opt_type",
+            label="SGD optimizer: ", items=self._Optimizer.names,
+            orientation=Qt.Horizontal, addSpace=4, callback=self._opt_changed)
+
+        paramtip = "Controls the 'inertia' of the update.\nHigher momentum " \
+                   "results in smoothing over more update steps"
+        _m_comp = gui.doubleSpin(
+            widget=self.properties_box, master=self, value="momentum",
+            minv=1e-4, maxv=1e+4, step=1e-4, label="Momentum:", decimals=4,
+            alignment=Qt.AlignRight, controlWidth=90,
+            callback=self._opt_changed, tooltip=paramtip)
+
+        paramtip = "Decay rate of the gradient moving average"
+        _r_comp = gui.doubleSpin(
+            widget=self.properties_box, master=self, value="rho", minv=1e-4,
+            maxv=1e+4, step=1e-4, label="Rho:", decimals=4,
+            alignment=Qt.AlignRight, controlWidth=90,
+            callback=self._opt_changed, tooltip=paramtip)
+
+        paramtip = "Exponential decay rate for the 1st moment estimates " \
+                   "(the mean)"
+        _b1_comp = gui.doubleSpin(
+            widget=self.properties_box, master=self, value="beta1", minv=1e-5,
+            maxv=1e+5, step=1e-4, label="Beta 1:", decimals=5,
+            alignment=Qt.AlignRight, controlWidth=90,
+            callback=self._opt_changed, tooltip=paramtip)
+
+        paramtip = "Exponential decay rate for the 2nd moment estimates (the " \
+                   "uncentered variance)"
+        _b2_comp = gui.doubleSpin(
+            widget=self.properties_box, master=self, value="beta2", minv=1e-5,
+            maxv=1e+5, step=1e-4, label="Beta 2:", decimals=5,
+            alignment=Qt.AlignRight, controlWidth=90,
+            callback=self._opt_changed, tooltip=paramtip)
+
+        self._opt_params = [_m_comp, _r_comp, _b1_comp, _b2_comp]
+        self._show_right_optimizer()
+
         self.restart_button = gui.button(
             widget=self.properties_box, master=self,
             callback=self.restart, label="Restart")
@@ -303,6 +355,59 @@ class OWGradientDescent(OWWidget):
 
         self.step_size_lock()
         self.step_back_button_lock()
+
+    def _opt_changed(self):
+        self._show_right_optimizer()
+        self.select_optimizer()
+
+    def _show_right_optimizer(self):
+        enabled = [[False, False, False, False],  # SGD
+                   [True, False, False, False],  # Momentum
+                   [True, False, False, False],  # NAG
+                   [False, False, False, False],  # AdaGrad
+                   [False, True, False, False],  # RMSprop
+                   [False, True, False, False],  # AdaDelta
+                   [False, False, True, True],  # Adam
+                   [False, False, True, True],  # Adamax
+                ]
+
+        mask = [False, False, False, False]
+        self.combobox_opt.box.setVisible(self.stochastic)
+        if self.stochastic:
+            mask = enabled[self.opt_type]
+
+        # All hidden
+        for spin, enabled in zip(self._opt_params, mask):
+            [spin.box.hide, spin.box.show][enabled]()
+
+    def select_optimizer(self):
+        if self.learner is not None:
+            if self.opt_type == self._Optimizer.MOMENTUM:
+                self.learner.sgd_optimizer = opt.Momentum(
+                    momentum=self.momentum
+                )
+            elif self.opt_type == self._Optimizer.NAG:
+                self.learner.sgd_optimizer = opt.NesterovMomentum(
+                    momentum=self.momentum
+                )
+            elif self.opt_type == self._Optimizer.ADAGRAD:
+                self.learner.sgd_optimizer = opt.AdaGrad()
+
+            elif self.opt_type == self._Optimizer.RMSPROP:
+                self.learner.sgd_optimizer = opt.RMSProp(rho=self.rho)
+
+            elif self.opt_type == self._Optimizer.ADADELTA:
+                self.learner.sgd_optimizer = opt.AdaDelta(rho=self.rho)
+
+            elif self.opt_type == self._Optimizer.ADAM:
+                self.learner.sgd_optimizer = opt.Adam(beta1=self.beta1,
+                                                      beta2=self.beta2)
+
+            elif self.opt_type == self._Optimizer.ADAMAX:
+                self.learner.sgd_optimizer = opt.Adamax(beta1=self.beta1,
+                                                        beta2=self.beta2)
+            else:
+                self.learner.sgd_optimizer = opt.SGD()
 
     def set_data(self, data):
         """
@@ -429,6 +534,7 @@ class OWGradientDescent(OWWidget):
             alpha=self.alpha, stochastic=self.stochastic,
             theta=theta, step_size=self.step_size,
             intercept=(self.learner_name == "Linear regression"))
+        self.select_optimizer()
         self.replot()
         if theta is None:  # no previous theta exist
             self.change_theta(np.random.uniform(self.min_x, self.max_x),
@@ -452,6 +558,7 @@ class OWGradientDescent(OWWidget):
         if self.learner is not None:
             self.learner.stochastic = self.stochastic
         self.step_size_lock()
+        self._opt_changed()
 
     def change_step(self):
         if self.learner is not None:
