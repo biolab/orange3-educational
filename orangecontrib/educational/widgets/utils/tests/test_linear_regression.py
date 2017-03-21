@@ -11,7 +11,7 @@ import numpy as np
 class TestLogisticRegression(unittest.TestCase):
 
     def setUp(self):
-        self.housing = Normalize(Table('housing'))
+        self.housing = Normalize()(Table('housing'))
         self.linear_regression = LinearRegression()
 
     def test_model(self):
@@ -367,7 +367,7 @@ class TestLogisticRegression(unittest.TestCase):
         x = np.column_stack(cols)
 
         domain = Domain([attr_x, attr_y], self.housing.domain.class_var)
-        data = Normalize(Table(domain, x, self.housing.Y), transform_class=True)
+        data = Normalize(transform_class=True)(Table(domain, x, self.housing.Y))
 
         lr.set_data(data)
         op_theta = lr.optimized()

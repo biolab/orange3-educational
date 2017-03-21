@@ -10,7 +10,7 @@ from Orange.preprocess.preprocess import Normalize
 class TestOWPolynomialRegression(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWUnivariateRegression)
+        self.widget = self.create_widget(OWUnivariateRegression)   # type: OWUnivariateRegression
         self.data = Table("iris")
         self.data_housing = Table("housing")
 

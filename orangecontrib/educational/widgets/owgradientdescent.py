@@ -293,9 +293,7 @@ class OWGradientDescent(OWWidget):
                                    yAxis_gridLineWidth=0,
                                    title_text='',
                                    tooltip_shared=False,
-                                   debug=False,
-                                   legend_symbolWidth=0,
-                                   legend_symbolHeight=0)
+                                   legend=dict(enabled=False),)
 
         gui.rubber(self.controlArea)
 
@@ -472,23 +470,20 @@ class OWGradientDescent(OWWidget):
                      data=[dict(
                          x=x, y=y, dataLabels=dict(
                              enabled=True,
-                             format='&nbsp;{0:.2f}&nbsp;'.format(
+                             format='{0:.2f}'.format(
                                  self.learner.j(np.array([x, y]))),
                              verticalAlign='middle',
-                             useHTML=True,
                              align="right",
                              style=dict(
                                  fontWeight="normal",
                                  textShadow=False
                              ))
                      )],
-                     showInLegend=False,
                      type="scatter", enableMouseTracking=False,
                      color="#ffcc00", marker=dict(radius=4)),
                 dict(id="path", data=[dict(
                     x=x, y=y, h='{0:.2f}'.format(
                         self.learner.j(np.array([x, y]))))],
-                     showInLegend=False,
                      type="scatter", lineWidth=1,
                      color=self.line_color(),
                      marker=dict(
@@ -554,9 +549,8 @@ class OWGradientDescent(OWWidget):
             dict(
                 x=x, y=y, dataLabels=dict(
                     enabled=True,
-                    format='&nbsp;{0:.2f}&nbsp;'.format(
+                    format='{0:.2f}'.format(
                         self.learner.j(np.array([x, y]))),
-                    useHTML=True,
                     verticalAlign='middle',
                     align="left" if self.label_right() else "right",
                     style=dict(
@@ -608,12 +602,10 @@ class OWGradientDescent(OWWidget):
 
         # highcharts parameters
         kwargs = dict(
-            xAxis_title_text="<p>&theta;<sub>{attr}</sub></p>".format(
+            xAxis_title_text="Θ {attr}".format(
                 attr=self.attr_x if self.is_logistic else 0),
-            xAxis_title_useHTML=True,
-            yAxis_title_text="&theta;<sub>{attr}</sub>".format(
+            yAxis_title_text="Θ {attr}".format(
                 attr=self.attr_y if self.is_logistic else self.attr_x),
-            yAxis_title_useHTML=True,
             xAxis_min=self.min_x,
             xAxis_max=self.max_x,
             yAxis_min=self.min_y,
@@ -623,6 +615,7 @@ class OWGradientDescent(OWWidget):
             yAxis_startOnTick=False,
             yAxis_endOnTick=False,
             colorAxis=dict(
+                labels=dict(enabled=False),
                 minColor="#ffffff", maxColor=self.current_gradient_color,
                 endOnTick=False, startOnTick=False),
             plotOptions_contour_colsize=(self.max_y - self.min_y) / 1000,
@@ -633,8 +626,6 @@ class OWGradientDescent(OWWidget):
                                 (self.attr_x, self.attr_y))
 
         self.scatter.chart(options, **kwargs)
-        # to remove the colorAxis legend
-        self.scatter.evalJS("chart.colorAxis[0].axisParent.destroy();")
 
     def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
         """
@@ -705,7 +696,6 @@ class OWGradientDescent(OWWidget):
                                    color=self.contour_color,
                                    type="spline",
                                    lineWidth=0.5,
-                                   showInLegend=False,
                                    marker=dict(enabled=False),
                                    name="%g" % round(key, 2),
                                    enableMouseTracking=False
@@ -762,12 +752,12 @@ class OWGradientDescent(OWWidget):
                        self.target_class else 1)
                  for d in y_c]
 
-            return Normalize(Table(domain, x, y_c) if two_classes
-                             else Table(domain, x, y, y_c[:, None]))
+            return Normalize()(Table(domain, x, y_c)
+                               if two_classes else
+                               Table(domain, x, y, y_c[:, None]))
         else:
             domain = Domain([attr_x], self.data.domain.class_var)
-            return Normalize(
-                Table(domain, x, y_c), transform_class=True)
+            return Normalize(transform_class=True)(Table(domain, x, y_c))
 
     def auto_play(self):
         """

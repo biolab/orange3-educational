@@ -18,7 +18,7 @@ from orangecontrib.educational.widgets.utils.polynomialtransform import \
 class TestOWPolynomialClassification(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWPolynomialClassification)
+        self.widget = self.create_widget(OWPolynomialClassification)  # type: OWPolynomialClassification
         self.iris = Table("iris")
 
     def test_add_main_layout(self):
