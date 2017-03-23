@@ -11,7 +11,7 @@ from scipy.interpolate import splprep, splev
 
 from Orange.data import (
     ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
-from Orange.widgets import highcharts, settings, gui
+from Orange.widgets import settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import (LogisticRegressionLearner, Learner,
                                    RandomForestLearner, TreeLearner)
@@ -23,9 +23,10 @@ from orangecontrib.educational.widgets.utils.polynomialtransform \
 from orangecontrib.educational.widgets.utils.color_transform \
     import rgb_hash_brighter, rgb_to_hex
 from orangecontrib.educational.widgets.utils.contour import Contour
+from orangecontrib.educational.widgets.highcharts import Highchart
 
 
-class Scatterplot(highcharts.Highchart):
+class Scatterplot(Highchart):
     """
     Scatterplot extends Highchart and just defines some defaults:
     * disable scroll-wheel zooming,

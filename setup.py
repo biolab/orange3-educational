@@ -25,6 +25,7 @@ PACKAGES = find_packages()
 PACKAGE_DATA = {
     'orangecontrib.educational': ['tutorials/*.ows'],
     'orangecontrib.educational.widgets': ['icons/*', 'resources/*'],
+    'orangecontrib.educational.widgets.highcharts': ['_highcharts/*'],
 }
 
 DATA_FILES = [

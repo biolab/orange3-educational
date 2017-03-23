@@ -1,3 +1,4 @@
 include orangecontrib/educational/tutorials/*.ows
 include orangecontrib/educational/widgets/icons/*
 include orangecontrib/educational/widgets/resources/*
+include orangecontrib/educational/widgets/highcharts/_highcharts/*
