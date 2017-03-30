@@ -304,3 +304,22 @@ class TestOWKmeans(WidgetTest):
         self.assertEqual(self.widget.k_means.k, 1)
 
         self.assertEqual(self.widget.k_means.centroids[0].tolist(), [1, 2])
+
+    def test_send_report(self):
+        """
+        Just test report not crashes
+        """
+        w = self.widget
+
+        w.set_data(self.data)
+        w.centroid_numbers_spinner.setValue(3)
+        self.process_events(lambda: w.scatter.svg())
+        w.report_button.click()
+
+        self.assertIn("Number of centroids", w.report_html)
+
+        # if no data
+        w.set_data(None)
+        w.report_button.click()
+
+        self.assertNotIn("Number of centroids", w.report_html)

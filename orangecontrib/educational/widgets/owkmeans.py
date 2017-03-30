@@ -10,6 +10,7 @@ import Orange
 from Orange.widgets.widget import OWWidget
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, widget
+from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 from orangecontrib.educational.widgets.utils.color_transform import \
@@ -172,19 +173,17 @@ class OWKmeans(OWWidget):
         self.options_box = gui.widgetBox(self.controlArea, "Data")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
-            callback=self.restart, sendSelectedValue=True)
-        policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            callback=self.restart, sendSelectedValue=True,
+            maximumContentsLength=15)
+
         self.cbx = gui.comboBox(value='attr_x', label='X: ', **opts)
-        self.cbx.setSizePolicy(policy)
         self.cby = gui.comboBox(value='attr_y', label='Y: ', **opts)
-        self.cby.setSizePolicy(policy)
 
         self.centroids_box = gui.widgetBox(self.controlArea, "Centroids")
         self.centroid_numbers_spinner = gui.spin(
             self.centroids_box, self, 'number_of_clusters',
             minv=1, maxv=10, step=1, label='Number of centroids:',
-            alignment=Qt.AlignRight, callback=self.number_of_clusters_change,
-            sizePolicy=policy)
+            alignment=Qt.AlignRight, callback=self.number_of_clusters_change)
         self.restart_button = gui.button(
             self.centroids_box, self, "Randomize Positions",
             callback=self.restart)
@@ -575,3 +574,12 @@ class OWKmeans(OWWidget):
             centroids = Table(Domain(km.data.domain.attributes), km.centroids)
             self.send("Annotated Data", annotated_data)
             self.send("Centroids", centroids)
+
+    def send_report(self):
+        if self.data is None:
+            return
+        caption = report.render_items_vert((
+             ("Number of centroids:", self.number_of_clusters),
+        ))
+        self.report_plot(self.scatter)
+        self.report_caption(caption)
