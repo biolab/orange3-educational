@@ -48,9 +48,8 @@ class Scatterplot(Highchart):
     def __init__(self, click_callback, **kwargs):
 
         # read javascript for drag and drop
-        with open(
-                path.join(path.dirname(__file__), 'resources',
-                          'highcharts-contour.js'), 'r') as f:
+        with open(path.join(path.dirname(__file__), 'resources', 'highcharts-contour.js'),
+                  encoding='utf-8') as f:
             contours_js = f.read()
 
         class Bridge(QObject):
