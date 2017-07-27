@@ -166,7 +166,7 @@ class Highchart(WebviewWidget):
                                   enable_point_select, enable_rect_select,
                                   kwargs)
 
-        with open(self._HIGHCHARTS_HTML) as html:
+        with open(self._HIGHCHARTS_HTML, encoding='utf-8') as html:
             self.setHtml(html.read() % dict(javascript=javascript,
                                             options=json(options)),
                          self.toFileURL(dirname(self._HIGHCHARTS_HTML)) + '/')

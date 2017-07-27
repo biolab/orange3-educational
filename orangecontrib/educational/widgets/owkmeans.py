@@ -67,8 +67,8 @@ class Scatterplot(Highchart):
     def __init__(self, click_callback, drop_callback, **kwargs):
 
         # read javascript for drag and drop
-        with open(path.join(path.dirname(__file__), 'resources',
-                            'draggable-points.js'), 'r') as f:
+        with open(path.join(path.dirname(__file__), 'resources', 'draggable-points.js'),
+                  encoding='utf-8') as f:
             drag_drop_js = f.read()
 
         class Bridge(QObject):
