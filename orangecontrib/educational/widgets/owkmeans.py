@@ -3,8 +3,8 @@ from os import path
 from itertools import chain
 import time
 
-from PyQt4.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
-from PyQt4.QtGui import QSizePolicy
+from AnyQt.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
+from AnyQt.QtWidgets import QSizePolicy
 
 import Orange
 from Orange.widgets.widget import OWWidget
