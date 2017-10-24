@@ -4,8 +4,8 @@ import numpy as np
 from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 from Orange.widgets.tests.base import WidgetTest
 
-from PyQt4.QtCore import Qt, QEvent
-from PyQt4.QtGui import QKeyEvent
+from AnyQt.QtCore import Qt, QEvent
+from AnyQt.QtGui import QKeyEvent
 
 from orangecontrib.educational.widgets.owgradientdescent import \
     OWGradientDescent
