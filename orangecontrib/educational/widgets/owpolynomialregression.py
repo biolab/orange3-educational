@@ -1,8 +1,9 @@
 import math
 
 from Orange.evaluation import RMSE, TestOnTrainingData, MAE
-from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
-from PyQt4.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtGui import QColor, QPalette, QPen, QFont
+from AnyQt.QtWidgets import QSizePolicy
 
 import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
@@ -367,7 +368,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
 if __name__ == "__main__":
     import sys
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication(sys.argv)
     ow = OWUnivariateRegression()
