@@ -5,8 +5,9 @@ import copy
 
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
-from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
-from PyQt4.QtCore import Qt
+from AnyQt.QtCore import Qt
+from AnyQt.QtGui import QPixmap, QColor, QIcon
+from AnyQt.QtWidgets import QSizePolicy
 from scipy.interpolate import splprep, splev
 
 from Orange.data import (

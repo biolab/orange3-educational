@@ -5,8 +5,9 @@ from os import path
 import time
 
 import numpy as np
-from PyQt4.QtCore import pyqtSlot, Qt, QThread, pyqtSignal, QObject
-from PyQt4.QtGui import QSizePolicy, QPixmap, QColor, QIcon
+from AnyQt.QtCore import pyqtSlot, Qt, QThread, pyqtSignal, QObject
+from AnyQt.QtGui import QPixmap, QColor, QIcon
+from AnyQt.QtWidgets import QSizePolicy
 
 from Orange.widgets.utils import itemmodels
 from Orange.classification import Model
