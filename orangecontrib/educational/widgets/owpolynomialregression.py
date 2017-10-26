@@ -68,7 +68,6 @@ class OWUnivariateRegression(OWBaseLearner):
     def add_main_layout(self):
 
         self.data = None
-        self.preprocessors = None
         self.learner = None
 
         self.scatterplot_item = None
@@ -277,9 +276,8 @@ class OWUnivariateRegression(OWBaseLearner):
             predictor = learner(data_table)
 
             preprocessed_data = data_table
-            if self.preprocessors is not None:
-                for preprocessor in self.preprocessors:
-                    preprocessed_data = preprocessor(preprocessed_data)
+            for preprocessor in learner.active_preprocessors:
+                preprocessed_data = preprocessor(preprocessed_data)
 
             x = preprocessed_data.X.ravel()
             y = preprocessed_data.Y.ravel()
