@@ -63,7 +63,7 @@ class OWUnivariateRegression(OWBaseLearner):
         Class used fro widget warnings.
         """
         all_none = Msg("One of the features has no defined values")
-        no_cont_variables = Msg("Polynomial Regression requires numeric features.")
+        no_cont_variables = Msg("Polynomial Regression requires at least one numeric feature.")
 
     def add_main_layout(self):
 
@@ -186,13 +186,13 @@ class OWUnivariateRegression(OWBaseLearner):
 
             nvars = len(cvars)
             nclass = len(class_cvars)
+            self.x_var_model[:] = cvars
+            self.y_var_model[:] = cvars
             if nvars == 0:
                 self.data = None
                 self.Error.no_cont_variables()
                 return
 
-            self.x_var_model[:] = cvars
-            self.y_var_model[:] = cvars
             self.x_var_index = min(max(0, self.x_var_index), nvars - 1)
             if nclass > 0:
                 self.y_var_index = min(max(0, nvars-nclass), nvars - 1)
@@ -264,7 +264,7 @@ class OWUnivariateRegression(OWBaseLearner):
         learner.name = self.learner_name
         predictor = None
 
-        self.Error.clear()
+        self.Error.all_none.clear()
 
         if self.data is not None:
             attributes = self.x_var_model[self.x_var_index]
