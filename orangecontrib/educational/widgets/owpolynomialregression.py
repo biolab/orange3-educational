@@ -9,7 +9,6 @@ import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
 import numpy as np
 
-from Orange.widgets.widget import OWWidget, Msg
 from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
@@ -19,6 +18,7 @@ from Orange.widgets import settings, gui
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.canvas import report
 
 
@@ -27,10 +27,12 @@ class OWUnivariateRegression(OWBaseLearner):
     description = "Univariate regression with polynomial expansion."
     icon = "icons/UnivariateRegression.svg"
 
-    inputs = [("Learner", Learner, "set_learner")]
+    class Inputs(OWBaseLearner.Inputs):
+        learner = Input("Learner", Learner)
 
-    outputs = [("Coefficients", Table),
-               ("Data", Table)]
+    class Outputs(OWBaseLearner.Outputs):
+        coefficients = Output("Coefficients", Table, default=True)
+        data = Output("Data", Table)
 
     replaces = [
         "Orange.widgets.regression.owunivariateregression."
@@ -200,6 +202,7 @@ class OWUnivariateRegression(OWBaseLearner):
                 self.y_var_index = min(max(0, nvars-1), nvars - 1)
         self.data = data
 
+    @Inputs.learner
     def set_learner(self, learner):
         self.learner = learner
         self.regressor_name = (learner.name if learner is not None else self.default_learner_name)

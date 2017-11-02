@@ -177,7 +177,7 @@ class TestOWPolynomialRegression(WidgetTest):
 
         w.error_bars_checkbox.click()
 
-        self.send_signal("Data", self.data)
+        self.send_signal(w.Inputs.data, self.data)
         self.assertEqual(len(w.error_plot_items), len(self.data))
 
     def test_apply(self):
@@ -216,24 +216,26 @@ class TestOWPolynomialRegression(WidgetTest):
         """
         Check if correct data on output
         """
-        self.assertIsNone(self.get_output("Data"))
+        w = self.widget
+
+        self.assertIsNone(self.get_output(w.Outputs.data))
         self.widget.set_data(self.data)
         self.widget.expansion_spin.setValue(1)
         self.widget.send_data()
-        self.assertEqual(len(self.get_output("Data").domain.attributes), 2)
+        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 2)
 
         self.widget.expansion_spin.setValue(2)
         self.widget.send_data()
-        self.assertEqual(len(self.get_output("Data").domain.attributes), 3)
+        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 3)
 
         self.widget.expansion_spin.setValue(3)
         self.widget.send_data()
-        self.assertEqual(len(self.get_output("Data").domain.attributes), 4)
+        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 4)
 
         self.widget.expansion_spin.setValue(4)
         self.widget.send_data()
-        self.assertEqual(len(self.get_output("Data").domain.attributes), 5)
+        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 5)
 
         self.widget.set_data(None)
         self.widget.send_data()
-        self.assertIsNone(self.get_output("Data"))
+        self.assertIsNone(self.get_output(w.Outputs.data))
