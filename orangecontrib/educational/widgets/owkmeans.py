@@ -7,7 +7,7 @@ from AnyQt.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
 from AnyQt.QtWidgets import QSizePolicy
 
 import Orange
-from Orange.widgets.widget import OWWidget, Msg
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, widget
 from Orange.canvas import report
@@ -131,9 +131,12 @@ class OWKmeans(OWWidget):
     want_main_area = False
 
     # inputs and outputs
-    inputs = [("Data", Orange.data.Table, "set_data")]
-    outputs = [("Annotated Data", Table, widget.Default),
-               ("Centroids", Table)]
+    class Inputs:
+        data = Input("Data", Table)
+
+    class Outputs:
+        annotated_data = Output("Annotated Data", Table, default=True)
+        centroids = Output("Centroids", Table)
 
     class Warning(OWWidget.Warning):
         num_features = Msg("Widget requires at least two numeric features")
@@ -266,6 +269,7 @@ class OWKmeans(OWWidget):
         self.step_box.setDisabled(disabled)
         self.run_box.setDisabled(disabled)
 
+    @Inputs.data
     def set_data(self, data):
         """
         Function receives data from input and init part of widget if data are
@@ -558,8 +562,8 @@ class OWKmeans(OWWidget):
         """
         km = self.k_means
         if km is None or km.clusters is None:
-            self.send("Annotated Data", None)
-            self.send("Centroids", None)
+            self.Outputs.annotated_data.send(None)
+            self.Outputs.centroids.send(None)
         else:
             clust_var = DiscreteVariable(
                 self.output_name,
@@ -575,8 +579,8 @@ class OWKmeans(OWWidget):
             annotated_data.Y[self.selected_rows] = km.clusters
 
             centroids = Table(Domain(km.data.domain.attributes), km.centroids)
-            self.send("Annotated Data", annotated_data)
-            self.send("Centroids", centroids)
+            self.Outputs.annotated_data.send(annotated_data)
+            self.Outputs.centroids.send(centroids)
 
     def send_report(self):
         if self.data is None:
