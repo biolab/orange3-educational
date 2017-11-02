@@ -16,7 +16,7 @@ from Orange.widgets import settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.classification import (LogisticRegressionLearner, Learner,
                                    RandomForestLearner, TreeLearner)
-from Orange.widgets.widget import Msg, OWWidget
+from Orange.widgets.widget import Msg, OWWidget, Input, Output
 from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
@@ -73,10 +73,12 @@ class OWPolynomialClassification(OWBaseLearner):
     resizing_enabled = True
 
     # inputs and outputs
-    inputs = [("Data", Table, "set_data"),
-              ("Learner", Learner, "set_learner")]
-    outputs = [("Coefficients", Table),
-               ("Data", Table)]
+    class Inputs(OWBaseLearner.Inputs):
+        learner = Input("Learner", Learner)
+
+    class Outputs(OWBaseLearner.Outputs):
+        coefficients = Output("Coefficients", Table, default=True)
+        data = Output("Data", Table)
 
     # data attributes
     data = None
@@ -184,6 +186,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
         self.init_learner()
 
+    @Inputs.learner
     def set_learner(self, learner):
         """
         Function is sets learner when learner is changed on input
@@ -558,7 +561,7 @@ class OWPolynomialClassification(OWBaseLearner):
         """
 
         self.learner.name = self.learner_name
-        self.send("Learner", self.learner)
+        self.Outputs.learner.send(self.learner)
 
     def update_model(self):
         """
@@ -575,7 +578,7 @@ class OWPolynomialClassification(OWBaseLearner):
         else:
             self.model = None
 
-        self.send(self.OUTPUT_MODEL_NAME, self.model)
+        self.Outputs.model.send(self.model)
 
     def send_coefficients(self):
         """
@@ -599,9 +602,9 @@ class OWPolynomialClassification(OWBaseLearner):
 
             coefficients_table = Table(
                 domain, list(zip(coefficients, names)))
-            self.send("Coefficients", coefficients_table)
+            self.Outputs.coefficients.send(coefficients_table)
         else:
-            self.send("Coefficients", None)
+            self.Outputs.coefficients.send(None)
 
     def send_data(self):
         """
@@ -609,9 +612,9 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         if self.data is not None:
             data = self.selected_data
-            self.send("Data", data)
+            self.Outputs.data.send(data)
             return
-        self.send("Data", None)
+        self.Outputs.data.send(None)
 
     def add_bottom_buttons(self):
         pass
