@@ -275,8 +275,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         self.learner = (copy.deepcopy(self.learner_other) or
                         self.LEARNER(penalty='l2', C=1e10))
-        self.learner.preprocessors = ((self.preprocessors or []) +
-                                      (self.learner.preprocessors or []) +
+        self.learner.preprocessors = (list(self.preprocessors or []) +
+                                      list(self.learner.preprocessors or []) +
                                       [self.default_preprocessor(self.degree)])
         self.apply()
 
