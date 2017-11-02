@@ -288,7 +288,7 @@ class OWKmeans(OWWidget):
             function initialize the combos with attributes
             """
             reset_combos()
-            for var in data.domain if data is not None else []:
+            for var in data.domain.variables if data is not None else []:
                 if var.is_primitive() and var.is_continuous:
                     self.cbx.addItem(gui.attributeIconDict[var], var.name)
                     self.cby.addItem(gui.attributeIconDict[var], var.name)
