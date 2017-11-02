@@ -547,3 +547,20 @@ class TestOWPolynomialClassification(WidgetTest):
         self.send_signal(w.Inputs.data, self.iris)
         self.process_events(lambda: getattr(w, w.graph_name).svg())
         w.send_report()
+
+    def test_bad_learner(self):
+        """
+        Some learners on input might raise error.
+        GH-38
+        """
+        w = self.widget
+
+        self.assertFalse(w.Error.fitting_failed.is_shown())
+        learner = LogisticRegressionLearner()
+        learner.preprocessors = [Discretize()]
+        self.send_signal(w.Inputs.learner, learner)
+        self.send_signal(w.Inputs.data, self.iris)
+        self.assertTrue(w.Error.fitting_failed.is_shown())
+        learner.preprocessors = []
+        self.send_signal(w.Inputs.learner, learner)
+        self.assertFalse(w.Error.fitting_failed.is_shown())

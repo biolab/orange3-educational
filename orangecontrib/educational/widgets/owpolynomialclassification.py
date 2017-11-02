@@ -123,7 +123,7 @@ class OWPolynomialClassification(OWBaseLearner):
     x_var_model = None
     y_var_model = None
 
-    class Error(OWWidget.Error):
+    class Error(OWBaseLearner.Error):
         to_few_features = Msg(
             "Polynomial classification requires at least two numeric features")
         no_class = Msg("Data must have a single discrete class attribute")
@@ -551,7 +551,9 @@ class OWPolynomialClassification(OWBaseLearner):
         self.send_learner()
         self.update_model()
         self.send_coefficients()
-        if self.data is not None:
+        if None in (self.data, self.model):
+            self.set_empty_plot()
+        else:
             self.replot()
         self.send_data()
 
@@ -567,16 +569,17 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function sends model on widget's output
         """
+        self.Error.fitting_failed.clear()
+        self.model = None
         if self.data is not None:
             self.selected_data = self.select_data()
             if self.selected_data is not None:
-                self.model = self.learner(self.selected_data)
-                self.model.name = self.learner_name
-                self.model.instances = self.selected_data
-            else:
-                self.model = None
-        else:
-            self.model = None
+                try:
+                    self.model = self.learner(self.selected_data)
+                    self.model.name = self.learner_name
+                    self.model.instances = self.selected_data
+                except Exception as e:
+                    self.Error.fitting_failed(str(e))
 
         self.Outputs.model.send(self.model)
 
