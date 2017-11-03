@@ -7,7 +7,7 @@ from AnyQt.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
 from AnyQt.QtWidgets import QSizePolicy
 
 import Orange
-from Orange.widgets.widget import OWWidget
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, widget
 from Orange.canvas import report
@@ -131,9 +131,16 @@ class OWKmeans(OWWidget):
     want_main_area = False
 
     # inputs and outputs
-    inputs = [("Data", Orange.data.Table, "set_data")]
-    outputs = [("Annotated Data", Table, widget.Default),
-               ("Centroids", Table)]
+    class Inputs:
+        data = Input("Data", Table)
+
+    class Outputs:
+        annotated_data = Output("Annotated Data", Table, default=True)
+        centroids = Output("Centroids", Table)
+
+    class Warning(OWWidget.Warning):
+        num_features = Msg("Widget requires at least two numeric features")
+        cluster_points = Msg("The number of clusters can't exceed the number of points")
 
     # settings
     number_of_clusters = settings.Setting(3)
@@ -262,6 +269,7 @@ class OWKmeans(OWWidget):
         self.step_box.setDisabled(disabled)
         self.run_box.setDisabled(disabled)
 
+    @Inputs.data
     def set_data(self, data):
         """
         Function receives data from input and init part of widget if data are
@@ -284,13 +292,13 @@ class OWKmeans(OWWidget):
             function initialize the combos with attributes
             """
             reset_combos()
-            for var in data.domain if data is not None else []:
+            for var in data.domain.variables if data is not None else []:
                 if var.is_primitive() and var.is_continuous:
                     self.cbx.addItem(gui.attributeIconDict[var], var.name)
                     self.cby.addItem(gui.attributeIconDict[var], var.name)
 
-        self.warning(1)  # remove warning about too less continuous attributes
-        self.warning(2)  # remove warning about not enough data
+        # remove warnings about too less continuous attributes and not enough data
+        self.Warning.clear()
 
         if self.auto_play_thread:
             self.auto_play_thread.stop()
@@ -302,7 +310,7 @@ class OWKmeans(OWWidget):
         elif sum(True for var in data.domain.attributes if
                  isinstance(var, ContinuousVariable)) < 2:
             reset_combos()
-            self.warning(1, "Widget requires at least two numeric features")
+            self.Warning.num_features()
             self.set_empty_plot()
             self.set_disabled_all(True)
         else:
@@ -507,13 +515,12 @@ class OWKmeans(OWWidget):
             return
         if self.number_of_clusters > len(self.data):
             # if too less data for clusters number
-            self.warning(
-                2, "The number of clusters can't exceed the number of points")
+            self.Warning.cluster_points()
             self.set_empty_plot()
             self.step_box.setDisabled(True)
             self.run_box.setDisabled(True)
         else:
-            self.warning(2)
+            self.Warning.cluster_points.clear()
             self.step_box.setDisabled(False)
             self.run_box.setDisabled(False)
             if self.k_means is None:  # if before too less data k_means is None
@@ -555,8 +562,8 @@ class OWKmeans(OWWidget):
         """
         km = self.k_means
         if km is None or km.clusters is None:
-            self.send("Annotated Data", None)
-            self.send("Centroids", None)
+            self.Outputs.annotated_data.send(None)
+            self.Outputs.centroids.send(None)
         else:
             clust_var = DiscreteVariable(
                 self.output_name,
@@ -572,8 +579,8 @@ class OWKmeans(OWWidget):
             annotated_data.Y[self.selected_rows] = km.clusters
 
             centroids = Table(Domain(km.data.domain.attributes), km.centroids)
-            self.send("Annotated Data", annotated_data)
-            self.send("Centroids", centroids)
+            self.Outputs.annotated_data.send(annotated_data)
+            self.Outputs.centroids.send(centroids)
 
     def send_report(self):
         if self.data is None:

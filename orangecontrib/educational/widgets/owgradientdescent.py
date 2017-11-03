@@ -15,7 +15,7 @@ from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable, \
     StringVariable
 from Orange.widgets import gui
 from Orange.widgets import settings
-from Orange.widgets.widget import OWWidget, Msg
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.preprocess.preprocess import Normalize
 from scipy.interpolate import splprep, splev
 
@@ -155,10 +155,13 @@ class OWGradientDescent(OWWidget):
     icon = "icons/GradientDescent.svg"
     want_main_area = True
 
-    inputs = [("Data", Table, "set_data")]
-    outputs = [("Model", Model),
-               ("Coefficients", Table),
-               ("Data", Table)]
+    class Inputs:
+        data = Input("Data", Table)
+
+    class Outputs:
+        model = Output("Model", Model)
+        coefficients = Output("Coefficients", Table)
+        data = Output("Data", Table)
 
     graph_name = "scatter"
 
@@ -304,6 +307,7 @@ class OWGradientDescent(OWWidget):
         self.step_size_lock()
         self.step_back_button_lock()
 
+    @Inputs.data
     def set_data(self, data):
         """
         Function receives data from input and init part of widget if data
@@ -806,9 +810,9 @@ class OWGradientDescent(OWWidget):
         Function sends model on output.
         """
         if self.learner is not None and self.learner.theta is not None:
-            self.send("Model", self.learner.model)
+            self.Outputs.model.send(self.learner.model)
         else:
-            self.send("Model", None)
+            self.Outputs.model.send(None)
 
     def send_coefficients(self):
         """
@@ -822,18 +826,18 @@ class OWGradientDescent(OWWidget):
 
             coefficients_table = Table(
                     domain, list(zip(list(self.learner.theta), names)))
-            self.send("Coefficients", coefficients_table)
+            self.Outputs.coefficients.send(coefficients_table)
         else:
-            self.send("Coefficients", None)
+            self.Outputs.coefficients.send(None)
 
     def send_data(self):
         """
         Function sends data on output.
         """
         if self.selected_data is not None:
-            self.send("Data", self.selected_data)
+            self.Outputs.data.send(self.selected_data)
         else:
-            self.send("Data", None)
+            self.Outputs.data.send(None)
 
     key_actions = {(0, Qt.Key_Space): step}  # space button for step
 
