@@ -348,6 +348,7 @@ class OWUnivariateRegression(OWBaseLearner):
         if self.data is not None:
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
+
             data_table = Table(
                 Domain([attributes], class_vars=[class_var]), self.data)
             polyfeatures = skl_preprocessing.PolynomialFeatures(
@@ -355,16 +356,18 @@ class OWUnivariateRegression(OWBaseLearner):
 
             x = data_table.X[~np.isnan(data_table.X).any(axis=1)]
             x = polyfeatures.fit_transform(x)
-
             x_label = data_table.domain.attributes[0].name
+
+            out_array = np.concatenate((x, data_table.Y[np.newaxis].T), axis=1)
+
             out_domain = Domain(
                 [ContinuousVariable("1")] + ([data_table.domain.attributes[0]]
                                              if self.polynomialexpansion > 0
                                              else []) +
                 [ContinuousVariable("{}^{}".format(x_label, i))
-                 for i in range(2, int(self.polynomialexpansion) + 1)])
+                 for i in range(2, int(self.polynomialexpansion) + 1)], class_vars=[class_var])
 
-            self.send("Data", Table(out_domain, x))
+            self.send("Data", Table(out_domain, out_array))
             return
 
         self.send("Data", None)
