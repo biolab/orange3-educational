@@ -10,6 +10,7 @@ from AnyQt.QtGui import QPixmap, QColor, QIcon
 from AnyQt.QtWidgets import QSizePolicy
 from scipy.interpolate import splprep, splev
 
+from Orange.base import Learner as InputLearner
 from Orange.data import (
     ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
 from Orange.widgets import settings, gui
@@ -74,7 +75,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     # inputs and outputs
     class Inputs(OWBaseLearner.Inputs):
-        learner = Input("Learner", Learner)
+        learner = Input("Learner", InputLearner)
 
     class Outputs(OWBaseLearner.Outputs):
         coefficients = Output("Coefficients", Table, default=True)
