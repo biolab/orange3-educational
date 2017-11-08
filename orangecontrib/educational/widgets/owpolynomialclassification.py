@@ -10,6 +10,7 @@ from AnyQt.QtGui import QPixmap, QColor, QIcon
 from AnyQt.QtWidgets import QSizePolicy
 from scipy.interpolate import splprep, splev
 
+from Orange.base import Learner as InputLearner
 from Orange.data import (
     ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
 from Orange.widgets import settings, gui
@@ -74,7 +75,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     # inputs and outputs
     class Inputs(OWBaseLearner.Inputs):
-        learner = Input("Learner", Learner)
+        learner = Input("Learner", InputLearner)
 
     class Outputs(OWBaseLearner.Outputs):
         coefficients = Output("Coefficients", Table, default=True)
@@ -275,9 +276,9 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         self.learner = (copy.deepcopy(self.learner_other) or
                         self.LEARNER(penalty='l2', C=1e10))
-        self.learner.preprocessors = (list(self.preprocessors or []) +
-                                      list(self.learner.preprocessors or []) +
-                                      [self.default_preprocessor(self.degree)])
+        self.learner.preprocessors = ([self.default_preprocessor(self.degree)] +
+                                      list(self.preprocessors or []) +
+                                      list(self.learner.preprocessors or []))
         self.apply()
 
     def set_empty_plot(self):
