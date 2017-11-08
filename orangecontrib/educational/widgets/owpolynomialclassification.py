@@ -276,9 +276,9 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         self.learner = (copy.deepcopy(self.learner_other) or
                         self.LEARNER(penalty='l2', C=1e10))
-        self.learner.preprocessors = (list(self.preprocessors or []) +
-                                      list(self.learner.preprocessors or []) +
-                                      [self.default_preprocessor(self.degree)])
+        self.learner.preprocessors = ([self.default_preprocessor(self.degree)] +
+                                      list(self.preprocessors or []) +
+                                      list(self.learner.preprocessors or []))
         self.apply()
 
     def set_empty_plot(self):
