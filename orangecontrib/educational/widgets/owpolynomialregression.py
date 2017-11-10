@@ -320,8 +320,8 @@ class OWUnivariateRegression(OWBaseLearner):
 
             self.set_range(x, y)
 
-        self.send("Learner", learner)
-        self.send("Predictor", predictor)
+        self.Outputs.learner.send(learner)
+        self.Outputs.model.send(predictor)
 
         # Send model coefficents
         model = None
@@ -338,9 +338,9 @@ class OWUnivariateRegression(OWBaseLearner):
             names = ["1", x_label] + \
                     ["{}^{}".format(x_label, i) for i in range(2, degree + 1)]
             coef_table = Table(domain, list(zip(coefs, names)))
-            self.send("Coefficients", coef_table)
+            self.Outputs.coefficients.send(coef_table)
         else:
-            self.send("Coefficients", None)
+            self.Outputs.coefficients.send(None)
 
         self.send_data()
 
@@ -354,11 +354,12 @@ class OWUnivariateRegression(OWBaseLearner):
             polyfeatures = skl_preprocessing.PolynomialFeatures(
                 int(self.polynomialexpansion))
 
-            x = data_table.X[~np.isnan(data_table.X).any(axis=1)]
+            valid_mask = ~np.isnan(data_table.X).any(axis=1)
+            x = data_table.X[valid_mask]
             x = polyfeatures.fit_transform(x)
             x_label = data_table.domain.attributes[0].name
 
-            out_array = np.concatenate((x, data_table.Y[np.newaxis].T), axis=1)
+            out_array = np.concatenate((x, data_table.Y[np.newaxis].T[valid_mask]), axis=1)
 
             out_domain = Domain(
                 [ContinuousVariable("1")] + ([data_table.domain.attributes[0]]
@@ -367,10 +368,10 @@ class OWUnivariateRegression(OWBaseLearner):
                 [ContinuousVariable("{}^{}".format(x_label, i))
                  for i in range(2, int(self.polynomialexpansion) + 1)], class_vars=[class_var])
 
-            self.send("Data", Table(out_domain, out_array))
+            self.Outputs.data.send(Table(out_domain, out_array))
             return
 
-        self.send("Data", None)
+        self.Outputs.data.send(None)
 
     def add_bottom_buttons(self):
         pass

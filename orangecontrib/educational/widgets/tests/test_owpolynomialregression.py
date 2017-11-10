@@ -1,3 +1,5 @@
+import numpy as np
+
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.educational.widgets.owpolynomialregression \
@@ -239,3 +241,12 @@ class TestOWPolynomialRegression(WidgetTest):
         self.widget.set_data(None)
         self.widget.send_data()
         self.assertIsNone(self.get_output(w.Outputs.data))
+
+    def test_data_nan_row(self):
+        """
+        When some rows are nan in attributes array widget crashes.
+        GH-43
+        """
+        data = Table("iris")[::50]
+        data.X[0] = np.nan
+        self.send_signal(self.widget.Inputs.data, data)
