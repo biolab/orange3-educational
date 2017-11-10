@@ -129,6 +129,7 @@ class OWPolynomialClassification(OWBaseLearner):
             "Polynomial classification requires at least two numeric features")
         no_class = Msg("Data must have a single discrete class attribute")
         all_none_data = Msg("One of the features has no defined values")
+        no_classifier = Msg("Learner must be a classifier")
 
     def add_main_layout(self):
         # var models
@@ -274,11 +275,19 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function init learner and add preprocessors to learner
         """
-        self.learner = (copy.deepcopy(self.learner_other) or
-                        self.LEARNER(penalty='l2', C=1e10))
-        self.learner.preprocessors = ([self.default_preprocessor(self.degree)] +
-                                      list(self.preprocessors or []) +
-                                      list(self.learner.preprocessors or []))
+        if self.learner_other is not None and \
+            self.learner_other.__class__.__name__ == "LinearRegressionLearner":
+            # in case that learner is a Linear Regression
+            self.learner = None
+            self.Error.no_classifier()
+        else:
+            self.learner = (copy.deepcopy(self.learner_other) or
+                            self.LEARNER(penalty='l2', C=1e10))
+            self.learner.preprocessors = (
+                [self.default_preprocessor(self.degree)] +
+                list(self.preprocessors or []) +
+                list(self.learner.preprocessors or []))
+            self.Error.no_classifier.clear()
         self.apply()
 
     def set_empty_plot(self):
@@ -562,8 +571,8 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         Function sends learner on widget's output
         """
-
-        self.learner.name = self.learner_name
+        if self.learner is not None:
+            self.learner.name = self.learner_name
         self.Outputs.learner.send(self.learner)
 
     def update_model(self):
@@ -572,7 +581,7 @@ class OWPolynomialClassification(OWBaseLearner):
         """
         self.Error.fitting_failed.clear()
         self.model = None
-        if self.data is not None:
+        if self.data is not None and self.learner is not None:
             self.selected_data = self.select_data()
             if self.selected_data is not None:
                 try:

@@ -1,6 +1,7 @@
 from functools import reduce
 import unittest
 
+from Orange.regression import LinearRegressionLearner
 from numpy.testing import assert_array_equal
 
 from Orange.widgets.tests.base import WidgetTest
@@ -8,7 +9,7 @@ from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
 from Orange.classification import (
     LogisticRegressionLearner,
     TreeLearner,
-    RandomForestLearner)
+    RandomForestLearner, SVMLearner)
 from Orange.preprocess.preprocess import Continuize, Discretize
 from orangecontrib.educational.widgets.owpolynomialclassification import \
     OWPolynomialClassification
@@ -464,6 +465,7 @@ class TestOWPolynomialClassification(WidgetTest):
         """
         Coefficients are only available if Logistic regression is used
         """
+        w = self.widget
 
         # none when no data (model not build)
         self.assertIsNone(self.get_output(w.Outputs.coefficients))
@@ -565,3 +567,35 @@ class TestOWPolynomialClassification(WidgetTest):
         learner.preprocessors = []
         self.send_signal(w.Inputs.learner, learner)
         self.assertFalse(w.Error.fitting_failed.is_shown())
+
+    def test_raise_no_classifier_error(self):
+        """
+        Regression learner must raise error
+        """
+        w = self.widget
+
+        # linear regression learner is regression - should raise
+        learner = LinearRegressionLearner()
+        self.send_signal(w.Inputs.learner, learner)
+        self.assertTrue(w.Error.no_classifier.is_shown())
+
+        # make it empty to test if error disappear
+        self.send_signal(w.Inputs.learner, None)
+        self.assertFalse(w.Error.no_classifier.is_shown())
+
+        # test with some other learners
+        learner = LogisticRegressionLearner()
+        self.send_signal(w.Inputs.learner, learner)
+        self.assertFalse(w.Error.no_classifier.is_shown())
+
+        learner = TreeLearner()
+        self.send_signal(w.Inputs.learner, learner)
+        self.assertFalse(w.Error.no_classifier.is_shown())
+
+        learner = RandomForestLearner()
+        self.send_signal(w.Inputs.learner, learner)
+        self.assertFalse(w.Error.no_classifier.is_shown())
+
+        learner = SVMLearner()
+        self.send_signal(w.Inputs.learner, learner)
+        self.assertFalse(w.Error.no_classifier.is_shown())
