@@ -354,11 +354,12 @@ class OWUnivariateRegression(OWBaseLearner):
             polyfeatures = skl_preprocessing.PolynomialFeatures(
                 int(self.polynomialexpansion))
 
-            x = data_table.X[~np.isnan(data_table.X).any(axis=1)]
+            valid_mask = ~np.isnan(data_table.X).any(axis=1)
+            x = data_table.X[valid_mask]
             x = polyfeatures.fit_transform(x)
             x_label = data_table.domain.attributes[0].name
 
-            out_array = np.concatenate((x, data_table.Y[np.newaxis].T), axis=1)
+            out_array = np.concatenate((x, data_table.Y[np.newaxis].T[valid_mask]), axis=1)
 
             out_domain = Domain(
                 [ContinuousVariable("1")] + ([data_table.domain.attributes[0]]
