@@ -139,7 +139,7 @@ class OWKmeans(OWWidget):
         centroids = Output("Centroids", Table)
 
     class Warning(OWWidget.Warning):
-        num_features = Msg("Widget requires at least two numeric features")
+        num_features = Msg("Widget requires at least two numeric features with valid values")
         cluster_points = Msg("The number of clusters can't exceed the number of points")
 
     # settings
@@ -283,6 +283,10 @@ class OWKmeans(OWWidget):
         """
         self.data = data
 
+        def get_valid_attributes(data):
+            attrs = [var for var in data.domain.attributes if var.is_continuous]
+            return [var for var in attrs if sum(~np.isnan(data[:, var])) > 0]
+
         def reset_combos():
             self.cbx.clear()
             self.cby.clear()
@@ -292,10 +296,11 @@ class OWKmeans(OWWidget):
             function initialize the combos with attributes
             """
             reset_combos()
-            for var in data.domain.variables if data is not None else []:
-                if var.is_primitive() and var.is_continuous:
-                    self.cbx.addItem(gui.attributeIconDict[var], var.name)
-                    self.cby.addItem(gui.attributeIconDict[var], var.name)
+            valid_class_vars = [var for var in data.domain.class_vars
+                                if data is not None and var.is_continuous]
+            for var in chain(valid_attributes, valid_class_vars):
+                self.cbx.addItem(gui.attributeIconDict[var], var.name)
+                self.cby.addItem(gui.attributeIconDict[var], var.name)
 
         # remove warnings about too less continuous attributes and not enough data
         self.Warning.clear()
@@ -307,8 +312,11 @@ class OWKmeans(OWWidget):
             reset_combos()
             self.set_empty_plot()
             self.set_disabled_all(True)
-        elif sum(True for var in data.domain.attributes if
-                 isinstance(var, ContinuousVariable)) < 2:
+            return
+
+        valid_attributes = get_valid_attributes(data)
+
+        if len(valid_attributes) < 2:
             reset_combos()
             self.Warning.num_features()
             self.set_empty_plot()

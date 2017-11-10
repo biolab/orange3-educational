@@ -1,5 +1,6 @@
 from Orange.widgets.tests.base import WidgetTest
 import Orange
+from Orange.data import Domain, Table
 from Orange.data.domain import ContinuousVariable
 import numpy as np
 from orangecontrib.educational.widgets.owkmeans import OWKmeans
@@ -323,3 +324,14 @@ class TestOWKmeans(WidgetTest):
         w.report_button.click()
 
         self.assertNotIn("Number of centroids", w.report_html)
+
+    def test_data_nan_column(self):
+        """
+        Do not crash when a column has a nan value.
+        GH-40
+        """
+        data = Table("iris")
+        domain = Domain(attributes=data.domain.attributes[:2], class_vars=data.domain.class_vars)
+        data = data.transform(domain)
+        data[:, 0] = np.nan
+        self.send_signal(self.widget.Inputs.data, data)
