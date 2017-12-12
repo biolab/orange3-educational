@@ -2,6 +2,7 @@ import unittest
 
 from numpy.testing import *
 import numpy as np
+import scipy.sparse as sp
 
 from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 from Orange.widgets.tests.base import WidgetTest
@@ -860,3 +861,27 @@ class TestOWGradientDescent(WidgetTest):
         self.send_signal(w.Inputs.data, self.iris)
         w.auto_play_button.click()
         self.send_signal(w.Inputs.data, None)
+
+    def test_sparse(self):
+        """
+        Do not crash on sparse data. Convert used
+        sparse columns to numpy array.
+        GH-45
+        """
+        w = self.widget
+
+        def send_sparse_data(data):
+            data.X = sp.csr_matrix(data.X)
+            data.Y = sp.csr_matrix(data.Y)
+            self.send_signal(w.Inputs.data, data)
+
+        # one class variable
+        send_sparse_data(Table("iris"))
+
+        # two class variables
+        data = Table("iris")
+        domain = Domain(
+            attributes=data.domain.attributes[:3],
+            class_vars=data.domain.attributes[3:] + data.domain.class_vars
+        )
+        send_sparse_data(data.transform(domain))
