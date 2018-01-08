@@ -850,3 +850,13 @@ class TestOWGradientDescent(WidgetTest):
         self.process_events(_svg_ready)
         w.send_report()
         self.process_events()
+
+    def test_auto_play_data_removed(self):
+        """
+        Do not crash if auto play runs and data is removed.
+        GH-47
+        """
+        w = self.widget
+        self.send_signal(w.Inputs.data, self.iris)
+        w.auto_play_button.click()
+        self.send_signal(w.Inputs.data, None)

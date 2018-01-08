@@ -136,7 +136,8 @@ class Autoplay(QThread):
         """
         Stepping through the algorithm until converge or user interrupts
         """
-        while (not self.ow_gradient_descent.learner.converged and
+        while (self.ow_gradient_descent.learner and
+               not self.ow_gradient_descent.learner.converged and
                self.ow_gradient_descent.auto_play_enabled and
                self.ow_gradient_descent.learner.step_no <= 500):
             self.ow_gradient_descent.step_trigger.emit()
