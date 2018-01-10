@@ -68,8 +68,7 @@
          height="100%"
          x="0"
          y="0"
-         stroke-width="0"
-         fill="url(#gridpattern)" />
+         stroke-width="0" />
     </g>
   </g>
   <g
