@@ -5,6 +5,8 @@ from os import path
 import time
 
 import numpy as np
+import scipy.sparse as sp
+
 from AnyQt.QtCore import pyqtSlot, Qt, QThread, pyqtSignal, QObject
 from AnyQt.QtGui import QPixmap, QColor, QIcon
 from AnyQt.QtWidgets import QSizePolicy
@@ -728,10 +730,11 @@ class OWGradientDescent(OWWidget):
         cols = []
         for attr in (attr_x, attr_y) if attr_y is not None else (attr_x, ):
             subset = self.data[:, attr]
-            cols.append(subset.X)
+            cols.append(subset.X if not sp.issparse(subset.X) else subset.X.toarray())
         x = np.column_stack(cols)
-        y_c = self.data.Y
-
+        y_c = self.data.Y if not sp.issparse(self.data.Y) else self.data.Y.toarray()
+        if y_c.ndim == 2 and y_c.shape[1] == 1:
+            y_c = y_c.flatten()
         # remove nans
         indices = ~np.isnan(x).any(axis=1) & ~np.isnan(y_c)
         x = x[indices]
