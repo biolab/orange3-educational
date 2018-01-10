@@ -438,6 +438,8 @@ class OWPolynomialClassification(OWBaseLearner):
         Function constructs contour lines
         """
         self.scatter.remove_contours()
+        if not self.data:
+            return
         if self.contours_enabled:
             is_tree = type(self.learner) in [RandomForestLearner, TreeLearner]
             # tree does not need smoothing

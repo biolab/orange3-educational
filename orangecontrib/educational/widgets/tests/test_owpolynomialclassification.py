@@ -599,3 +599,10 @@ class TestOWPolynomialClassification(WidgetTest):
         learner = SVMLearner()
         self.send_signal(w.Inputs.learner, learner)
         self.assertFalse(w.Error.no_classifier.is_shown())
+
+    def test_no_data_contour(self):
+        """
+        Do not crash when there is no data and one want to draw contours.
+        GH-50
+        """
+        self.widget.contours_enabled_checkbox.click()
