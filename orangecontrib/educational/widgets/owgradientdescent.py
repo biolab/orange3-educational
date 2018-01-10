@@ -142,7 +142,10 @@ class Autoplay(QThread):
                not self.ow_gradient_descent.learner.converged and
                self.ow_gradient_descent.auto_play_enabled and
                self.ow_gradient_descent.learner.step_no <= 500):
-            self.ow_gradient_descent.step_trigger.emit()
+            try:
+                self.ow_gradient_descent.step_trigger.emit()
+            except RuntimeError:
+                return
             time.sleep(2 - self.ow_gradient_descent.auto_play_speed)
         self.ow_gradient_descent.stop_auto_play_trigger.emit()
 
