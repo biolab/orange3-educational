@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 NAME = "Orange3-Educational"
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 
 DESCRIPTION = "Orange Educational add-on for Orange data mining software package."
 LONG_DESCRIPTION = open(path.join(path.dirname(__file__), 'README.md')).read()
@@ -94,7 +94,7 @@ def include_documentation(local_dir, install_dir):
 
 
 if __name__ == '__main__':
-    include_documentation('doc/build/html', 'help/orange3-educational')
+    include_documentation('doc/build/htmlhelp', 'help/orange3-educational')
     setup(
         name=NAME,
         version=VERSION,
