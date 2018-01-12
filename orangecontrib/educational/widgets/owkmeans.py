@@ -46,7 +46,10 @@ class Autoplay(QThread):
         while (self.is_running and
                not self.owkmeans.k_means.converged and
                self.owkmeans.auto_play_enabled):
-            self.owkmeans.step_trigger.emit()
+            try:
+                self.owkmeans.step_trigger.emit()
+            except RuntimeError:
+                return
             time.sleep(2 - self.owkmeans.auto_play_speed)
         self.owkmeans.stop_auto_play_trigger.emit()
 
