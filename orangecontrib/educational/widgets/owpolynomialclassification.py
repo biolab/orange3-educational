@@ -563,7 +563,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.send_learner()
         self.update_model()
         self.send_coefficients()
-        if None in (self.data, self.model):
+        if any(a is None for a in (self.data, self.model)):
             self.set_empty_plot()
         else:
             self.replot()
