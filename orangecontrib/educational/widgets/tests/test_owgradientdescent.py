@@ -885,3 +885,7 @@ class TestOWGradientDescent(WidgetTest):
             class_vars=data.domain.attributes[3:] + data.domain.class_vars
         )
         send_sparse_data(data.transform(domain))
+
+
+if __name__ == "__main__":
+    unittest.main()
