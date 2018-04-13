@@ -1,9 +1,10 @@
 from functools import reduce
 import unittest
 
-from Orange.regression import LinearRegressionLearner
+import scipy.sparse as sp
 from numpy.testing import assert_array_equal
 
+from Orange.regression import LinearRegressionLearner
 from Orange.widgets.tests.base import WidgetTest
 from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
 from Orange.classification import (
@@ -606,3 +607,31 @@ class TestOWPolynomialClassification(WidgetTest):
         GH-50
         """
         self.widget.contours_enabled_checkbox.click()
+
+    def test_sparse(self):
+        """
+        Do not crash on sparse data. Convert used
+        sparse columns to numpy array.
+        GH-52
+        """
+        w = self.widget
+
+        def send_sparse_data(data):
+            data.X = sp.csr_matrix(data.X)
+            data.Y = sp.csr_matrix(data.Y)
+            self.send_signal(w.Inputs.data, data)
+
+        # one class variable
+        send_sparse_data(Table("iris"))
+
+        # two class variables
+        data = Table("iris")
+        domain = Domain(
+            attributes=data.domain.attributes[:3],
+            class_vars=data.domain.attributes[3:] + data.domain.class_vars
+        )
+        send_sparse_data(data.transform(domain))
+
+
+if __name__ == "__main__":
+    unittest.main()
