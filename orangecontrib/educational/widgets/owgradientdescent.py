@@ -188,7 +188,7 @@ class OWGradientDescent(OWWidget):
     learner_name = ""
     learner = None
     cost_grid = None
-    grid_size = 15
+    grid_size = 10
     contour_color = "#aaaaaa"
     default_background_color = "#00BFFF"
     line_colors = ["#00BFFF", "#ff0000", "#33cc33"]
