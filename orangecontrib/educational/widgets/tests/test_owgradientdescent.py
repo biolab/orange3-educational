@@ -237,7 +237,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.learner.stochastic, False)
         self.assertEqual(w.learner.stochastic_step_size, w.step_size)
 
-    def test_learner_set_continuous(self):
+    def test_learner_set_continuous_restart(self):
         """
         Test if restart works fine
         """
@@ -879,7 +879,10 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
         # for linear regression
         # when learner but no theta
-        self.send_signal(w.Inputs.data, Table('housing')[::100])
+        domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                        ContinuousVariable('c'))
+        data = Table(domain, [[1, 2], [1, 2]], [0.1, 1])
+        self.send_signal(w.Inputs.data, data)
         self.assertIsNotNone(self.get_output(w.Outputs.coefficients))
         # when everything fine
         w.change_theta(1., 1.)
