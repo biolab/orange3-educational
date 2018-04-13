@@ -4,11 +4,12 @@ from os import path
 import copy
 
 import numpy as np
+import scipy.sparse as sp
+from scipy.interpolate import splprep, splev
 from scipy.ndimage.filters import gaussian_filter
+
 from AnyQt.QtCore import Qt
 from AnyQt.QtGui import QPixmap, QColor, QIcon
-from AnyQt.QtWidgets import QSizePolicy
-from scipy.interpolate import splprep, splev
 
 from Orange.base import Learner as InputLearner
 from Orange.data import (
@@ -531,8 +532,9 @@ class OWPolynomialClassification(OWBaseLearner):
         cols = []
         for attr in (attr_x, attr_y):
             subset = self.data[:, attr]
-            cols.append(subset.X)
+            cols.append(subset.X if not sp.issparse(subset.X) else subset.X.toarray())
         x = np.column_stack(cols)
+        y_c = self.data.Y[:, None] if not sp.issparse(self.data.Y) else self.data.Y.toarray()
 
         if np.isnan(x).all(axis=0).any():
             self.Error.all_none_data()
@@ -554,7 +556,7 @@ class OWPolynomialClassification(OWBaseLearner):
         y = [(0 if d.get_class().value == self.target_class else 1)
              for d in self.data]
 
-        return Table(domain, x, y, self.data.Y[:, None])
+        return Table(domain, x, y, y_c)
 
     def apply(self):
         """
@@ -563,7 +565,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.send_learner()
         self.update_model()
         self.send_coefficients()
-        if None in (self.data, self.model):
+        if any(a is None for a in (self.data, self.model)):
             self.set_empty_plot()
         else:
             self.replot()

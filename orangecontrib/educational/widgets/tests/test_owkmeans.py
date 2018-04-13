@@ -335,3 +335,8 @@ class TestOWKmeans(WidgetTest):
         data = data.transform(domain)
         data[:, 0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
+
+
+if __name__ == "__main__":
+    import unittest
+    unittest.main()
