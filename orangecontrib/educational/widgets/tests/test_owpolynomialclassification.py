@@ -68,13 +68,11 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertIsNone(w.yv)
         self.assertIsNone(w.probabilities_grid)
 
-    def test_set_learner(self):
+    def test_set_learner_empty(self):
         """
-        Test if learner is set correctly
+        Test if learner is set correctly when no learner provided
         """
         w = self.widget
-
-        learner = TreeLearner()
 
         # check if empty
         self.assertEqual(w.learner_other, None)
@@ -83,8 +81,15 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(
             type(self.get_output(w.Outputs.learner)), type(LogisticRegressionLearner()))
 
-        self.send_signal(w.Inputs.learner, learner)
+    def test_set_learner(self):
+        """
+        Test if learner is set correctly
+        """
+        w = self.widget
 
+        learner = TreeLearner()
+
+        self.send_signal(w.Inputs.learner, learner)
         # check if learners set correctly
         self.assertEqual(w.learner_other, learner)
         self.assertEqual(type(w.learner), type(learner))
@@ -97,22 +102,6 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertTrue(isinstance(w.learner, w.LEARNER))
         self.assertEqual(
             type(self.get_output(w.Outputs.learner)), type(LogisticRegressionLearner()))
-
-        # set it again just in case something goes wrong
-        learner = RandomForestLearner()
-        self.send_signal(w.Inputs.learner, learner)
-
-        self.assertEqual(w.learner_other, learner)
-        self.assertEqual(type(w.learner), type(learner))
-        self.assertEqual(type(self.get_output(w.Outputs.learner)), type(learner))
-
-        # change learner this time not from None
-        learner = TreeLearner()
-        self.send_signal(w.Inputs.learner, learner)
-
-        self.assertEqual(w.learner_other, learner)
-        self.assertEqual(type(w.learner), type(learner))
-        self.assertEqual(type(self.get_output(w.Outputs.learner)), type(learner))
 
     def test_set_preprocessor(self):
         """
@@ -137,14 +126,6 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertIn(w.preprocessors, [[], None])
         self.assertNotIn(preprocessor, self.get_output(w.Outputs.learner).preprocessors)
 
-        # set it again
-        preprocessor = Discretize()
-        self.send_signal(w.Inputs.preprocessor, preprocessor)
-
-        # check preprocessor is set
-        self.assertEqual(w.preprocessors, [preprocessor])
-        self.assertIn(preprocessor, self.get_output(w.Outputs.learner).preprocessors)
-
         # change preprocessor
         preprocessor = Continuize()
         self.send_signal(w.Inputs.preprocessor, preprocessor)
@@ -163,7 +144,7 @@ class TestOWPolynomialClassification(WidgetTest):
             True for var in self.iris.domain.attributes
             if isinstance(var, ContinuousVariable))
 
-        self.send_signal(w.Inputs.data, self.iris)
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         # widget does not have any problems with that data set so
         # everything should be fine
@@ -203,27 +184,12 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
 
-        # set data set again
-        self.send_signal(w.Inputs.data, self.iris)
+    def test_set_data_no_class(self):
+        """
+        Test widget on data with no class
+        """
+        w = self.widget
 
-        # widget does not have any problems with that data set so
-        # everything should be fine
-        self.assertEqual(w.cbx.count(), num_continuous_attributes)
-        self.assertEqual(w.cby.count(), num_continuous_attributes)
-        self.assertEqual(
-            w.target_class_combobox.count(),
-            len(self.iris.domain.class_var.values))
-        self.assertEqual(w.cbx.currentText(), self.iris.domain[0].name)
-        self.assertEqual(w.cby.currentText(), self.iris.domain[1].name)
-        self.assertEqual(
-            w.target_class_combobox.currentText(),
-            self.iris.domain.class_var.values[0])
-
-        self.assertEqual(w.attr_x, self.iris.domain[0].name)
-        self.assertEqual(w.attr_y, self.iris.domain[1].name)
-        self.assertEqual(w.target_class, self.iris.domain.class_var.values[0])
-
-        # set data set with no class
         table_no_class = Table(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")]),
             [[1, 2], [2, 3]])
@@ -234,7 +200,12 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertTrue(w.Error.no_class.is_shown())
 
-        # set data with one class variable
+    def test_set_data_one_class(self):
+        """
+        Test widget on data with one class variable
+        """
+        w = self.widget
+
         table_one_class = Table(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")],
                    DiscreteVariable("a", values=["k"])),
@@ -246,7 +217,13 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertTrue(w.Error.no_class.is_shown())
 
-        # set data with not enough continuous variables
+    def test_set_data_wrong_var_number(self):
+        """
+        Test widget on data with not enough continuous variables
+        """
+        w = self.widget
+
+        #
         table_no_enough_cont = Table(
             Domain(
                 [ContinuousVariable("x"),
@@ -622,10 +599,10 @@ class TestOWPolynomialClassification(WidgetTest):
             self.send_signal(w.Inputs.data, data)
 
         # one class variable
-        send_sparse_data(Table("iris"))
+        send_sparse_data(Table("iris")[::15])
 
         # two class variables
-        data = Table("iris")
+        data = Table("iris")[::15]
         domain = Domain(
             attributes=data.domain.attributes[:3],
             class_vars=data.domain.attributes[3:] + data.domain.class_vars
