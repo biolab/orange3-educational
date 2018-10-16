@@ -1,4 +1,7 @@
 import sys
+from random import random
+from math import sin, cos, pi
+
 import numpy as np
 
 from AnyQt.QtWidgets import (
@@ -11,7 +14,8 @@ import Orange.data
 from Orange.statistics import contingency, distribution
 
 from Orange.widgets import widget, gui
-from Orange.widgets.settings import DomainContextHandler, ContextSetting
+from Orange.widgets.settings import DomainContextHandler, ContextSetting, \
+    Setting
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import Input
 
@@ -30,6 +34,7 @@ class OWPieChart(widget.OWWidget):
     settingsHandler = DomainContextHandler()
     attribute = ContextSetting(None)
     split_var = ContextSetting(None)
+    explode = Setting(False)
     graph_name = "scene"
 
     def __init__(self):
@@ -52,6 +57,9 @@ class OWPieChart(widget.OWWidget):
         gui.comboBox(
             self.controlArea, self, "split_var", box="Split by",
             model=self.split_vars, callback=self.update_scene)
+        gui.checkBox(
+            self.controlArea, self, "explode", "Explode pies", box=True,
+            callback=self.update_scene)
         gui.rubber(self.controlArea)
         gui.widgetLabel(
             gui.hBox(self.controlArea, box=True),
@@ -134,8 +142,14 @@ class OWPieChart(widget.OWWidget):
         for span, color in zip(spans, colors):
             if not span:
                 continue
-            ellipse = QGraphicsEllipseItem(x - r / 2, y - r / 2, r, r)
-            if start_angle:
+            if self.explode:
+                mid_ang = (start_angle + span / 2) / 360 / 16 * 2 * pi
+                dx = r / 30 * cos(mid_ang)
+                dy = r / 30 * sin(mid_ang)
+            else:
+                dx = dy = 0
+            ellipse = QGraphicsEllipseItem(x - r / 2 + dx, y - r / 2 - dy, r, r)
+            if len(spans) > 1:
                 ellipse.setStartAngle(start_angle)
                 ellipse.setSpanAngle(span)
             ellipse.setBrush(QColor(*color))
