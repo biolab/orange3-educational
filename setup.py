@@ -34,6 +34,7 @@ DATA_FILES = [
 
 INSTALL_REQUIRES = [
     'Orange3',
+    'BeautifulSoup4',
 ]
 
 ENTRY_POINTS = {
