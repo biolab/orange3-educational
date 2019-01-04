@@ -11,6 +11,7 @@ Widgets
 .. toctree::
    :maxdepth: 1
 
+   widgets/googlesheets
    widgets/enklik-anketa
    widgets/kmeans
    widgets/univariatepolynomialregression
