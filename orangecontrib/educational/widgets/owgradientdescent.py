@@ -827,7 +827,7 @@ class OWGradientDescent(OWWidget):
         """
         if self.learner is not None and self.learner.theta is not None:
             domain = Domain(
-                    [ContinuousVariable("Coefficients", number_of_decimals=7)],
+                    [ContinuousVariable("Coefficients")],
                     metas=[StringVariable("Name")])
             names = ["theta 0", "theta 1"]
 

@@ -607,8 +607,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 hasattr(self.model, 'skl_model')):
             model = self.model.skl_model
             domain = Domain(
-                [ContinuousVariable("coef", number_of_decimals=7)],
-                metas=[StringVariable("name")])
+                [ContinuousVariable("coef")], metas=[StringVariable("name")])
             coefficients = (model.intercept_.tolist() +
                             model.coef_[0].tolist())
 
