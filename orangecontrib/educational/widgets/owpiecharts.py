@@ -1,5 +1,4 @@
 import sys
-from random import random
 from math import sin, cos, pi
 
 import numpy as np
@@ -54,10 +53,10 @@ class OWPieChart(widget.OWWidget):
         self.split_vars = DomainModel(
             valid_types=Orange.data.DiscreteVariable, separators=False,
             placeholder="None", )
-        gui.comboBox(
+        self.split_combobox = gui.comboBox(
             self.controlArea, self, "split_var", box="Split by",
             model=self.split_vars, callback=self.update_scene)
-        gui.checkBox(
+        self.explode_checkbox = gui.checkBox(
             self.controlArea, self, "explode", "Explode pies", box=True,
             callback=self.update_scene)
         gui.rubber(self.controlArea)
