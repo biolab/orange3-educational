@@ -40,7 +40,7 @@ class OWGoogleSheets(widget.OWWidget):
     name = "Google Sheets"
     description = "Read data from a Google Sheets spreadsheet."
     icon = "icons/GoogleSheets.svg"
-    priority = 1
+    priority = 100
     outputs = [("Data", Table)]
 
     want_main_area = False

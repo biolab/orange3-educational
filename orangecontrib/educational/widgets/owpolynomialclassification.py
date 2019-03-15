@@ -73,6 +73,7 @@ class OWPolynomialClassification(OWBaseLearner):
     icon = "icons/polynomialclassification.svg"
     want_main_area = True
     resizing_enabled = True
+    priority = 600
 
     # inputs and outputs
     class Inputs(OWBaseLearner.Inputs):
