@@ -27,7 +27,7 @@ before_install:
     - pip install codecov
 
 install:
-    - pip install PyQt5!=5.10
+    - pip install sip pyqt5==5.11.*
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
     - pip install .
 
@@ -37,4 +37,4 @@ script:
     - catchsegv xvfb-run -a -s "-screen 0 800x600x24" coverage run setup.py test
 
 after_success:
-    codecov
+    - codecov
