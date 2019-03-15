@@ -80,7 +80,7 @@ class TestOWPieChart(WidgetTest):
         self.assertEqual(w.split_combobox.count(), 1 + 1)
         self.assertEqual(w.split_combobox.currentText(), "None")
 
-        # change selection to "irirs"
+        # change selection to "iris"
         w.split_var = w.split_vars[1]
         w.update_scene()
         self.assertEqual(w.split_combobox.currentText(), "iris")
