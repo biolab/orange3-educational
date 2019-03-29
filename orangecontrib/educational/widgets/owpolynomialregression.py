@@ -332,7 +332,7 @@ class OWUnivariateRegression(OWBaseLearner):
             elif hasattr(model, "skl_model"):
                 model = model.skl_model
         if model is not None and hasattr(model, "coef_"):
-            domain = Domain([ContinuousVariable("coef", number_of_decimals=7)],
+            domain = Domain([ContinuousVariable("coef")],
                             metas=[StringVariable("name")])
             coefs = [model.intercept_ + model.coef_[0]] + list(model.coef_[1:])
             names = ["1", x_label] + \
