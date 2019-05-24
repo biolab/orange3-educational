@@ -25,7 +25,7 @@ class OWPieChart(widget.OWWidget):
     name = "Pie Chart"
     description = "Make fun of Pie Charts."
     icon = "icons/PieChart.svg"
-    priority = 100
+    priority = 700
 
     class Inputs:
         data = Input("Data", Orange.data.Table)

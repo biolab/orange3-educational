@@ -88,7 +88,7 @@ class OW1ka(widget.OWWidget):
     name = "EnKlik Anketa"
     description = "Import data from EnKlikAnketa (1ka.si) public URL."
     icon = "icons/1ka.svg"
-    priority = 2
+    priority = 200
 
     class Outputs:
         data = Output("Data", Table)

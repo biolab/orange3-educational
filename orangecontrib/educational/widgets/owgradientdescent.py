@@ -160,6 +160,7 @@ class OWGradientDescent(OWWidget):
                   "on logistic regression."
     icon = "icons/GradientDescent.svg"
     want_main_area = True
+    priority = 400
 
     class Inputs:
         data = Input("Data", Table)

@@ -26,6 +26,7 @@ class OWUnivariateRegression(OWBaseLearner):
     name = "Polynomial Regression"
     description = "Univariate regression with polynomial expansion."
     icon = "icons/UnivariateRegression.svg"
+    priority = 500
 
     class Inputs(OWBaseLearner.Inputs):
         learner = Input("Learner", Learner)
