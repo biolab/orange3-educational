@@ -332,7 +332,7 @@ class OWPolynomialClassification(OWBaseLearner):
             dict(
                 data=[list(p.attributes())
                       for p in sd
-                      if (int(p.metas[0]) == _class and
+                      if (p.metas[0] == _class and
                           all(v is not None for v in p.attributes()))],
                 type="scatter",
                 zIndex=10,
