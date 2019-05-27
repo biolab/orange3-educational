@@ -1,6 +1,7 @@
 from functools import reduce
 import unittest
 
+import numpy as np
 import scipy.sparse as sp
 from numpy.testing import assert_array_equal
 
@@ -608,6 +609,31 @@ class TestOWPolynomialClassification(WidgetTest):
             class_vars=data.domain.attributes[3:] + data.domain.class_vars
         )
         send_sparse_data(data.transform(domain))
+
+    def test_non_in_data(self):
+        w = self.widget
+        data = Table("iris")[::15]
+        data.Y[:3] = np.nan
+
+        self.send_signal(w.Inputs.data, data)
+
+        num_continuous_attributes = sum(
+            True for var in self.iris.domain.attributes
+            if isinstance(var, ContinuousVariable))
+        self.assertEqual(w.cbx.count(), num_continuous_attributes)
+        self.assertEqual(w.cby.count(), num_continuous_attributes)
+        self.assertEqual(
+            w.target_class_combobox.count(),
+            len(self.iris.domain.class_var.values))
+        self.assertEqual(w.cbx.currentText(), self.iris.domain[0].name)
+        self.assertEqual(w.cby.currentText(), self.iris.domain[1].name)
+        self.assertEqual(
+            w.target_class_combobox.currentText(),
+            self.iris.domain.class_var.values[0])
+
+        self.assertEqual(w.attr_x, self.iris.domain[0].name)
+        self.assertEqual(w.attr_y, self.iris.domain[1].name)
+        self.assertEqual(w.target_class, self.iris.domain.class_var.values[0])
 
 
 if __name__ == "__main__":
