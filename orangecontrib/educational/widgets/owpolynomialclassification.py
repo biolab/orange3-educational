@@ -342,6 +342,17 @@ class OWPolynomialClassification(OWBaseLearner):
                 name=sd.domain.metas[0].values[_class])
             for _class in range(len(sd.domain.metas[0].values))]
 
+        # add nan values as a gray dots
+        options['series'] += [
+            dict(
+                data=[list(p.attributes())
+                      for p in sd
+                      if np.isnan(p.metas[0])],
+                type="scatter",
+                zIndex=10,
+                color=rgb_to_hex((160, 160, 160)),
+                showInLegend=False)]
+
         cls_domain = sd.domain.metas[0]
 
         target_idx = cls_domain.values.index(self.target_class)
