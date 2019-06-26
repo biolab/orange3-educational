@@ -33,7 +33,7 @@ DATA_FILES = [
 ]
 
 INSTALL_REQUIRES = [
-    'Orange3',
+    'Orange3 >=3.21.0',
     'BeautifulSoup4',
 ]
 
