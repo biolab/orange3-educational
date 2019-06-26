@@ -130,6 +130,7 @@ class OWKmeans(OWWidget):
 
     name = "Interactive k-Means"
     description = "Widget demonstrates working of k-means algorithm."
+    keywords = ["kmeans"]
     icon = "icons/InteractiveKMeans.svg"
     want_main_area = False
     priority = 300
