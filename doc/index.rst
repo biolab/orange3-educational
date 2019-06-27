@@ -17,6 +17,7 @@ Widgets
    widgets/univariatepolynomialregression
    widgets/gradientdescent
    widgets/polynomialclassification
+   widgets/random-data
 
 Indices and tables
 ==================
