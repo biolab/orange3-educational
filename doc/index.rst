@@ -11,12 +11,13 @@ Widgets
 .. toctree::
    :maxdepth: 1
 
-   widgets/googlesheets
+   widgets/google-sheets
    widgets/enklik-anketa
-   widgets/kmeans
-   widgets/univariatepolynomialregression
-   widgets/gradientdescent
-   widgets/polynomialclassification
+   widgets/interactive-kmeans
+   widgets/gradient-descent
+   widgets/polynomial-regression
+   widgets/polynomial-classification
+   widgets/pie-chart
    widgets/random-data
 
 Indices and tables
