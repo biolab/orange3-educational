@@ -10,7 +10,11 @@ import Orange
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, widget
-from Orange.canvas import report
+
+try:
+    from orangewidget.report import report
+except ImportError:
+    from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 from orangecontrib.educational.widgets.utils.color_transform import \
@@ -213,7 +217,7 @@ class OWKmeans(OWWidget):
             self.step_box, self, "Step Back", callback=self.step_back)
 
         self.run_box = gui.widgetBox(self.controlArea, "Run")
-        
+
         self.auto_play_speed_spinner = gui.hSlider(
             self.run_box, self, 'auto_play_speed', label='Speed:',
             minValue=0, maxValue=1.91, step=0.1, intOnly=False,
