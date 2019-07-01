@@ -10,11 +10,7 @@ import Orange
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
 from Orange.widgets import gui, settings, widget
-
-try:
-    from orangewidget.report import report
-except ImportError:
-    from Orange.canvas import report
+from orangewidget.report import report
 
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 from orangecontrib.educational.widgets.utils.color_transform import \

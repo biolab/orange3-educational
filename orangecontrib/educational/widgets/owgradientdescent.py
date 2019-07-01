@@ -19,11 +19,7 @@ from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.preprocess.preprocess import Normalize
 from scipy.interpolate import splprep, splev
-
-try:
-    from orangewidget.report import report
-except ImportError:
-    from Orange.canvas import report
+from orangewidget.report import report
 
 from orangecontrib.educational.widgets.utils.color_transform import (
     rgb_to_hex, hex_to_rgb)
