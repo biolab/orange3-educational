@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 NAME = "Orange3-Educational"
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 DESCRIPTION = "Orange Educational add-on for Orange data mining software package."
 LONG_DESCRIPTION = open(path.join(path.dirname(__file__), 'README.md')).read()
