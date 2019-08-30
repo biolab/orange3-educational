@@ -1,0 +1,58 @@
+{
+    "Enklik Anketa": {
+    "title": "Enklik Anketa",
+    "file": "widgets/enklik-anketa.md",
+    "icon": "widgets/icons/enklik-anketa.png",
+    "keywords": ["data"],
+    "category": "Educational"
+    },
+    "Google Sheets": {
+        "title": "Google Sheets",
+        "file": "widgets/google-sheets.md",
+        "icon": "widgets/icons/google-sheets.png",
+        "keywords": ["data"],
+        "category": "Educational"
+    },
+    "Gradient Descent": {
+        "title": "Gradient Descent",
+        "file": "widgets/gradient-descent.md",
+        "icon": "widgets/icons/gradient-descent.png",
+        "keywords": [],
+        "category": "Educational"
+    },
+    "Interactive k-Means": {
+        "title": "Interactive k-Means",
+        "file": "widgets/interactive-kmeans.md",
+        "icon": "widgets/icons/interactive-kmeans.png",
+        "keywords": [],
+        "category": "Educational"
+    },
+    "Pie Chart": {
+        "title": "Pie Chart",
+        "file": "widgets/pie-chart.md",
+        "icon": "widgets/icons/pie-chart.png",
+        "keywords": [],
+        "category": "Educational"
+    },
+    "Polynomial Classification": {
+        "title": "Polynomial Classification",
+        "file": "widgets/polynomial-classification.md",
+        "icon": "widgets/icons/polynomial-classification.png",
+        "keywords": [],
+        "category": "Educational"
+    },
+    "Polynomial Regression": {
+        "title": "Polynomial Regression",
+        "file": "widgets/polynomial-regression.md",
+        "icon": "widgets/icons/polynomial-regression.png",
+        "keywords": [],
+        "category": "Educational"
+    },
+    "Random Data": {
+        "title": "Random Data",
+        "file": "widgets/random-data.md",
+        "icon": "widgets/icons/random-data.png",
+        "keywords": [],
+        "category": "Educational"
+    }
+}
