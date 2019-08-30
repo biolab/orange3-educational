@@ -1,10 +1,10 @@
 {
     "Enklik Anketa": {
-    "title": "Enklik Anketa",
-    "file": "widgets/enklik-anketa.md",
-    "icon": "widgets/icons/enklik-anketa.png",
-    "keywords": ["data"],
-    "category": "Educational"
+        "title": "Enklik Anketa",
+        "file": "widgets/enklik-anketa.md",
+        "icon": "widgets/icons/enklik-anketa.png",
+        "keywords": ["data"],
+        "category": "Educational"
     },
     "Google Sheets": {
         "title": "Google Sheets",
