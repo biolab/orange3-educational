@@ -28,6 +28,8 @@ except ImportError:
 class OWUnivariateRegression(OWBaseLearner):
     name = "Polynomial Regression"
     description = "Univariate regression with polynomial expansion."
+    keywords = ["polynomial regression", "regression",
+                "regression visualization", "polynomial features"]
     icon = "icons/UnivariateRegression.svg"
     priority = 500
 

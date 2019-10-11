@@ -162,6 +162,7 @@ class OWGradientDescent(OWWidget):
     name = "Gradient Descent"
     description = "Widget shows the procedure of gradient descent " \
                   "on logistic regression."
+    keywords = ["gradient descent", "optimization", "gradient"]
     icon = "icons/GradientDescent.svg"
     want_main_area = True
     priority = 400

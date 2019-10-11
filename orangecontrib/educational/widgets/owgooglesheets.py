@@ -39,6 +39,7 @@ VALID_URL_HELP = 'https://docs.google.com/spreadsheets/<DOCUMENT_ID>/'
 class OWGoogleSheets(widget.OWWidget):
     name = "Google Sheets"
     description = "Read data from a Google Sheets spreadsheet."
+    keywords = ["google sheets", "load google sheets", "sheets", "load data"]
     icon = "icons/GoogleSheets.svg"
     priority = 100
     outputs = [("Data", Table)]

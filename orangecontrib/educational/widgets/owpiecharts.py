@@ -24,6 +24,7 @@ SCALE = 200
 class OWPieChart(widget.OWWidget):
     name = "Pie Chart"
     description = "Make fun of Pie Charts."
+    keywords = ["pie chart", "chart", "visualisation"]
     icon = "icons/PieChart.svg"
     priority = 700
 
