@@ -1,0 +1,100 @@
+[
+ [
+  "Educational",
+  [
+   {
+    "text": "Google Sheets",
+    "doc": "widgets/google-sheets.md",
+    "icon": "../orangecontrib/educational/widgets/icons/GoogleSheets.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "google sheets",
+     "load google sheets",
+     "sheets",
+     "load data"
+    ]
+   },
+   {
+    "text": "EnKlik Anketa",
+    "doc": "widgets/enklik-anketa.md",
+    "icon": "../orangecontrib/educational/widgets/icons/1ka.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "1ka",
+     "load data",
+     "load survey",
+     "survey"
+    ]
+   },
+   {
+    "text": "Interactive k-Means",
+    "doc": "widgets/interactive-kmeans.md",
+    "icon": "../orangecontrib/educational/widgets/icons/InteractiveKMeans.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "kmeans",
+     "clustering",
+     "interactive"
+    ]
+   },
+   {
+    "text": "Gradient Descent",
+    "doc": "widgets/gradient-descent.md",
+    "icon": "../orangecontrib/educational/widgets/icons/GradientDescent.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "gradient descent",
+     "optimization",
+     "gradient"
+    ]
+   },
+   {
+    "text": "Polynomial Regression",
+    "doc": "widgets/polynomial-regression.md",
+    "icon": "../orangecontrib/educational/widgets/icons/UnivariateRegression.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "polynomial regression",
+     "regression",
+     "regression visualization",
+     "polynomial features"
+    ]
+   },
+   {
+    "text": "Polynomial Classification",
+    "doc": "widgets/polynomial-classification.md",
+    "icon": "../orangecontrib/educational/widgets/icons/polynomialclassification.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "polynomial classification",
+     "classification",
+     "class",
+     "classification visualization",
+     "polynomial features"
+    ]
+   },
+   {
+    "text": "Pie Chart",
+    "doc": "widgets/pie-chart.md",
+    "icon": "../orangecontrib/educational/widgets/icons/PieChart.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "pie chart",
+     "chart",
+     "visualisation"
+    ]
+   },
+   {
+    "text": "Random Data",
+    "doc": "widgets/random-data.md",
+    "icon": "../orangecontrib/educational/widgets/icons/RandomData.svg",
+    "background": "#FFD39F",
+    "keywords": [
+     "random data",
+     "data",
+     "data generation"
+    ]
+   }
+  ]
+ ]
+]
