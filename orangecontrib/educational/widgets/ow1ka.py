@@ -87,6 +87,7 @@ def is_valid_url(url):
 class OW1ka(widget.OWWidget):
     name = "EnKlik Anketa"
     description = "Import data from EnKlikAnketa (1ka.si) public URL."
+    keywords = ["1ka", "load data", "load survey", "survey"]
     icon = "icons/1ka.svg"
     priority = 200
 

@@ -367,9 +367,9 @@ del cd
 class OWRandomData(OWWidget):
     name = "Random Data"
     description = "Generate random data sample"
+    keywords = ["random data", "data", "data generation"]
     icon = "icons/RandomData.svg"
     priority = 2100
-    keywords = []
 
     class Error(OWWidget.Error):
         sampling_error = \

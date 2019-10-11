@@ -74,6 +74,8 @@ class OWPolynomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
     description = "Widget that demonstrates classification in two classes " \
                   "with polynomial expansion of attributes."
+    keywords = ["polynomial classification", "classification", "class",
+                "classification visualization", "polynomial features"]
     icon = "icons/polynomialclassification.svg"
     want_main_area = True
     resizing_enabled = True
