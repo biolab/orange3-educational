@@ -3,7 +3,6 @@ import math
 from Orange.evaluation import RMSE, TestOnTrainingData, MAE
 from AnyQt.QtCore import Qt, QRectF
 from AnyQt.QtGui import QColor, QPalette, QPen, QFont
-from AnyQt.QtWidgets import QSizePolicy
 
 import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
@@ -18,7 +17,7 @@ from Orange.widgets import settings, gui
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
-from Orange.widgets.widget import OWWidget, Msg, Input, Output
+from Orange.widgets.widget import Msg, Input, Output
 
 try:
     from orangewidget.report import report
@@ -66,10 +65,7 @@ class OWUnivariateRegression(OWBaseLearner):
     want_main_area = True
     graph_name = 'plot'
 
-    class Error(OWWidget.Error):
-        """
-        Class used fro widget warnings.
-        """
+    class Error(OWBaseLearner.Error):
         all_none = Msg("One of the features has no defined values")
         no_cont_variables = Msg("Polynomial Regression requires at least one numeric feature.")
 
