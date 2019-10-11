@@ -3,3 +3,4 @@ include orangecontrib/educational/widgets/icons/*
 include orangecontrib/educational/widgets/resources/*
 include orangecontrib/educational/widgets/highcharts/_highcharts/*
 include README.md
+include LICENSE
