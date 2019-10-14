@@ -1,4 +1,4 @@
-Interactive k-means
+Interactive k-Means
 ===================
 
 Educational widget that shows the working of a k-means clustering.
