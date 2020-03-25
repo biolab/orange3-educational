@@ -148,8 +148,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.options_box = gui.widgetBox(self.controlArea, "Options")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal)
-        opts_combo = dict(opts, **dict(sendSelectedValue=True,
-                                       maximumContentsLength=15))
+        opts_combo = dict(opts, **dict(sendSelectedValue=True))
         self.cbx = gui.comboBox(
             value='attr_x', label='X: ', callback=self.apply, **opts_combo)
         self.cby = gui.comboBox(
@@ -428,9 +427,11 @@ class OWPolynomialClassification(OWBaseLearner):
 
         # parameters to predict from grid
         attr = np.hstack((self.xv.reshape((-1, 1)), self.yv.reshape((-1, 1))))
-        attr_data = Table(self.selected_data.domain, attr,
-                          np.array([[None]] * len(attr)),
-                          np.array([[None]] * len(attr)))
+        attr_data = Table.from_numpy(
+            self.selected_data.domain, attr,
+            np.array([[None]] * len(attr)),
+            np.array([[None]] * len(attr))
+        )
 
         # results
         self.probabilities_grid = self.model(attr_data, 1)[:, 0]\
@@ -574,7 +575,7 @@ class OWPolynomialClassification(OWBaseLearner):
         y = [(0 if d.get_class().value == self.target_class else 1)
              for d in self.data]
 
-        return Table(domain, x, y, y_c)
+        return Table.from_numpy(domain, x, y, y_c)
 
     def apply(self):
         """
@@ -634,7 +635,7 @@ class OWPolynomialClassification(OWBaseLearner):
                 data = preprocessor(data)
             names = ["Intercept"] + [x.name for x in data.domain.attributes]
 
-            coefficients_table = Table(
+            coefficients_table = Table.from_list(
                 domain, list(zip(coefficients, names)))
             self.Outputs.coefficients.send(coefficients_table)
         else:
@@ -662,3 +663,8 @@ class OWPolynomialClassification(OWBaseLearner):
         self.report_plot(self.scatter)
         if caption:
             self.report_caption(caption)
+
+
+if __name__ == "__main__":
+    from orangewidget.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWPolynomialClassification).run(Table.from_file('iris'))

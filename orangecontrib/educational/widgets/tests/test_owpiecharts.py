@@ -6,8 +6,8 @@ from orangecontrib.educational.widgets.owpiecharts import OWPieChart
 class TestOWPieChart(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWPieChart)
-        self.iris = Table("iris")
-        self.titanic = Table("titanic")
+        self.iris = Table.from_file("iris")
+        self.titanic = Table.from_file("titanic")
 
     def test_widget_load(self):
         self.assertIsNotNone(self.widget)
@@ -23,7 +23,7 @@ class TestOWPieChart(WidgetTest):
         self.assertIsNone(w.dataset)
 
         # send some empty data set
-        data = Table(Domain([]), [])
+        data = Table.from_list(Domain([]), [])
         self.send_signal(w.Inputs.data, data)
         self.assertIsNone(w.dataset)
 
@@ -33,16 +33,16 @@ class TestOWPieChart(WidgetTest):
         self.assertEqual(len(w.attrs), 4)
 
         # dataset with no discrete variables
-        data = Table(Domain([ContinuousVariable("a"),
-                             ContinuousVariable("b")]),
-                     [[1, 2], [2, 2]])
+        data = Table.from_list(Domain([ContinuousVariable("a"),
+                                       ContinuousVariable("b")]),
+                               [[1, 2], [2, 2]])
         self.send_signal(w.Inputs.data, data)
         self.assertIsNotNone(w.dataset)
         self.assertEqual(len(w.attrs), 0)
 
         # dataset with only one value per variable
-        data = Table(Domain([DiscreteVariable("a", ['1'])]),
-                     [['1'], ['1'], ['1']])
+        data = Table.from_list(Domain([DiscreteVariable("a", ['1'])]),
+                               [['1'], ['1'], ['1']])
         self.send_signal(w.Inputs.data, data)
         self.assertIsNotNone(w.dataset)
         self.assertEqual(len(w.attrs), 1)

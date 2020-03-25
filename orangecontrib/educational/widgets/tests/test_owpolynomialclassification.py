@@ -23,7 +23,7 @@ class TestOWPolynomialClassification(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWPolynomialClassification)  # type: OWPolynomialClassification
-        self.iris = Table("iris")
+        self.iris = Table.from_file("iris")
 
     def test_add_main_layout(self):
         """
@@ -191,7 +191,7 @@ class TestOWPolynomialClassification(WidgetTest):
         """
         w = self.widget
 
-        table_no_class = Table(
+        table_no_class = Table.from_list(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")]),
             [[1, 2], [2, 3]])
         self.send_signal(w.Inputs.data, table_no_class)
@@ -207,7 +207,7 @@ class TestOWPolynomialClassification(WidgetTest):
         """
         w = self.widget
 
-        table_one_class = Table(
+        table_one_class = Table.from_list(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")],
                    DiscreteVariable("a", values=["k"])),
             [[1, 2], [2, 3]], [0, 0])
@@ -225,7 +225,7 @@ class TestOWPolynomialClassification(WidgetTest):
         w = self.widget
 
         #
-        table_no_enough_cont = Table(
+        table_no_enough_cont = Table.from_numpy(
             Domain(
                 [ContinuousVariable("x"),
                  DiscreteVariable("y", values=["a", "b"])],
@@ -383,16 +383,20 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(len(selected_data), len(self.iris))
 
         # selected data none when one column only Nones
-        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                            DiscreteVariable('c', values=['a', 'b'])),
-                     [[1, None], [1, None]], [0, 1])
+        data = Table.from_numpy(
+            Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                   DiscreteVariable('c', values=['a', 'b'])),
+            [[1, None], [1, None]], [0, 1]
+        )
         self.send_signal(w.Inputs.data, data)
         selected_data = w.select_data()
         self.assertIsNone(selected_data)
 
-        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                            DiscreteVariable('c', values=['a', 'b'])),
-                     [[None, None], [None, None]], [0, 1])
+        data = Table.from_numpy(
+            Domain([ContinuousVariable('a'), ContinuousVariable('b')],
+                   DiscreteVariable('c', values=['a', 'b'])),
+            [[None, None], [None, None]], [0, 1]
+        )
         self.send_signal(w.Inputs.data, data)
         selected_data = w.select_data()
         self.assertIsNone(selected_data)
@@ -600,10 +604,10 @@ class TestOWPolynomialClassification(WidgetTest):
             self.send_signal(w.Inputs.data, data)
 
         # one class variable
-        send_sparse_data(Table("iris")[::15])
+        send_sparse_data(Table.from_file("iris")[::15])
 
         # two class variables
-        data = Table("iris")[::15]
+        data = Table.from_file("iris")[::15]
         domain = Domain(
             attributes=data.domain.attributes[:3],
             class_vars=data.domain.attributes[3:] + data.domain.class_vars
@@ -612,7 +616,7 @@ class TestOWPolynomialClassification(WidgetTest):
 
     def test_non_in_data(self):
         w = self.widget
-        data = Table("iris")[::15]
+        data = Table.from_file("iris")[::15]
         data.Y[:3] = np.nan
 
         self.send_signal(w.Inputs.data, data)
