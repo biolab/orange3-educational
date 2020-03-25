@@ -18,7 +18,6 @@ from Orange.widgets import gui
 from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.preprocess.preprocess import Normalize
-from orangewidget.utils.widgetpreview import WidgetPreview
 from scipy.interpolate import splprep, splev
 
 try:
@@ -886,4 +885,5 @@ class OWGradientDescent(OWWidget):
 
 
 if __name__ == "__main__":
+    from orangewidget.utils.widgetpreview import WidgetPreview
     WidgetPreview(OWGradientDescent).run(Table.from_file('iris'))
