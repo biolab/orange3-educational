@@ -190,7 +190,7 @@ class OWKmeans(OWWidget):
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
             callback=self.restart, sendSelectedValue=True,
-            maximumContentsLength=15)
+            )
 
         self.cbx = gui.comboBox(value='attr_x', label='X: ', **opts)
         self.cby = gui.comboBox(value='attr_y', label='Y: ', **opts)
@@ -264,7 +264,7 @@ class OWKmeans(OWWidget):
         x = x[not_nan]  # remove rows with nan
         self.selected_rows = np.where(not_nan)
         domain = Domain([attr_x, attr_y])
-        return Table(domain, x)
+        return Table.from_numpy(domain, x)
 
     def set_empty_plot(self):
         self.scatter.clear()
@@ -595,7 +595,9 @@ class OWKmeans(OWWidget):
             annotated_data = Table.from_table(domain, self.data)
             annotated_data.Y[self.selected_rows] = km.clusters
 
-            centroids = Table(Domain(km.data.domain.attributes), km.centroids)
+            centroids = Table.from_numpy(
+                Domain(km.data.domain.attributes), km.centroids
+            )
             self.Outputs.annotated_data.send(annotated_data)
             self.Outputs.centroids.send(centroids)
 
@@ -607,3 +609,8 @@ class OWKmeans(OWWidget):
         ))
         self.report_plot(self.scatter)
         self.report_caption(caption)
+
+
+if __name__ == "__main__":
+    from orangewidget.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWKmeans).run(Table.from_file('iris'))

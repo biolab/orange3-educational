@@ -9,7 +9,7 @@ from orangecontrib.educational.widgets.owkmeans import OWKmeans
 class TestOWKmeans(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWKmeans)  # type: OWKmeans
-        self.data = Orange.data.Table("iris")
+        self.data = Orange.data.Table.from_file("iris")
 
     def test_button_labels(self):
         self.widget.set_data(self.data)
@@ -64,7 +64,7 @@ class TestOWKmeans(WidgetTest):
         # if too les continuous attributes
         domain = Orange.data.Domain(self.data.domain.attributes[:1],
                                     self.data.domain.class_var)
-        data1 = Orange.data.Table(domain, self.data)
+        data1 = Orange.data.Table.from_table(domain, self.data)
         self.widget.set_data(data1)
         self.assertEqual(self.widget.options_box.isEnabled(), False)
         self.assertEqual(self.widget.centroids_box.isEnabled(), False)
@@ -91,7 +91,7 @@ class TestOWKmeans(WidgetTest):
         # if too les continuous attributes
         domain = Orange.data.Domain(self.data.domain.attributes[:1],
                                     self.data.domain.class_var)
-        data1 = Orange.data.Table(domain, self.data)
+        data1 = Orange.data.Table.from_table(domain, self.data)
         self.widget.set_data(data1)
         self.assertEqual(self.widget.k_means, None)
         self.assertEqual(self.widget.cbx.count(), 0)
@@ -330,7 +330,7 @@ class TestOWKmeans(WidgetTest):
         Do not crash when a column has a nan value.
         GH-40
         """
-        data = Table("iris")
+        data = self.data
         domain = Domain(attributes=data.domain.attributes[:2], class_vars=data.domain.class_vars)
         data = data.transform(domain)
         data[:, 0] = np.nan
