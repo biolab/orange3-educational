@@ -18,6 +18,7 @@ from Orange.widgets import gui
 from Orange.widgets import settings
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.preprocess.preprocess import Normalize
+from orangewidget.utils.widgetpreview import WidgetPreview
 from scipy.interpolate import splprep, splev
 
 try:
@@ -245,7 +246,6 @@ class OWGradientDescent(OWWidget):
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
             callback=self.change_attributes, sendSelectedValue=True,
-            maximumContentsLength=15
         )
         self.cbx = gui.comboBox(value='attr_x', label='X:', **opts)
         self.cby = gui.comboBox(value='attr_y', label='Y:', **opts)
@@ -769,12 +769,14 @@ class OWGradientDescent(OWWidget):
                        self.target_class else 1)
                  for d in y_c]
 
-            return Normalize()(Table(domain, x, y_c)
+            return Normalize()(Table.from_numpy(domain, x, y_c)
                                if two_classes else
-                               Table(domain, x, y, y_c[:, None]))
+                               Table.from_numpy(domain, x, y, y_c[:, None]))
         else:
             domain = Domain([attr_x], self.data.domain.class_var)
-            return Normalize(transform_class=True)(Table(domain, x, y_c))
+            return Normalize(transform_class=True)(
+                Table.from_numpy(domain, x, y_c)
+            )
 
     def auto_play(self):
         """
@@ -837,7 +839,7 @@ class OWGradientDescent(OWWidget):
                     metas=[StringVariable("Name")])
             names = ["theta 0", "theta 1"]
 
-            coefficients_table = Table(
+            coefficients_table = Table.from_list(
                     domain, list(zip(list(self.learner.theta), names)))
             self.Outputs.coefficients.send(coefficients_table)
         else:
@@ -881,3 +883,7 @@ class OWGradientDescent(OWWidget):
         caption = report.render_items_vert(caption_items)
         self.report_plot(self.scatter)
         self.report_caption(caption)
+
+
+if __name__ == "__main__":
+    WidgetPreview(OWGradientDescent).run(Table.from_file('iris'))

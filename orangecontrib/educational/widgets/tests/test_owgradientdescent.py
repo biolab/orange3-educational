@@ -19,6 +19,8 @@ class TestOWGradientDescent(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWGradientDescent)  # type: OWGradientDescent
+        self.iris = Table.from_file('iris')
+        self.housing = Table.from_file('housing')
 
     def test_fast(self):
         pass
@@ -52,9 +54,10 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
         # call with no class variable
-        table_no_class = Table(
+        table_no_class = Table.from_list(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")]),
-            [[1, 2], [2, 3]])
+            [[1, 2], [2, 3]]
+        )
         self.send_signal(w.Inputs.data, table_no_class)
         self.assertIsNone(w.data)
         self.assertEqual(w.cbx.count(), 0)
@@ -70,10 +73,11 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
         # with only one class value
-        table_one_class = Table(
+        table_one_class = Table.from_numpy(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")],
                    DiscreteVariable("a", values=["k"])),
-            [[1, 2], [2, 3]], [0, 0])
+            [[1, 2], [2, 3]], [0, 0]
+        )
         self.send_signal(w.Inputs.data, table_one_class)
         self.assertIsNone(w.data)
         self.assertEqual(w.cbx.count(), 0)
@@ -89,12 +93,13 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
         # not enough continuous variables
-        table_no_enough_cont = Table(
+        table_no_enough_cont = Table.from_numpy(
             Domain(
                 [ContinuousVariable("x"),
                  DiscreteVariable("y", values=["a", "b"])],
                 DiscreteVariable("a", values=['a', 'b'])),
-            [[1, 0], [2, 1]], [0, 1])
+            [[1, 0], [2, 1]], [0, 1]
+        )
         self.send_signal(w.Inputs.data, table_no_enough_cont)
         self.assertIsNone(w.data)
         self.assertEqual(w.cbx.count(), 0)
@@ -111,39 +116,39 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
         # init with ok data, discrete class - logistic regression
         num_continuous_attributes = sum(
-            True for var in Table('iris').domain.attributes
+            True for var in self.iris.domain.attributes
             if isinstance(var, ContinuousVariable))
 
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         self.assertEqual(w.cbx.count(), num_continuous_attributes)
         self.assertEqual(w.cby.count(), num_continuous_attributes)
         self.assertEqual(
             w.target_class_combobox.count(),
-            len(Table('iris').domain.class_var.values))
-        self.assertEqual(w.cbx.currentText(), Table('iris').domain[0].name)
-        self.assertEqual(w.cby.currentText(), Table('iris').domain[1].name)
+            len(self.iris.domain.class_var.values))
+        self.assertEqual(w.cbx.currentText(), self.iris.domain[0].name)
+        self.assertEqual(w.cby.currentText(), self.iris.domain[1].name)
         self.assertEqual(
             w.target_class_combobox.currentText(),
-            Table('iris').domain.class_var.values[0])
+            self.iris.domain.class_var.values[0])
 
-        self.assertEqual(w.attr_x, Table('iris').domain[0].name)
-        self.assertEqual(w.attr_y, Table('iris').domain[1].name)
-        self.assertEqual(w.target_class, Table('iris').domain.class_var.values[0])
+        self.assertEqual(w.attr_x, self.iris.domain[0].name)
+        self.assertEqual(w.attr_y, self.iris.domain[1].name)
+        self.assertEqual(w.target_class, self.iris.domain.class_var.values[0])
 
         # change showed attributes
-        w.attr_x = Table('iris').domain[1].name
-        w.attr_y = Table('iris').domain[2].name
-        w.target_class = Table('iris').domain.class_var.values[1]
+        w.attr_x = self.iris.domain[1].name
+        w.attr_y = self.iris.domain[2].name
+        w.target_class = self.iris.domain.class_var.values[1]
 
-        self.assertEqual(w.cbx.currentText(), Table('iris').domain[1].name)
-        self.assertEqual(w.cby.currentText(), Table('iris').domain[2].name)
+        self.assertEqual(w.cbx.currentText(), self.iris.domain[1].name)
+        self.assertEqual(w.cby.currentText(), self.iris.domain[2].name)
         self.assertEqual(
             w.target_class_combobox.currentText(),
-            Table('iris').domain.class_var.values[1])
+            self.iris.domain.class_var.values[1])
 
-        self.assertEqual(w.attr_x, Table('iris').domain[1].name)
-        self.assertEqual(w.attr_y, Table('iris').domain[2].name)
-        self.assertEqual(w.target_class, Table('iris').domain.class_var.values[1])
+        self.assertEqual(w.attr_x, self.iris.domain[1].name)
+        self.assertEqual(w.attr_y, self.iris.domain[2].name)
+        self.assertEqual(w.target_class, self.iris.domain.class_var.values[1])
 
         # remove data
         self.send_signal(w.Inputs.data, None)
@@ -160,11 +165,12 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
         # not enough continuous variables when continuous class
-        table_no_enough_cont = Table(
+        table_no_enough_cont = Table.from_numpy(
             Domain(
                 [DiscreteVariable("y", values=["a", "b"])],
                 ContinuousVariable("a")),
-            [[1, 0], [2, 1]], [0, 1])
+            [[1], [0]], [0, 1])
+
         self.send_signal(w.Inputs.data, table_no_enough_cont)
         self.assertIsNone(w.data)
         self.assertEqual(w.cbx.count(), 0)
@@ -181,25 +187,25 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
         # init with ok data, continuous class - linear regression
         num_continuous_attributes = sum(
-            True for var in Table('housing').domain.attributes
+            True for var in self.housing.domain.attributes
             if isinstance(var, ContinuousVariable))
 
-        self.send_signal(w.Inputs.data, Table('housing'))
+        self.send_signal(w.Inputs.data, self.housing)
         self.assertEqual(w.cbx.count(), num_continuous_attributes)
         self.assertEqual(w.cby.count(), 0)
         self.assertEqual(w.target_class_combobox.count(), 0)
         self.assertFalse(w.cby.isEnabled())
         self.assertFalse(w.target_class_combobox.isEnabled())
-        self.assertEqual(w.cbx.currentText(), Table('housing').domain[0].name)
+        self.assertEqual(w.cbx.currentText(), self.housing.domain[0].name)
 
-        self.assertEqual(w.attr_x, Table('housing').domain[0].name)
+        self.assertEqual(w.attr_x, self.housing.domain[0].name)
 
         # change showed attributes
-        w.attr_x = Table('housing').domain[1].name
+        w.attr_x = self.housing.domain[1].name
 
-        self.assertEqual(w.cbx.currentText(), Table('housing').domain[1].name)
+        self.assertEqual(w.cbx.currentText(), self.housing.domain[1].name)
 
-        self.assertEqual(w.attr_x, Table('housing').domain[1].name)
+        self.assertEqual(w.attr_x, self.housing.domain[1].name)
 
     def test_set_learner_discrete(self):
         """
@@ -212,11 +218,13 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(w.learner)
 
         # with logistic regression
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
-        self.assertEqual(len(w.selected_data), len(Table('iris')[::15]))
+        self.send_signal(w.Inputs.data, self.iris[::15])
+        self.assertEqual(len(w.selected_data), len(self.iris[::15]))
         assert_array_equal(w.learner.x, w.selected_data.X)
         assert_array_equal(w.learner.y, w.selected_data.Y)
-        assert_array_equal(w.learner.domain, w.selected_data.domain)
+        self.assertTupleEqual(
+            w.learner.domain.variables, w.selected_data.domain.variables
+        )
         self.assertEqual(w.learner.alpha, w.alpha)
         self.assertEqual(w.learner.stochastic, False)
         self.assertEqual(w.learner.stochastic_step_size, w.step_size)
@@ -226,13 +234,17 @@ class TestOWGradientDescent(WidgetTest):
         # with linear regression
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1])
+        data = Table.from_numpy(
+            domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1]
+        )
         self.send_signal(w.Inputs.data, data)
 
         assert_array_equal(w.learner.x[:, 1][:, None], w.selected_data.X)
         # because of intercept
         assert_array_equal(w.learner.y, w.selected_data.Y)
-        assert_array_equal(w.learner.domain, w.selected_data.domain)
+        self.assertTupleEqual(
+            w.learner.domain.variables, w.selected_data.domain.variables
+        )
         self.assertEqual(w.learner.alpha, w.alpha)
         self.assertEqual(w.learner.stochastic, False)
         self.assertEqual(w.learner.stochastic_step_size, w.step_size)
@@ -245,7 +257,9 @@ class TestOWGradientDescent(WidgetTest):
 
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1])
+        data = Table.from_numpy(
+            domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1]
+        )
         self.send_signal(w.Inputs.data, data)
 
         # click on restart
@@ -260,7 +274,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # to define learner
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, Table.from_file('iris'))
 
         # check init alpha
         self.assertEqual(w.learner.alpha, 0.1)
@@ -283,7 +297,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # define learner
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, Table.from_file('iris'))
 
         # check init
         self.assertFalse(w.learner.stochastic)
@@ -306,7 +320,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # to define learner
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, Table.from_file('iris'))
 
         # check init alpha
         self.assertEqual(w.learner.stochastic_step_size, 30)
@@ -329,7 +343,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # to define learner
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, Table.from_file('iris'))
 
         # check init theta
         self.assertIsNotNone(w.learner.theta)
@@ -354,7 +368,7 @@ class TestOWGradientDescent(WidgetTest):
         # test function not crashes when no data and learner
         w.step()
 
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, Table.from_file('iris')[::15])
 
         # test theta set after step if not set yet
         w.step()
@@ -368,7 +382,7 @@ class TestOWGradientDescent(WidgetTest):
     def test_step_continuous(self):
         w = self.widget
         # with linear regression
-        self.send_signal(w.Inputs.data, Table('housing')[::100])
+        self.send_signal(w.Inputs.data, self.housing[::100])
 
         # test theta set after step if not set yet
         w.step()
@@ -391,7 +405,7 @@ class TestOWGradientDescent(WidgetTest):
         # test function not crashes when no data and learner
         w.keyPressEvent(event)
 
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         # test theta set after step if not set yet
         w.keyPressEvent(event)
@@ -412,7 +426,7 @@ class TestOWGradientDescent(WidgetTest):
             QEvent.KeyPress, Qt.Key_Space, Qt.KeyboardModifiers(0))
 
         # with linear regression
-        self.send_signal(w.Inputs.data, Table('housing')[::100])
+        self.send_signal(w.Inputs.data, self.housing[::100])
 
         # test theta set after step if not set yet
         w.keyPressEvent(event)
@@ -441,7 +455,7 @@ class TestOWGradientDescent(WidgetTest):
         # test function not crashes when no data and learner
         w.step_back()
 
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         # test step back not performed when step_no == 0
         old_theta = np.copy(w.learner.theta)
@@ -453,7 +467,7 @@ class TestOWGradientDescent(WidgetTest):
         Test stepping back
         """
         w = self.widget
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         # test same theta when step performed
         w.change_theta(1.0, 1.0)
@@ -467,7 +481,7 @@ class TestOWGradientDescent(WidgetTest):
         Test stepping back
         """
         w = self.widget
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         w.change_theta(1.0, 1.0)
         theta1 = np.copy(w.learner.theta)
@@ -490,7 +504,7 @@ class TestOWGradientDescent(WidgetTest):
         Test stepping back
         """
         w = self.widget
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         # test for stochastic
         w.stochastic_checkbox.click()
@@ -506,7 +520,7 @@ class TestOWGradientDescent(WidgetTest):
         Test stepping back
         """
         w = self.widget
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
         w.stochastic_checkbox.click()
 
         w.change_theta(1.0, 1.0)
@@ -530,7 +544,7 @@ class TestOWGradientDescent(WidgetTest):
         Test stepping back
         """
         w = self.widget
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
         w.stochastic_checkbox.click()
 
         # test mix stochastic and normal
@@ -561,7 +575,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # with linear regression
-        self.send_signal(w.Inputs.data, Table('housing')[::100])
+        self.send_signal(w.Inputs.data, self.housing[::100])
 
         # test step back not performed when step_no == 0
         old_theta = np.copy(w.learner.theta)
@@ -577,7 +591,9 @@ class TestOWGradientDescent(WidgetTest):
         # with linear regression
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1])
+        data = Table.from_numpy(
+            domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1]
+        )
         self.send_signal(w.Inputs.data, data)
 
         # test same theta when step performed
@@ -597,7 +613,9 @@ class TestOWGradientDescent(WidgetTest):
         # with linear regression
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1])
+        data = Table.from_numpy(
+            domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1]
+        )
         self.send_signal(w.Inputs.data, data)
 
         w.change_theta(1.0, 1.0)
@@ -619,7 +637,9 @@ class TestOWGradientDescent(WidgetTest):
         # with linear regression
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1])
+        data = Table.from_numpy(
+            domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1]
+        )
         self.send_signal(w.Inputs.data, data)
 
         # test for stochastic
@@ -640,7 +660,9 @@ class TestOWGradientDescent(WidgetTest):
         # with linear regression
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1])
+        data = Table.from_numpy(
+            domain, [[1, 2], [1, 3], [2, 3]], [0.1, 1, 2.1]
+        )
 
         self.send_signal(w.Inputs.data, data)
         w.stochastic_checkbox.click()
@@ -672,7 +694,7 @@ class TestOWGradientDescent(WidgetTest):
     def test_replot_discrete(self):
         w = self.widget
 
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
         self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
         self.assertEqual(w.scatter.count_replots, 2)
 
@@ -681,7 +703,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.scatter.count_replots, 2)
 
         # triggered new re-plot
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
         self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
         self.assertEqual(w.scatter.count_replots, 3)
 
@@ -689,7 +711,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # with linear regression
-        self.send_signal(w.Inputs.data, Table('housing')[::100])
+        self.send_signal(w.Inputs.data, self.housing[::100])
         self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
         self.assertEqual(w.scatter.count_replots, 2)
 
@@ -698,7 +720,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.scatter.count_replots, 2)
 
         # triggered new re-plot
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
         self.assertEqual(w.scatter.count_replots, 3)
 
@@ -710,7 +732,7 @@ class TestOWGradientDescent(WidgetTest):
 
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 2]], [0.1, 1])
+        data = Table.from_numpy(domain, [[1, 2], [1, 2]], [0.1, 1])
 
         # test on housing - continuous class
         self.send_signal(w.Inputs.data, data)
@@ -728,7 +750,7 @@ class TestOWGradientDescent(WidgetTest):
         # test with data set for logistic regression - class discrete
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         DiscreteVariable('c', values=['a', 'b']))
-        data = Table(domain, [[1, 2], [1, 2]], [0, 1])
+        data = Table.from_numpy(domain, [[1, 2], [1, 2]], [0, 1])
 
         self.send_signal(w.Inputs.data, data)
         self.assertEqual(len(w.select_data()), len(data))
@@ -752,16 +774,24 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # selected data none when one column only Nones
-        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                            DiscreteVariable('c', values=['a', 'b'])),
-                     [[1, None], [1, None]], [0, 1])
+        data = Table.from_numpy(
+            Domain(
+                [ContinuousVariable('a'), ContinuousVariable('b')],
+                DiscreteVariable('c', values=['a', 'b'])
+            ),
+            [[1, None], [1, None]], [0, 1]
+        )
         self.send_signal(w.Inputs.data, data)
         selected_data = w.select_data()
         self.assertIsNone(selected_data)
 
-        data = Table(Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                            DiscreteVariable('c', values=['a', 'b'])),
-                     [[None, None], [None, None]], [0, 1])
+        data = Table.from_numpy(
+            Domain(
+                [ContinuousVariable('a'), ContinuousVariable('b')],
+                DiscreteVariable('c', values=['a', 'b'])
+            ),
+            [[None, None], [None, None]], [0, 1]
+        )
         self.send_signal(w.Inputs.data, data)
         selected_data = w.select_data()
         self.assertIsNone(selected_data)
@@ -776,7 +806,7 @@ class TestOWGradientDescent(WidgetTest):
         w.auto_play()
 
         # set data
-        self.send_signal(w.Inputs.data, Table('iris')[::15])
+        self.send_signal(w.Inputs.data, self.iris[::15])
 
         # check init
         self.assertFalse(w.auto_play_enabled)
@@ -844,7 +874,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(self.get_output(w.Outputs.model))
 
         # when learner theta set automatically
-        self.send_signal(w.Inputs.data, Table('iris')[::20])
+        self.send_signal(w.Inputs.data, self.iris[::20])
         self.assertIsNotNone(self.get_output(w.Outputs.model))
 
         # when everything fine
@@ -861,7 +891,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(self.get_output(w.Outputs.coefficients))
 
         # when learner but no theta
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         self.assertIsNotNone(self.get_output(w.Outputs.coefficients))
         # when everything fine
         w.change_theta(1., 1.)
@@ -881,7 +911,7 @@ class TestOWGradientDescent(WidgetTest):
         # when learner but no theta
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
                         ContinuousVariable('c'))
-        data = Table(domain, [[1, 2], [1, 2]], [0.1, 1])
+        data = Table.from_numpy(domain, [[1, 2], [1, 2]], [0.1, 1])
         self.send_signal(w.Inputs.data, data)
         self.assertIsNotNone(self.get_output(w.Outputs.coefficients))
         # when everything fine
@@ -903,7 +933,7 @@ class TestOWGradientDescent(WidgetTest):
         self.assertIsNone(self.get_output(w.Outputs.data))
 
         # when everything fine
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         w.change_theta(1., 1.)
         assert_array_equal(self.get_output(w.Outputs.data), w.selected_data)
 
@@ -918,7 +948,7 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # when everything fine
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
 
         w.change_attributes()
         self.assertIsNotNone(w.learner)
@@ -934,7 +964,7 @@ class TestOWGradientDescent(WidgetTest):
             return getattr(w, w.graph_name).svg()
 
         # when everything fine
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         self.process_events(_svg_ready)
         w.send_report()
 
@@ -945,7 +975,7 @@ class TestOWGradientDescent(WidgetTest):
 
         # for stochastic
         w.stochastic_checkbox.click()
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         self.process_events(_svg_ready)
         w.send_report()
         self.process_events()
@@ -956,7 +986,7 @@ class TestOWGradientDescent(WidgetTest):
         GH-47
         """
         w = self.widget
-        self.send_signal(w.Inputs.data, Table('iris'))
+        self.send_signal(w.Inputs.data, self.iris)
         w.auto_play_button.click()
         self.send_signal(w.Inputs.data, None)
 
@@ -974,10 +1004,10 @@ class TestOWGradientDescent(WidgetTest):
             self.send_signal(w.Inputs.data, data)
 
         # one class variable
-        send_sparse_data(Table("iris"))
+        send_sparse_data(self.iris)
 
         # two class variables
-        data = Table("iris")
+        data = self.iris
         domain = Domain(
             attributes=data.domain.attributes[:3],
             class_vars=data.domain.attributes[3:] + data.domain.class_vars
