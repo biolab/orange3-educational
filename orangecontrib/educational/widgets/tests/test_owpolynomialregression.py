@@ -9,12 +9,13 @@ from Orange.regression import (LinearRegressionLearner,
 from Orange.regression.tree import TreeLearner as TreeRegressionLearner
 from Orange.preprocess.preprocess import Normalize
 
+
 class TestOWPolynomialRegression(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWUnivariateRegression)   # type: OWUnivariateRegression
-        self.data = Table("iris")
-        self.data_housing = Table("housing")
+        self.data = Table.from_file("iris")
+        self.data_housing = Table.from_file("housing")
 
     def test_set_data(self):
         variables = self.data.domain.variables
@@ -52,9 +53,10 @@ class TestOWPolynomialRegression(WidgetTest):
                          else len(continuous_variables) - len(class_variables))
 
         # check with data with all none
-        data = Table(Domain([ContinuousVariable('a'),
-                             ContinuousVariable('b')]),
-                     [[None, None], [None, None]])
+        data = Table.from_list(
+            Domain([ContinuousVariable('a'),
+                    ContinuousVariable('b')]),
+            [[None, None], [None, None]])
         self.widget.set_data(data)
         self.widget.apply()
         self.assertIsNone(self.widget.plot_item)
@@ -247,7 +249,7 @@ class TestOWPolynomialRegression(WidgetTest):
         When some rows are nan in attributes array widget crashes.
         GH-43
         """
-        data = Table("iris")[::50]
+        data = self.data[::50]
         data.X[0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
 

@@ -101,8 +101,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.x_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesX = gui.comboBox(
             box, self, value='x_var_index', label="Input: ",
-            orientation=Qt.Horizontal, callback=self.apply,
-            maximumContentsLength=15)
+            orientation=Qt.Horizontal, callback=self.apply)
         self.comboBoxAttributesX.setModel(self.x_var_model)
         self.expansion_spin = gui.doubleSpin(
             gui.indentedBox(box),
@@ -113,8 +112,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.y_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesY = gui.comboBox(
             box, self, value="y_var_index", label="Target: ",
-            orientation=Qt.Horizontal, callback=self.apply,
-            maximumContentsLength=15)
+            orientation=Qt.Horizontal, callback=self.apply)
         self.comboBoxAttributesY.setModel(self.y_var_model)
 
         properties_box = gui.vBox(self.controlArea, "Properties")
@@ -275,8 +273,9 @@ class OWUnivariateRegression(OWBaseLearner):
         if self.data is not None:
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
-            data_table = Table(
-                Domain([attributes], class_vars=[class_var]), self.data)
+            data_table = Table.from_table(
+                Domain([attributes], class_vars=[class_var]), self.data
+            )
 
             # all lines has nan
             if sum(math.isnan(line[0]) or math.isnan(line.get_class())
@@ -299,7 +298,8 @@ class OWUnivariateRegression(OWBaseLearner):
             values = predictor(linspace, predictor.Value)
 
             # calculate prediction for x from data
-            predicted = TestOnTrainingData(preprocessed_data, [learner])
+            validation = TestOnTrainingData()
+            predicted = validation(preprocessed_data, [learner])
             self.rmse = round(RMSE(predicted)[0], 6)
             self.mae = round(MAE(predicted)[0], 6)
 
@@ -340,7 +340,7 @@ class OWUnivariateRegression(OWBaseLearner):
             coefs = [model.intercept_ + model.coef_[0]] + list(model.coef_[1:])
             names = ["1", x_label] + \
                     ["{}^{}".format(x_label, i) for i in range(2, degree + 1)]
-            coef_table = Table(domain, list(zip(coefs, names)))
+            coef_table = Table.from_list(domain, list(zip(coefs, names)))
             self.Outputs.coefficients.send(coef_table)
         else:
             self.Outputs.coefficients.send(None)
@@ -352,7 +352,7 @@ class OWUnivariateRegression(OWBaseLearner):
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
 
-            data_table = Table(
+            data_table = Table.from_table(
                 Domain([attributes], class_vars=[class_var]), self.data)
             polyfeatures = skl_preprocessing.PolynomialFeatures(
                 int(self.polynomialexpansion))
@@ -371,7 +371,7 @@ class OWUnivariateRegression(OWBaseLearner):
                 [ContinuousVariable("{}^{}".format(x_label, i))
                  for i in range(2, int(self.polynomialexpansion) + 1)], class_vars=[class_var])
 
-            self.Outputs.data.send(Table(out_domain, out_array))
+            self.Outputs.data.send(Table.from_numpy(out_domain, out_array))
             return
 
         self.Outputs.data.send(None)
