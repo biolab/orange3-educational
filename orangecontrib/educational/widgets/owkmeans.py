@@ -4,17 +4,13 @@ from itertools import chain
 import time
 
 from AnyQt.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
-from AnyQt.QtWidgets import QSizePolicy
 
 import Orange
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
-from Orange.data import DiscreteVariable, ContinuousVariable, Table, Domain
-from Orange.widgets import gui, settings, widget
+from Orange.data import DiscreteVariable, Table, Domain
+from Orange.widgets import gui, settings
+from orangewidget.report import report
 
-try:
-    from orangewidget.report import report
-except ImportError:
-    from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
 from orangecontrib.educational.widgets.utils.color_transform import \
