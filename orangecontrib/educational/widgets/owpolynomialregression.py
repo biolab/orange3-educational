@@ -18,11 +18,8 @@ from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.widget import Msg, Input, Output
+from orangewidget.report import report
 
-try:
-    from orangewidget.report import report
-except ImportError:
-    from Orange.canvas import report
 
 
 class OWUnivariateRegression(OWBaseLearner):

@@ -16,14 +16,14 @@ from Orange.data import (
     ContinuousVariable, Table, Domain, StringVariable, DiscreteVariable)
 from Orange.widgets import settings, gui
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
-from Orange.classification import (LogisticRegressionLearner, Learner,
-                                   RandomForestLearner, TreeLearner)
-from Orange.widgets.widget import Msg, OWWidget, Input, Output
+from Orange.classification import (
+    LogisticRegressionLearner,
+    RandomForestLearner,
+    TreeLearner
+)
+from Orange.widgets.widget import Msg, Input, Output
+from orangewidget.report import report
 
-try:
-    from orangewidget.report import report
-except ImportError:
-    from Orange.canvas import report
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
