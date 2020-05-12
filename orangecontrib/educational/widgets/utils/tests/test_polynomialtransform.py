@@ -10,7 +10,9 @@ class TestPolynomialTransform(unittest.TestCase):
         self.titanic = Table('titanic')
         self.iris = Table('iris')
         domain = Domain([ContinuousVariable("a"), ContinuousVariable("b")])
-        self.data = Table(domain, [[1.3, 2], [3, 4.1], [1, 2], [3.2, 3.1]])
+        self.data = Table.from_list(
+            domain, [[1.3, 2], [3, 4.1], [1, 2], [3.2, 3.1]]
+        )
         # data with two columns
 
     def test_plynomial_transform(self):
