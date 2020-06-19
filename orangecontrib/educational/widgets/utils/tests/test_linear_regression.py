@@ -8,7 +8,7 @@ from numpy.testing import *
 import numpy as np
 
 
-class TestLogisticRegression(unittest.TestCase):
+class TestLinearRegression(unittest.TestCase):
 
     def setUp(self):
         self.housing = Normalize()(Table('housing'))

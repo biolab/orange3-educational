@@ -1,5 +1,5 @@
 import unittest
-from Orange.data import Table
+from Orange.data import Table, Domain, DiscreteVariable
 from orangecontrib.educational.widgets.utils.logistic_regression import \
     LogisticRegression
 from numpy.testing import *
@@ -10,6 +10,11 @@ class TestLogisticRegression(unittest.TestCase):
 
     def setUp(self):
         self.iris = Table('iris')
+        class_var = DiscreteVariable(
+            "iris", values=self.iris.domain.class_var.values[:2]
+        )
+        domain = Domain(self.iris.domain.attributes, class_var)
+        self.iris = Table.from_table(domain, self.iris[:100])
         self.logistic_regression = LogisticRegression()
 
     def test_model(self):
