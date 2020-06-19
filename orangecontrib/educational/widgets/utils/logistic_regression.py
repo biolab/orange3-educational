@@ -12,8 +12,16 @@ class LogisticRegression(GradientDescent):
     which allow to perform algorithm step by step
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, data=None, **kwargs):
+        super().__init__(data=data, **kwargs)
+        self._check_data(data)
+
+    @staticmethod
+    def _check_data(data):
+        if data is not None and len(data.domain.class_var.values) > 2:
+            raise ValueError(
+                "This implementation is made for class with only two values"
+            )
 
     @property
     def model(self):
@@ -24,6 +32,10 @@ class LogisticRegression(GradientDescent):
             return None
         else:
             return LogisticRegressionModel(self.theta, self.domain)
+
+    def set_data(self, data):
+        self._check_data(data)
+        super().set_data(data)
 
     def j(self, theta):
         """
@@ -64,6 +76,7 @@ class LogisticRegression(GradientDescent):
         z_mod = np.maximum(z_mod, -20)
 
         return 1.0 / (1 + np.exp(- z_mod))
+
 
 class LogisticRegressionModel(Model):
 
