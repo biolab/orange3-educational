@@ -87,7 +87,7 @@ def include_documentation(local_dir, install_dir):
 
 
 if __name__ == '__main__':
-    include_documentation('doc/build/htmlhelp', 'help/orange3-educational')
+    include_documentation('doc/_build/htmlhelp', 'help/orange3-educational')
     setup(
         name=NAME,
         version=VERSION,

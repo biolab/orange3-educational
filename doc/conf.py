@@ -32,11 +32,18 @@ import shlex
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'recommonmark'
+    'sphinx.ext.doctest',
+    'sphinx.ext.todo',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
+
+# The suffix of source filenames.
+source_suffix = ['.rst', '.md']
 
 # The encoding of source files.
 source_encoding = 'utf-8'
