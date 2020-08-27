@@ -209,7 +209,7 @@ class TestOWPolynomialClassification(WidgetTest):
 
         table_one_class = Table.from_list(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")],
-                   DiscreteVariable("a", values=["k"])),
+                   DiscreteVariable("a", values=("k", ))),
             [[1, 2], [2, 3]], [0, 0])
         self.send_signal(w.Inputs.data, table_one_class)
 
@@ -228,7 +228,7 @@ class TestOWPolynomialClassification(WidgetTest):
         table_no_enough_cont = Table.from_numpy(
             Domain(
                 [ContinuousVariable("x"),
-                 DiscreteVariable("y", values=["a", "b"])],
+                 DiscreteVariable("y", values=("a", "b"))],
                 ContinuousVariable("a")),
             [[1, 0], [2, 1]], [0, 0])
         self.send_signal(w.Inputs.data, table_no_enough_cont)
@@ -385,7 +385,7 @@ class TestOWPolynomialClassification(WidgetTest):
         # selected data none when one column only Nones
         data = Table.from_numpy(
             Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                   DiscreteVariable('c', values=['a', 'b'])),
+                   DiscreteVariable('c', values=('a', 'b'))),
             [[1, None], [1, None]], [0, 1]
         )
         self.send_signal(w.Inputs.data, data)
@@ -394,7 +394,7 @@ class TestOWPolynomialClassification(WidgetTest):
 
         data = Table.from_numpy(
             Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                   DiscreteVariable('c', values=['a', 'b'])),
+                   DiscreteVariable('c', values=('a', 'b'))),
             [[None, None], [None, None]], [0, 1]
         )
         self.send_signal(w.Inputs.data, data)
