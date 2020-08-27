@@ -159,7 +159,8 @@ class OWUnivariateRegression(OWBaseLearner):
         if self.data is None:
             return
         caption = report.render_items_vert((
-             ("Polynomial Expansion: ", self.polynomialexpansion),
+             ("Polynomial Expansion", self.polynomialexpansion),
+             ("Fit intercept", ["No", "Yes"][self.fit_intercept])
         ))
         self.report_plot()
         if caption:
