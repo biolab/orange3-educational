@@ -13,12 +13,20 @@ from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
                                       LinearRegressionLearner)
 from Orange.regression import Learner
+from Orange.regression.mean import MeanModel
+from Orange.statistics.distribution import Continuous
 from Orange.widgets import settings, gui
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.widget import Msg, Input, Output
 from orangewidget.report import report
+
+
+class RegressTo0(Learner):
+    @staticmethod
+    def fit(*args, **kwargs):
+        return MeanModel(Continuous(np.empty(0)))
 
 
 class OWUnivariateRegression(OWBaseLearner):
@@ -103,7 +111,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.expansion_spin = gui.doubleSpin(
             gui.indentedBox(box),
             self, "polynomialexpansion", 0, 10,
-            label="Polynomial expansion:", callback=self._degree_changed)
+            label="Polynomial expansion:", callback=self.apply)
 
         gui.separator(box, height=8)
         self.y_var_model = itemmodels.VariableListModel()
@@ -118,7 +126,7 @@ class OWUnivariateRegression(OWBaseLearner):
             label="Show error bars", callback=self.apply)
         gui.checkBox(
             widget=properties_box, master=self, value="fit_intercept",
-            label="Fit intercept", callback=self.apply, stateWhenDisabled=True)
+            label="Fit intercept", callback=self.apply)
 
         gui.rubber(self.controlArea)
 
@@ -146,10 +154,6 @@ class OWUnivariateRegression(OWBaseLearner):
                            disableAutoRange=True)
 
         self.mainArea.layout().addWidget(self.plotview)
-
-    def _degree_changed(self):
-        self.controls.fit_intercept.setEnabled(self.polynomialexpansion > 0)
-        self.apply()
 
     def send_report(self):
         if self.data is None:
@@ -230,6 +234,12 @@ class OWUnivariateRegression(OWBaseLearner):
     def set_range(self, x_data, y_data):
         min_x, max_x = np.nanmin(x_data), np.nanmax(x_data)
         min_y, max_y = np.nanmin(y_data), np.nanmax(y_data)
+        if self.polynomialexpansion == 0 and not self.fit_intercept:
+            if min_y > 0:
+                min_y = -0.1 * max_y
+            elif max_y < 0:
+                max_y = -0.1 * min_y
+
         self.plotview.setRange(
             QRectF(min_x, min_y, max_x - min_x, max_y - min_y),
             padding=0.025)
@@ -276,12 +286,15 @@ class OWUnivariateRegression(OWBaseLearner):
     def apply(self):
         degree = int(self.polynomialexpansion)
         # Intercept is added through a bias term in polynomial expansion
-        lin_learner = self.learner \
-                      or LinearRegressionLearner(fit_intercept=False)
-        learner = self.LEARNER(
-            preprocessors=self.preprocessors, degree=degree,
-            include_bias=self.fit_intercept or degree == 0,
-            learner=lin_learner)
+        if degree == 0 and not self.fit_intercept:
+            learner = RegressTo0()
+        else:
+            lin_learner = self.learner \
+                          or LinearRegressionLearner(fit_intercept=False)
+            learner = self.LEARNER(
+                preprocessors=self.preprocessors, degree=degree,
+                include_bias=self.fit_intercept or degree == 0,
+                learner=lin_learner)
         learner.name = self.learner_name
         predictor = None
         model = None
@@ -304,7 +317,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
             predictor = learner(data_table)
             model = None
-            if predictor is not None:
+            if hasattr(predictor, "model"):
                 model = predictor.model
                 if hasattr(model, "model"):
                     model = model.model
@@ -339,8 +352,7 @@ class OWUnivariateRegression(OWBaseLearner):
             x_data, y_data = linspace.ravel(), values.ravel()
             if self.polynomialexpansion == 0:
                 self.plot_infinite_line(x_data[0], y_data[0], 0)
-            elif self.polynomialexpansion == 1 \
-                    and model is not None and hasattr(model, "coef_"):
+            elif self.polynomialexpansion == 1 and hasattr(model, "coef_"):
                 k = model.coef_[1 if self.fit_intercept else 0]
                 self.plot_infinite_line(x_data[0], y_data[0],
                                         math.degrees(math.atan(k)))
