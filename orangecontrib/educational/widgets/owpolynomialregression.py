@@ -21,7 +21,6 @@ from Orange.widgets.widget import Msg, Input, Output
 from orangewidget.report import report
 
 
-
 class OWUnivariateRegression(OWBaseLearner):
     name = "Polynomial Regression"
     description = "Univariate regression with polynomial expansion."
@@ -53,6 +52,7 @@ class OWUnivariateRegression(OWBaseLearner):
     x_var_index = settings.ContextSetting(0)
     y_var_index = settings.ContextSetting(1)
     error_bars_enabled = settings.Setting(False)
+    fit_intercept = settings.Setting(True)
 
     default_learner_name = "Linear Regression"
     error_plot_items = []
@@ -103,7 +103,7 @@ class OWUnivariateRegression(OWBaseLearner):
         self.expansion_spin = gui.doubleSpin(
             gui.indentedBox(box),
             self, "polynomialexpansion", 0, 10,
-            label="Polynomial expansion:", callback=self.apply)
+            label="Polynomial expansion:", callback=self._degree_changed)
 
         gui.separator(box, height=8)
         self.y_var_model = itemmodels.VariableListModel()
@@ -116,6 +116,9 @@ class OWUnivariateRegression(OWBaseLearner):
         self.error_bars_checkbox = gui.checkBox(
             widget=properties_box, master=self, value='error_bars_enabled',
             label="Show error bars", callback=self.apply)
+        gui.checkBox(
+            widget=properties_box, master=self, value="fit_intercept",
+            label="Fit intercept", callback=self.apply, stateWhenDisabled=True)
 
         gui.rubber(self.controlArea)
 
@@ -143,6 +146,10 @@ class OWUnivariateRegression(OWBaseLearner):
                            disableAutoRange=True)
 
         self.mainArea.layout().addWidget(self.plotview)
+
+    def _degree_changed(self):
+        self.controls.fit_intercept.setEnabled(self.polynomialexpansion > 0)
+        self.apply()
 
     def send_report(self):
         if self.data is None:
@@ -258,10 +265,13 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def apply(self):
         degree = int(self.polynomialexpansion)
+        # Intercept is added through a bias term in polynomial expansion
+        lin_learner = self.learner \
+                      or LinearRegressionLearner(fit_intercept=False)
         learner = self.LEARNER(
             preprocessors=self.preprocessors, degree=degree,
-            learner=LinearRegressionLearner() if self.learner is None
-            else self.learner)
+            include_bias=self.fit_intercept or degree == 0,
+            learner=lin_learner)
         learner.name = self.learner_name
         predictor = None
 
@@ -387,7 +397,7 @@ if __name__ == "__main__":
     polylearner = PolynomialLearner(learner, degree=2)
     d = Table('iris')
     ow.set_data(d)
-    ow.set_learner(learner)
+    # ow.set_learner(learner)
     ow.show()
     a.exec_()
     ow.saveSettings()
