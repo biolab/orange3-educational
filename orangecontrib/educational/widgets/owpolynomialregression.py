@@ -1,7 +1,7 @@
 import math
 
 from Orange.evaluation import RMSE, TestOnTrainingData, MAE
-from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtGui import QColor, QPalette, QPen, QFont
 
 import sklearn.preprocessing as skl_preprocessing
@@ -236,13 +236,23 @@ class OWUnivariateRegression(OWBaseLearner):
         self.plotview.replot()
 
     def plot_regression_line(self, x_data, y_data):
-        if self.plot_item:
-            self.plotview.removeItem(self.plot_item)
-        self.plot_item = pg.PlotCurveItem(
+        item = pg.PlotCurveItem(
             x=x_data, y=y_data,
             pen=pg.mkPen(QColor(255, 0, 0), width=3),
             antialias=True
         )
+        self._plot_regression_item(item)
+
+    def plot_infinite_line(self, x, y, angle):
+        item = pg.InfiniteLine(
+            QPointF(x, y), angle,
+            pen=pg.mkPen(QColor(255, 0, 0), width=3))
+        self._plot_regression_item(item)
+
+    def _plot_regression_item(self, item):
+        if self.plot_item:
+            self.plotview.removeItem(self.plot_item)
+        self.plot_item = item
         self.plotview.addItem(self.plot_item)
         self.plotview.replot()
 
@@ -274,6 +284,7 @@ class OWUnivariateRegression(OWBaseLearner):
             learner=lin_learner)
         learner.name = self.learner_name
         predictor = None
+        model = None
 
         self.Error.all_none.clear()
 
@@ -292,6 +303,13 @@ class OWUnivariateRegression(OWBaseLearner):
                 return
 
             predictor = learner(data_table)
+            model = None
+            if predictor is not None:
+                model = predictor.model
+                if hasattr(model, "model"):
+                    model = model.model
+                elif hasattr(model, "skl_model"):
+                    model = model.skl_model
 
             preprocessed_data = data_table
             for preprocessor in learner.active_preprocessors:
@@ -318,7 +336,16 @@ class OWUnivariateRegression(OWBaseLearner):
             self.plot_scatter_points(x, y)
 
             # plot regression line
-            self.plot_regression_line(linspace.ravel(), values.ravel())
+            x_data, y_data = linspace.ravel(), values.ravel()
+            if self.polynomialexpansion == 0:
+                self.plot_infinite_line(x_data[0], y_data[0], 0)
+            elif self.polynomialexpansion == 1 \
+                    and model is not None and hasattr(model, "coef_"):
+                k = model.coef_[1 if self.fit_intercept else 0]
+                self.plot_infinite_line(x_data[0], y_data[0],
+                                        math.degrees(math.atan(k)))
+            else:
+                self.plot_regression_line(x_data, y_data)
 
             x_label = self.x_var_model[self.x_var_index]
             axis = self.plot.getAxis("bottom")
@@ -334,13 +361,6 @@ class OWUnivariateRegression(OWBaseLearner):
         self.Outputs.model.send(predictor)
 
         # Send model coefficents
-        model = None
-        if predictor is not None:
-            model = predictor.model
-            if hasattr(model, "model"):
-                model = model.model
-            elif hasattr(model, "skl_model"):
-                model = model.skl_model
         if model is not None and hasattr(model, "coef_"):
             domain = Domain([ContinuousVariable("coef")],
                             metas=[StringVariable("name")])
