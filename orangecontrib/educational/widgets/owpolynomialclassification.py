@@ -564,9 +564,9 @@ class OWPolynomialClassification(OWBaseLearner):
         other_value = cls_domain.values[(target_idx + 1) % 2]
 
         class_domain = [DiscreteVariable(
-            name="Transormed " + self.data.domain.class_var.name,
-            values=[self.target_class, 'Others'
-            if len(cls_domain.values) > 2 else other_value])]
+            name="Transformed " + self.data.domain.class_var.name,
+            values=(self.target_class, 'Others'
+            if len(cls_domain.values) > 2 else other_value))]
 
         domain = Domain(
             [attr_x, attr_y],

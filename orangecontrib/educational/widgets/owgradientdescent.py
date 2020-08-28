@@ -757,7 +757,7 @@ class OWGradientDescent(OWWidget):
                     [attr_x, attr_y],
                     [DiscreteVariable(
                         name=self.data.domain.class_var.name + "-bin",
-                        values=[self.target_class, 'Others'])],
+                        values=(self.target_class, 'Others'))],
                     [self.data.domain.class_var])
 
             y = [(0 if self.data.domain.class_var.values[int(d)] ==

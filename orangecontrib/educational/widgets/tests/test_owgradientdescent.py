@@ -75,7 +75,7 @@ class TestOWGradientDescent(WidgetTest):
         # with only one class value
         table_one_class = Table.from_numpy(
             Domain([ContinuousVariable("x"), ContinuousVariable("y")],
-                   DiscreteVariable("a", values=["k"])),
+                   DiscreteVariable("a", values=("k", ))),
             [[1, 2], [2, 3]], [0, 0]
         )
         self.send_signal(w.Inputs.data, table_one_class)
@@ -96,8 +96,8 @@ class TestOWGradientDescent(WidgetTest):
         table_no_enough_cont = Table.from_numpy(
             Domain(
                 [ContinuousVariable("x"),
-                 DiscreteVariable("y", values=["a", "b"])],
-                DiscreteVariable("a", values=['a', 'b'])),
+                 DiscreteVariable("y", values=("a", "b"))],
+                DiscreteVariable("a", values=('a', 'b'))),
             [[1, 0], [2, 1]], [0, 1]
         )
         self.send_signal(w.Inputs.data, table_no_enough_cont)
@@ -167,7 +167,7 @@ class TestOWGradientDescent(WidgetTest):
         # not enough continuous variables when continuous class
         table_no_enough_cont = Table.from_numpy(
             Domain(
-                [DiscreteVariable("y", values=["a", "b"])],
+                [DiscreteVariable("y", values=("a", "b"))],
                 ContinuousVariable("a")),
             [[1], [0]], [0, 1])
 
@@ -749,7 +749,7 @@ class TestOWGradientDescent(WidgetTest):
 
         # test with data set for logistic regression - class discrete
         domain = Domain([ContinuousVariable('a'), ContinuousVariable('b')],
-                        DiscreteVariable('c', values=['a', 'b']))
+                        DiscreteVariable('c', values=('a', 'b')))
         data = Table.from_numpy(domain, [[1, 2], [1, 2]], [0, 1])
 
         self.send_signal(w.Inputs.data, data)
@@ -777,7 +777,7 @@ class TestOWGradientDescent(WidgetTest):
         data = Table.from_numpy(
             Domain(
                 [ContinuousVariable('a'), ContinuousVariable('b')],
-                DiscreteVariable('c', values=['a', 'b'])
+                DiscreteVariable('c', values=('a', 'b'))
             ),
             [[1, None], [1, None]], [0, 1]
         )
@@ -788,7 +788,7 @@ class TestOWGradientDescent(WidgetTest):
         data = Table.from_numpy(
             Domain(
                 [ContinuousVariable('a'), ContinuousVariable('b')],
-                DiscreteVariable('c', values=['a', 'b'])
+                DiscreteVariable('c', values=('a', 'b'))
             ),
             [[None, None], [None, None]], [0, 1]
         )
