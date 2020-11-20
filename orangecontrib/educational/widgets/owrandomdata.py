@@ -415,6 +415,7 @@ class OWRandomData(OWWidget):
         combo.addItem("Add more variables ...")
         combo.addItems(list(distributions))
         combo.currentTextChanged.connect(self.on_add_distribution)
+        combo.setFocusPolicy(Qt.NoFocus)
         self.controlArea.layout().addWidget(combo)
         gui.separator(self.controlArea, 16)
 
