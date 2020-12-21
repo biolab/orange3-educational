@@ -639,6 +639,9 @@ class TestOWPolynomialClassification(WidgetTest):
         self.assertEqual(w.attr_y, self.iris.domain[1].name)
         self.assertEqual(w.target_class, self.iris.domain.class_var.values[0])
 
+    def test_minimum_size(self):
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()

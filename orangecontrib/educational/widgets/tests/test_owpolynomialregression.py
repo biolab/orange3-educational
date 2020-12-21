@@ -254,6 +254,10 @@ class TestOWPolynomialRegression(WidgetTest):
         self.send_signal(self.widget.Inputs.data, data)
 
 
+    def test_minimum_size(self):
+        pass
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

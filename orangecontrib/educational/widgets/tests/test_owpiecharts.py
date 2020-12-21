@@ -89,3 +89,6 @@ class TestOWPieChart(WidgetTest):
         # remove everything from combo
         self.send_signal(w.Inputs.data, None)
         self.assertEqual(w.split_combobox.count(), 1)  # only non in combo
+
+    def test_minimum_size(self):
+        pass

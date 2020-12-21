@@ -336,6 +336,9 @@ class TestOWKmeans(WidgetTest):
         data[:, 0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
 
+    def test_minimum_size(self):
+        pass
+
 
 if __name__ == "__main__":
     import unittest

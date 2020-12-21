@@ -1014,6 +1014,9 @@ class TestOWGradientDescent(WidgetTest):
         )
         send_sparse_data(data.transform(domain))
 
+    def test_minimum_size(self):
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()

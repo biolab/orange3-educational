@@ -1,6 +1,3 @@
-include orangecontrib/educational/tutorials/*.ows
-include orangecontrib/educational/widgets/icons/*
-include orangecontrib/educational/widgets/resources/*
-include orangecontrib/educational/widgets/highcharts/_highcharts/*
-include README.md
-include LICENSE
+recursive-include . *.toml *.ini *.md *.pypi .coveragerc LICENSE
+recursive-include doc *.bat *.json *.md *.png *.py *.rst *.txt Makefile
+recursive-include orangecontrib *.html *.js *.json *.svg *.updating

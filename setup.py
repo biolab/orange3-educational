@@ -38,6 +38,10 @@ INSTALL_REQUIRES = [
     'numpy'
 ]
 
+EXTRAS_REQUIRE = {
+    'test': ['coverage']
+}
+
 ENTRY_POINTS = {
     # Entry points that marks this package as an orange add-on. If set, addon will
     # be shown in the add-ons manager even if not published on PyPi.
@@ -73,14 +77,9 @@ DOWNLOAD_URL = "https://github.com/biolab/orange3-educational/releases"
 
 def include_documentation(local_dir, install_dir):
     global DATA_FILES
-    if 'bdist_wheel' in sys.argv and not path.exists(local_dir):
-        print("Directory '{}' does not exist. "
-              "Please build documentation before running bdist_wheel."
-              .format(path.abspath(local_dir)))
-        sys.exit(0)
 
     doc_files = []
-    for dirpath, dirs, files in walk(local_dir):
+    for dirpath, _, files in walk(local_dir):
         doc_files.append((dirpath.replace(local_dir, install_dir),
                           [path.join(dirpath, f) for f in files]))
     DATA_FILES.extend(doc_files)
@@ -99,6 +98,7 @@ if __name__ == '__main__':
         package_data=PACKAGE_DATA,
         data_files=DATA_FILES,
         install_requires=INSTALL_REQUIRES,
+        extras_require=EXTRAS_REQUIRE,
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
         namespace_packages=NAMESPACE_PACKAGES,
