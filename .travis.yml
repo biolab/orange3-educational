@@ -42,7 +42,7 @@ before_install:
 install:
     - pip install sip pyqt5==5.11.*
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
-    - pip install .
+    - pip install -e .
 
     - mkdir -p $(python -c 'from Orange.misc.environ import cache_dir; print(cache_dir())')
 
