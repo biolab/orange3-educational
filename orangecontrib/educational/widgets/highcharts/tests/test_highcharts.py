@@ -1,4 +1,5 @@
 import time
+import unittest
 
 import numpy as np
 
@@ -6,7 +7,7 @@ from AnyQt.QtCore import QObject
 
 from Orange.widgets.tests.base import WidgetTest
 
-from .. import Highchart
+from orangecontrib.educational.widgets.highcharts.highcharts import Highchart
 
 
 class Scatter(Highchart):
@@ -79,3 +80,7 @@ class HighchartTest(WidgetTest):
         self.process_events(lambda: len(selected_indices))
         self.assertEqual(len(selected_indices), 1)
         self.assertGreater(len(selected_indices[0]), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

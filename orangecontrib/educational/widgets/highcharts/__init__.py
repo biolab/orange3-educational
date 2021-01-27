@@ -1,1 +1,1 @@
-from .highcharts import Highchart
+from orangecontrib.educational.widgets.highcharts.highcharts import Highchart
