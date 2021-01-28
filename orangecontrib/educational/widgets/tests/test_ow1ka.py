@@ -20,3 +20,7 @@ class TestOW1ka(WidgetTest):
 
     def test_widget_load(self):
         self.assertIsNotNone(self.widget)
+
+
+if __name__ == "__main__":
+    unittest.main()
