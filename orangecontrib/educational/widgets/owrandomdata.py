@@ -1,4 +1,5 @@
 from collections import namedtuple
+from functools import partial
 from itertools import chain
 from math import ceil, log10
 
@@ -7,7 +8,8 @@ from scipy import stats
 
 from AnyQt.QtCore import Qt, pyqtSignal as Signal, QTimer
 from AnyQt.QtWidgets import QComboBox, QFormLayout, \
-    QLineEdit, QGroupBox, QStyle, QPushButton, QLabel, QVBoxLayout, QScrollArea
+    QLineEdit, QGroupBox, QStyle, QPushButton, QLabel, QVBoxLayout, \
+    QSizePolicy, QSpacerItem
 from AnyQt.QtGui import QIntValidator, QDoubleValidator
 
 from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
@@ -359,6 +361,14 @@ dist_defs = [
     BivariateNormal
 ]
 
+
+class RandomDataVerticalScrollArea(gui.VerticalScrollArea):
+    def sizeHint(self):
+        sh = super().sizeHint()
+        sh.setHeight(350)
+        return sh
+
+
 distributions = {dist.name: dist for dist in dist_defs}
 del dist_defs
 del cd
@@ -379,8 +389,6 @@ class OWRandomData(OWWidget):
         data = Output("Data", Table)
 
     want_main_area = False
-    left_side_scrolling = True
-    # resizing_enabled = False   # This would disable scrolling
 
     n_instances = Setting(1000)
     distributions = Setting([
@@ -392,6 +400,15 @@ class OWRandomData(OWWidget):
     def __init__(self):
         super().__init__()
         self.editors = []
+
+        self.scroll_area = RandomDataVerticalScrollArea(self.controlArea)
+        self.scroll_area.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.editor_vbox = gui.vBox(self.controlArea, spacing=0)
+        self.editor_vbox.layout().addSpacerItem(
+            QSpacerItem(1, 1, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        )
+        self.scroll_area.setWidget(self.editor_vbox)
+        self.controlArea.layout().addWidget(self.scroll_area)
 
         # self.add_combo is needed so that tests can manipulate it
         combo = self.add_combo = QComboBox()
@@ -423,26 +440,12 @@ class OWRandomData(OWWidget):
         self.add_editor(editor_class())
         combo.setCurrentIndex(0)
 
-    def _scroll_area(self):
-        # OWWidget does not expose it, but I need it and I know it's there
-        scroll_area = self.left_side
-        while scroll_area and not isinstance(scroll_area, QScrollArea):
-            scroll_area = scroll_area.parent()
-        return scroll_area
-
-    def _resize(self):
-        scroll_area = self._scroll_area()
-        scroll_area.updateGeometry()
-        scroll_area.adjustSize()
-        QTimer.singleShot(0, self.adjustSize)
-
     def add_editor(self, editor):
         editor.remove_clicked.connect(self.remove_editor)
-        self.controlArea.layout().insertWidget(len(self.editors), editor)
+        self.editor_vbox.layout().insertWidget(len(self.editors), editor)
         self.editors.append(editor)
-        self._resize()
-        scroll_bar = self._scroll_area().verticalScrollBar()
-        QTimer.singleShot(0, lambda: scroll_bar.setValue(scroll_bar.maximum()))
+        self.editor_vbox.updateGeometry()
+        QTimer.singleShot(0, partial(self.scroll_area.ensureWidgetVisible, editor))
         self.generate()
 
     def remove_editor(self):
@@ -450,7 +453,6 @@ class OWRandomData(OWWidget):
         self.controlArea.layout().removeWidget(editor)
         self.editors.remove(editor)
         editor.deleteLater()
-        self._resize()
         self.generate()
 
     def generate(self):
