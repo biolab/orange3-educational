@@ -74,7 +74,7 @@ class OWPieChart(widget.OWWidget):
             QPainter.Antialiasing | QPainter.TextAntialiasing |
             QPainter.SmoothPixmapTransform)
         self.mainArea.layout().addWidget(self.view)
-        self.mainArea.setMinimumWidth(500)
+        self.mainArea.setMinimumWidth(400)
 
     def sizeHint(self):
         return QSize(200, 150)  # Horizontal size is regulated by mainArea
