@@ -132,7 +132,7 @@ class OWKmeans(OWWidget):
     description = "Widget demonstrates working of k-means algorithm."
     keywords = ["kmeans", "clustering", "interactive"]
     icon = "icons/InteractiveKMeans.svg"
-    want_main_area = False
+    want_main_area = True
     priority = 300
 
     # inputs and outputs
@@ -186,7 +186,7 @@ class OWKmeans(OWWidget):
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
             callback=self.restart, sendSelectedValue=True,
-            )
+        )
 
         self.cbx = gui.comboBox(value='attr_x', label='X: ', **opts)
         self.cby = gui.comboBox(value='attr_y', label='Y: ', **opts)
@@ -205,7 +205,6 @@ class OWKmeans(OWWidget):
             'Show membership lines', callback=self.complete_replot)
 
         # control box
-        gui.separator(self.controlArea, 20, 20)
         self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
         self.step_button = gui.button(
             self.step_box, self, self.STEP_BUTTONS[1], callback=self.step)
