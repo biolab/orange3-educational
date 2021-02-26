@@ -411,8 +411,12 @@ class OWRandomData(OWWidget):
         self.scroll_area.setWidget(self.editor_vbox)
         self.controlArea.layout().addWidget(self.scroll_area)
 
+        class IgnoreWheelCombo(QComboBox):
+            def wheelEvent(self, event):
+                event.ignore()
+
         # self.add_combo is needed so that tests can manipulate it
-        combo = self.add_combo = QComboBox()
+        combo = self.add_combo = IgnoreWheelCombo()
         combo.addItem("Add more variables ...")
         combo.addItems(list(distributions))
         combo.currentTextChanged.connect(self.on_add_distribution)
