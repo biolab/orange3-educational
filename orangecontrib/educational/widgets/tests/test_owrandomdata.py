@@ -2,7 +2,7 @@
 # pylint: disable=abstract-method, attribute-defined-outside-init
 
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from collections import Counter
 
 from Orange.widgets.tests.base import WidgetTest, GuiTest
@@ -183,6 +183,7 @@ class TestParametersEditor(GuiTest):
     def test_prepare_variables_is_abstract(self):
         e = MockEditor()
         self.assertRaises(NotImplementedError, e.prepare_variables, {}, 3)
+
 
 class TestParametersEditorContinuous(GuiTest):
     def test_prepare_variables(self):
@@ -458,6 +459,22 @@ class TestOWRandomData(WidgetTest):
         widget.remove_editor()
         widget.pack_editor_settings()
         self.assertEqual(widget.distributions, [])
+
+    def test_output_summary(self):
+        widget = self.widget
+        setsum = widget.info.set_output_summary = Mock()
+        widget.n_instances = 7
+        widget.generate()
+        self.assertEqual(setsum.call_args[0][0], 7)
+        widget.n_instances = 5
+        widget.generate()
+        self.assertEqual(setsum.call_args[0][0], 5)
+
+        with patch.object(widget, "sender", new=lambda: widget.editors[0]):
+            while widget.editors:
+                widget.remove_editor()
+
+        self.assertIs(setsum.call_args[0][0], widget.info.NoOutput)
 
 
 if __name__ == "__main__":

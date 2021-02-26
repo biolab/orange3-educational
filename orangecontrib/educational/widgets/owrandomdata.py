@@ -14,6 +14,7 @@ from AnyQt.QtGui import QIntValidator, QDoubleValidator
 
 from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable
 from Orange.widgets.settings import Setting
+from Orange.widgets.utils.state_summary import format_summary_details
 from Orange.widgets.utils.widgetpreview import WidgetPreview
 from Orange.widgets.widget import OWWidget, Output, Msg
 from Orange.widgets import gui
@@ -410,11 +411,16 @@ class OWRandomData(OWWidget):
         self.scroll_area.setWidget(self.editor_vbox)
         self.controlArea.layout().addWidget(self.scroll_area)
 
+        class IgnoreWheelCombo(QComboBox):
+            def wheelEvent(self, event):
+                event.ignore()
+
         # self.add_combo is needed so that tests can manipulate it
-        combo = self.add_combo = QComboBox()
+        combo = self.add_combo = IgnoreWheelCombo()
         combo.addItem("Add more variables ...")
         combo.addItems(list(distributions))
         combo.currentTextChanged.connect(self.on_add_distribution)
+        combo.setFocusPolicy(Qt.NoFocus)
         self.controlArea.layout().addWidget(combo)
         gui.separator(self.controlArea, 16)
 
@@ -471,6 +477,13 @@ class OWRandomData(OWWidget):
             domain = Domain(list(chain(*attrs)))
             data = Table(domain, np.hstack(parts))
             self.Error.sampling_error.clear()
+
+        if data is None:
+            self.info.set_output_summary(self.info.NoOutput, "")
+        else:
+            self.info.set_output_summary(
+                len(data), format_summary_details(data))
+
         self.Outputs.data.send(data)
 
     def pack_editor_settings(self):
