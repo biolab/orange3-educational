@@ -16,6 +16,10 @@ class TestOWCreateTable(WidgetTest):
     def setUp(self):
         self.widget: OWCreateTable = self.create_widget(OWCreateTable)
 
+    def set_data(self, data):
+        self.widget.table_model.set_table(data)
+        self.widget.data_changed()
+
     def test_output(self):
         output = self.get_output(self.widget.Outputs.data)
         # by default widget table have size 3x3 and is empty
@@ -26,7 +30,7 @@ class TestOWCreateTable(WidgetTest):
         )
 
         _input = [["1", "2", "3"], ["4", "5", "6"]]
-        self.widget.table_model.set_table(_input)
+        self.set_data(_input)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
         self.assertEqual(2, len(output))
@@ -37,7 +41,7 @@ class TestOWCreateTable(WidgetTest):
         Test different combinations that would result in discrete columns
         """
         _input = [["a", "c", "a"], ["b", "d", "2020-01-01"], ["b", "5", "6"]]
-        self.widget.table_model.set_table(_input)
+        self.set_data(_input)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
 
@@ -53,7 +57,7 @@ class TestOWCreateTable(WidgetTest):
 
     def test_continuous_columns(self):
         _input = [["1", "2.0", "3"], ["4", "5.0", "6"]]
-        self.widget.table_model.set_table(_input)
+        self.set_data(_input)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
 
@@ -82,7 +86,7 @@ class TestOWCreateTable(WidgetTest):
                 "2020-10-10 12:10",
             ],
         ]
-        self.widget.table_model.set_table(_input)
+        self.set_data(_input)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
 
@@ -96,7 +100,7 @@ class TestOWCreateTable(WidgetTest):
             ["2020-01-02", "b", "2", None],
             [None, None, None, None],
         ]
-        self.widget.table_model.set_table(_input)
+        self.set_data(_input)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
 
@@ -111,7 +115,7 @@ class TestOWCreateTable(WidgetTest):
 
     def test_num_col_row_change(self):
         _input = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"]]
-        self.widget.table_model.set_table(_input)
+        self.set_data(_input)
         self.wait_until_finished()
 
         self.widget.r_spin.setValue(2)
@@ -178,7 +182,7 @@ class TestOWCreateTable(WidgetTest):
         iris = Table("iris")
 
         input1_ = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"]]
-        self.widget.table_model.set_table(input1_)
+        self.set_data(input1_)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
 
@@ -190,7 +194,7 @@ class TestOWCreateTable(WidgetTest):
             ["4", "5", "6", "8", "Iris-setosa"],
             ["7", "8", "9", "10", "Iris-setosa"],
         ]
-        self.widget.table_model.set_table(input2_)
+        self.set_data(input2_)
         self.wait_until_finished()
         output = self.get_output(self.widget.Outputs.data)
 

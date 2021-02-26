@@ -24,7 +24,7 @@ from Orange.widgets.utils.widgetpreview import WidgetPreview
 from Orange.widgets.widget import OWWidget, Output, Input, Msg
 
 
-DEFAULT_DATA = [[None for x in range(3)] for y in range(3)]
+DEFAULT_DATA = [[None] * 3 for y in range(3)]
 
 
 class EditableTableItemDelegate(QItemDelegate):
@@ -55,10 +55,18 @@ class EditableTableModel(QAbstractTableModel):
         self._table = [[None]]
         self._domain = None
 
+    def _var(self, index):
+        # todo: remove if/when domain[idx] is fixed
+        return (self._domain.variables + self._domain.metas)[index]
+
     def set_domain(self, domain: Optional[Domain]):
         self._domain = domain
-        n_columns = len(domain) if domain is not None else 3
-        self.columns_changed_to(n_columns)
+        if domain is not None:
+            # Todo: change to len(domain) when Domain len's behaviour is fixed
+            n_columns = len(domain.variables) + len(domain.metas)
+        else:
+            n_columns = 3
+        self.setColumnCount(n_columns)
         self.clear()
 
     def is_discrete(self, column):
@@ -78,7 +86,7 @@ class EditableTableModel(QAbstractTableModel):
 
         return (
             self._domain is not None
-            and self._domain[column].is_discrete
+            and self._var(column).is_discrete
             or (
                 column_data
                 and not self.is_time_variable(column)
@@ -103,8 +111,8 @@ class EditableTableModel(QAbstractTableModel):
             return None
 
     def discrete_vals(self, column):
-        if self._domain is not None and self._domain[column].is_discrete:
-            return self._domain[column].values
+        if self._domain is not None and self._var(column).is_discrete:
+            return self._var(column).values
         else:
             return list(set(row[column] for row in self._table) - {None})
 
@@ -131,50 +139,39 @@ class EditableTableModel(QAbstractTableModel):
         return True
 
     def set_table(self, table):
-        self.rows_changed_to(len(table))
-        self.columns_changed_to(len(table[0]))
-        # must be a copy since model change it inplace
+        self.beginResetModel()
+        # must be a copy since model changes it inplace
         self._table = copy.deepcopy(table)
-        self.dataChanged.emit(
-            self.index(0, 0), self.index(len(table) - 1, len(table[0]))
-        )
+        self.endResetModel()
 
     def get_raw_table(self):
         # the model updates the table inplace
         return copy.deepcopy(self._table)
 
-    def rows_changed_to(self, n_rows):
-        while n_rows != self.rowCount():
-            self.rows_changed(n_rows)
-
-    def rows_changed(self, n_rows):
-        if n_rows > self.rowCount():
-            self.beginInsertRows(QModelIndex(), n_rows, n_rows)
-            self._table.append([None for _ in range(self.columnCount())])
+    def setRowCount(self, n_rows):
+        diff = n_rows - self.rowCount()
+        if diff > 0:
+            self.beginInsertRows(QModelIndex(), self.rowCount(), n_rows - 1)
+            self._table += [[None] * self.columnCount() for _ in range(diff)]
             self.endInsertRows()
-        elif n_rows < self.rowCount():
-            self.beginRemoveRows(
-                QModelIndex(), self.rowCount() - 1, self.rowCount() - 1
-            )
-            self._table.pop()
+        elif diff < 0:
+            self.beginRemoveRows(QModelIndex(), n_rows, self.rowCount() - 1)
+            del self._table[n_rows:]
             self.endRemoveRows()
 
-    def columns_changed_to(self, n_columns):
-        while n_columns != self.columnCount():
-            self.columns_changed(n_columns)
-
-    def columns_changed(self, n_columns):
-        if n_columns > self.columnCount():
-            self.beginInsertColumns(QModelIndex(), n_columns, n_columns)
+    def setColumnCount(self, n_columns):
+        diff = n_columns - self.columnCount()
+        if diff > 0:
+            self.beginInsertColumns(
+                QModelIndex(), self.columnCount(), n_columns - 1)
             for row in self._table:
-                row.append(None)
+                row += [None] * diff
             self.endInsertColumns()
-        elif n_columns < self.columnCount():
+        elif diff < 0:
             self.beginRemoveColumns(
-                QModelIndex(), self.columnCount() - 1, self.columnCount() - 1
-            )
+                QModelIndex(), n_columns, self.columnCount() - 1)
             for row in self._table:
-                row.pop()
+                del row[n_columns:]
             self.endRemoveColumns()
 
     def headerData(self, section, orientation, role=None):
@@ -185,21 +182,19 @@ class EditableTableModel(QAbstractTableModel):
             if self._domain is None:
                 return str(section + 1)
             else:
-                return self._domain[section].name
+                return self._var(section).name
 
     def clear(self):
         self.set_table(
-            [
-                [None for __ in range(self.columnCount())]
-                for _ in range(self.rowCount())
-            ]
+            [[None] * self.columnCount()
+             for _ in range(self.rowCount())]
         )
 
     def get_table(self):
         domain = self.get_domain()
         data = np.array(self._table)  # type:
         for ci in range(data.shape[1]):
-            if isinstance(domain.variables[ci], TimeVariable):
+            if isinstance((domain.variables + domain.metas)[ci], TimeVariable):
                 data[:, ci] = self.time_vals(ci)
         return Table.from_list(domain, data)
 
@@ -277,7 +272,7 @@ class OWCreateTable(OWWidget):
     auto_commit = Setting(True)
     # since data is a small (at most 20x20) table we can afford to store it
     # as a context
-    context_data = ContextSetting(DEFAULT_DATA.copy(), schema_only=True)
+    context_data = ContextSetting(copy.deepcopy(DEFAULT_DATA), schema_only=True)
 
     def __init__(self):
         super().__init__()
@@ -293,7 +288,7 @@ class OWCreateTable(OWWidget):
             1,
             **options,
             label="Rows:",
-            callback=self.rows_changed
+            callback=self.nrows_changed
         )
         self.c_spin = gui.spin(
             box,
@@ -304,7 +299,7 @@ class OWCreateTable(OWWidget):
             1,
             **options,
             label="Columns:",
-            callback=self.columns_changed
+            callback=self.ncolumns_changed
         )
         box.setMinimumWidth(200)
 
@@ -314,21 +309,21 @@ class OWCreateTable(OWWidget):
         box = gui.vBox(self.mainArea, True, margin=0)
         self.table = QTableView(box)
         self.table.setItemDelegate(EditableTableItemDelegate())
+        self.table.setEditTriggers(self.table.CurrentChanged)
         box.layout().addWidget(self.table)
 
         self.table_model = EditableTableModel()
         self.table.setModel(self.table_model)
         self.table_model.dataChanged.connect(self.data_changed)
-        self.rows_changed()
-        self.columns_changed()
+        self.table_model.set_table(self.context_data)
         self.set_dataset(None)  # to init the context
 
-    def rows_changed(self):
-        self.table_model.rows_changed_to(self.n_rows)
+    def nrows_changed(self):
+        self.table_model.setRowCount(self.n_rows)
         self.commit()
 
-    def columns_changed(self):
-        self.table_model.columns_changed_to(self.n_columns)
+    def ncolumns_changed(self):
+        self.table_model.setColumnCount(self.n_columns)
         self.commit()
 
     def data_changed(self):
@@ -349,16 +344,14 @@ class OWCreateTable(OWWidget):
         self.closeContext()
         if data is not None:
             self.table_model.set_domain(data.domain)
-            self.c_spin.setEnabled(False)
             self.context_data = [
-                [None for _ in range(len(data.domain.variables))]
-                for __ in range(3)
+                [None] * (len(data.domain) + len(data.domain.metas))
+                for _ in range(self.table_model.rowCount())
             ]
         else:
             self.table_model.set_domain(None)
-            self.c_spin.setEnabled(True)
-            self.context_data = DEFAULT_DATA.copy()
-        self.r_spin.setValue(self.table_model.rowCount())
+            self.context_data = copy.deepcopy(DEFAULT_DATA)
+        self.c_spin.setEnabled(data is None)
         self.c_spin.setValue(self.table_model.columnCount())
         self.openContext(data)
         self.unconditional_commit()
