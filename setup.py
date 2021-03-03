@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 from os import path, walk
-
-import sys
 from setuptools import setup, find_packages
 
 NAME = "Orange3-Educational"
@@ -35,11 +33,12 @@ DATA_FILES = [
 INSTALL_REQUIRES = [
     'Orange3 >=3.24.0',
     'BeautifulSoup4',
-    'numpy'
+    'numpy',
 ]
 
 EXTRAS_REQUIRE = {
-    'test': ['coverage']
+    'doc': ['sphinx', 'recommonmark', 'sphinx_rtd_theme'],
+    'test': ['coverage'],
 }
 
 ENTRY_POINTS = {
