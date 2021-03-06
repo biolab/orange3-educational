@@ -1,7 +1,7 @@
 import math
 
 from Orange.evaluation import RMSE, TestOnTrainingData, MAE
-from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtGui import QColor, QPalette, QPen, QFont
 
 import sklearn.preprocessing as skl_preprocessing
@@ -13,6 +13,8 @@ from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
                                       LinearRegressionLearner)
 from Orange.regression import Learner
+from Orange.regression.mean import MeanModel
+from Orange.statistics.distribution import Continuous
 from Orange.widgets import settings, gui
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
@@ -20,6 +22,11 @@ from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.widget import Msg, Input, Output
 from orangewidget.report import report
 
+
+class RegressTo0(Learner):
+    @staticmethod
+    def fit(*args, **kwargs):
+        return MeanModel(Continuous(np.empty(0)))
 
 
 class OWUnivariateRegression(OWBaseLearner):
@@ -53,6 +60,7 @@ class OWUnivariateRegression(OWBaseLearner):
     x_var_index = settings.ContextSetting(0)
     y_var_index = settings.ContextSetting(1)
     error_bars_enabled = settings.Setting(False)
+    fit_intercept = settings.Setting(True)
 
     default_learner_name = "Linear Regression"
     error_plot_items = []
@@ -116,6 +124,9 @@ class OWUnivariateRegression(OWBaseLearner):
         self.error_bars_checkbox = gui.checkBox(
             widget=properties_box, master=self, value='error_bars_enabled',
             label="Show error bars", callback=self.apply)
+        gui.checkBox(
+            widget=properties_box, master=self, value="fit_intercept",
+            label="Fit intercept", callback=self.apply)
 
         gui.rubber(self.controlArea)
 
@@ -148,7 +159,8 @@ class OWUnivariateRegression(OWBaseLearner):
         if self.data is None:
             return
         caption = report.render_items_vert((
-             ("Polynomial Expansion: ", self.polynomialexpansion),
+             ("Polynomial Expansion", self.polynomialexpansion),
+             ("Fit intercept", ["No", "Yes"][self.fit_intercept])
         ))
         self.report_plot()
         if caption:
@@ -223,19 +235,35 @@ class OWUnivariateRegression(OWBaseLearner):
     def set_range(self, x_data, y_data):
         min_x, max_x = np.nanmin(x_data), np.nanmax(x_data)
         min_y, max_y = np.nanmin(y_data), np.nanmax(y_data)
+        if self.polynomialexpansion == 0 and not self.fit_intercept:
+            if min_y > 0:
+                min_y = -0.1 * max_y
+            elif max_y < 0:
+                max_y = -0.1 * min_y
+
         self.plotview.setRange(
             QRectF(min_x, min_y, max_x - min_x, max_y - min_y),
             padding=0.025)
         self.plotview.replot()
 
     def plot_regression_line(self, x_data, y_data):
-        if self.plot_item:
-            self.plotview.removeItem(self.plot_item)
-        self.plot_item = pg.PlotCurveItem(
+        item = pg.PlotCurveItem(
             x=x_data, y=y_data,
             pen=pg.mkPen(QColor(255, 0, 0), width=3),
             antialias=True
         )
+        self._plot_regression_item(item)
+
+    def plot_infinite_line(self, x, y, angle):
+        item = pg.InfiniteLine(
+            QPointF(x, y), angle,
+            pen=pg.mkPen(QColor(255, 0, 0), width=3))
+        self._plot_regression_item(item)
+
+    def _plot_regression_item(self, item):
+        if self.plot_item:
+            self.plotview.removeItem(self.plot_item)
+        self.plot_item = item
         self.plotview.addItem(self.plot_item)
         self.plotview.replot()
 
@@ -258,12 +286,19 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def apply(self):
         degree = int(self.polynomialexpansion)
-        learner = self.LEARNER(
-            preprocessors=self.preprocessors, degree=degree,
-            learner=LinearRegressionLearner() if self.learner is None
-            else self.learner)
+        # Intercept is added through a bias term in polynomial expansion
+        if degree == 0 and not self.fit_intercept:
+            learner = RegressTo0()
+        else:
+            lin_learner = self.learner \
+                          or LinearRegressionLearner(fit_intercept=False)
+            learner = self.LEARNER(
+                preprocessors=self.preprocessors, degree=degree,
+                include_bias=self.fit_intercept or degree == 0,
+                learner=lin_learner)
         learner.name = self.learner_name
         predictor = None
+        model = None
 
         self.Error.all_none.clear()
 
@@ -282,6 +317,13 @@ class OWUnivariateRegression(OWBaseLearner):
                 return
 
             predictor = learner(data_table)
+            model = None
+            if hasattr(predictor, "model"):
+                model = predictor.model
+                if hasattr(model, "model"):
+                    model = model.model
+                elif hasattr(model, "skl_model"):
+                    model = model.skl_model
 
             preprocessed_data = data_table
             for preprocessor in learner.active_preprocessors:
@@ -308,7 +350,15 @@ class OWUnivariateRegression(OWBaseLearner):
             self.plot_scatter_points(x, y)
 
             # plot regression line
-            self.plot_regression_line(linspace.ravel(), values.ravel())
+            x_data, y_data = linspace.ravel(), values.ravel()
+            if self.polynomialexpansion == 0:
+                self.plot_infinite_line(x_data[0], y_data[0], 0)
+            elif self.polynomialexpansion == 1 and hasattr(model, "coef_"):
+                k = model.coef_[1 if self.fit_intercept else 0]
+                self.plot_infinite_line(x_data[0], y_data[0],
+                                        math.degrees(math.atan(k)))
+            else:
+                self.plot_regression_line(x_data, y_data)
 
             x_label = self.x_var_model[self.x_var_index]
             axis = self.plot.getAxis("bottom")
@@ -324,13 +374,6 @@ class OWUnivariateRegression(OWBaseLearner):
         self.Outputs.model.send(predictor)
 
         # Send model coefficents
-        model = None
-        if predictor is not None:
-            model = predictor.model
-            if hasattr(model, "model"):
-                model = model.model
-            elif hasattr(model, "skl_model"):
-                model = model.skl_model
         if model is not None and hasattr(model, "coef_"):
             domain = Domain([ContinuousVariable("coef")],
                             metas=[StringVariable("name")])
@@ -387,7 +430,7 @@ if __name__ == "__main__":
     polylearner = PolynomialLearner(learner, degree=2)
     d = Table('iris')
     ow.set_data(d)
-    ow.set_learner(learner)
+    # ow.set_learner(learner)
     ow.show()
     a.exec_()
     ow.saveSettings()
