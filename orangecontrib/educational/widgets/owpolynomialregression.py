@@ -55,7 +55,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
     LEARNER = PolynomialLearner
 
-    learner_name = settings.Setting("Univariate Regression")
+    learner_name = settings.Setting("Polynomial Regression")
 
     polynomialexpansion = settings.Setting(1)
 
@@ -94,47 +94,45 @@ class OWUnivariateRegression(OWBaseLearner):
         self.mae = ""
         self.regressor_name = self.default_learner_name
 
+        box = gui.vBox(self.controlArea, "Predictor")
+        self.x_var_model = itemmodels.VariableListModel()
+        self.comboBoxAttributesX = gui.comboBox(
+            box, self, value='x_var_index', callback=self.apply)
+        self.comboBoxAttributesX.setModel(self.x_var_model)
+        gui.widgetLabel(box, "Polynomial degree")
+        self.expansion_spin = gui.hSlider(
+            gui.indentedBox(box), self, "polynomialexpansion",
+            minValue=0, maxValue=10, ticks=True,
+            callback=self.apply)
+        gui.checkBox(
+            box, self, "fit_intercept",
+            label="Fit intercept", callback=self.apply, stateWhenDisabled=True,
+            tooltip="Add an intercept term;\n"
+                    "This option is always checked if the model is set on input."
+        )
+
+        box = gui.vBox(self.controlArea, "Target")
+        self.y_var_model = itemmodels.VariableListModel()
+        self.comboBoxAttributesY = gui.comboBox(
+            box, self, value="y_var_index", callback=self.apply)
+        self.comboBoxAttributesY.setModel(self.y_var_model)
+
+        self.error_bars_checkbox = gui.checkBox(
+            widget=box, master=self, value='error_bars_enabled',
+            label="Show error bars", callback=self.apply)
+
+        gui.rubber(self.controlArea)
+
         # info box
         info_box = gui.vBox(self.controlArea, "Info")
         self.regressor_label = gui.label(
             widget=info_box, master=self,
             label="Regressor: %(regressor_name).30s")
         gui.label(widget=info_box, master=self,
-            label="Mean absolute error: %(mae).6s")
+                  label="Mean absolute error: %(mae).6s")
         gui.label(widget=info_box, master=self,
                   label="Root mean square error: %(rmse).6s")
 
-        box = gui.vBox(self.controlArea, "Variables")
-
-        self.x_var_model = itemmodels.VariableListModel()
-        self.comboBoxAttributesX = gui.comboBox(
-            box, self, value='x_var_index', label="Input: ",
-            orientation=Qt.Horizontal, callback=self.apply)
-        self.comboBoxAttributesX.setModel(self.x_var_model)
-        self.expansion_spin = gui.spin(
-            gui.indentedBox(box),
-            self, "polynomialexpansion", 0, 10,
-            label="Polynomial expansion:", callback=self.apply)
-
-        gui.separator(box, height=8)
-        self.y_var_model = itemmodels.VariableListModel()
-        self.comboBoxAttributesY = gui.comboBox(
-            box, self, value="y_var_index", label="Target: ",
-            orientation=Qt.Horizontal, callback=self.apply)
-        self.comboBoxAttributesY.setModel(self.y_var_model)
-
-        properties_box = gui.vBox(self.controlArea, "Properties")
-        self.error_bars_checkbox = gui.checkBox(
-            widget=properties_box, master=self, value='error_bars_enabled',
-            label="Show error bars", callback=self.apply)
-        gui.checkBox(
-            widget=properties_box, master=self, value="fit_intercept",
-            label="Fit intercept", callback=self.apply, stateWhenDisabled=True,
-            tooltip="Add an intercept term;\n"
-                    "This option is always checked if the model is set on input."
-        )
-
-        gui.rubber(self.controlArea)
 
         # main area GUI
         self.plotview = pg.PlotWidget(background="w")
