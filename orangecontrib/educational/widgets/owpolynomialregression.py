@@ -75,8 +75,9 @@ class OWUnivariateRegression(OWBaseLearner):
     graph_name = 'plot'
 
     class Error(OWBaseLearner.Error):
-        all_none = Msg("One of the features has no defined values")
+        all_none = Msg("One of the features has no defined values.")
         no_cont_variables = Msg("Polynomial Regression requires at least one numeric feature.")
+        same_dep_indepvar = Msg("Dependent and independent variables must be differnt.")
 
     def add_main_layout(self):
 
@@ -331,10 +332,16 @@ class OWUnivariateRegression(OWBaseLearner):
         model = None
 
         self.Error.all_none.clear()
+        self.Error.same_dep_indepvar.clear()
 
         if self.data is not None:
             attributes = self.x_var_model[self.x_var_index]
             class_var = self.y_var_model[self.y_var_index]
+            if attributes is class_var:
+                self.Error.same_dep_indepvar()
+                self.clear_plot()
+                return
+
             data_table = Table.from_table(
                 Domain([attributes], class_vars=[class_var]), self.data
             )
