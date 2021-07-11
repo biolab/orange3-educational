@@ -8,6 +8,9 @@ import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
 import numpy as np
 
+from orangewidget.report import report
+from orangewidget.utils.widgetpreview import WidgetPreview
+
 from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
@@ -20,7 +23,6 @@ from Orange.widgets.utils import itemmodels
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.widget import Msg, Input, Output
-from orangewidget.report import report
 
 
 class RegressTo0(Learner):
@@ -448,17 +450,8 @@ class OWUnivariateRegression(OWBaseLearner):
         pass
 
 
-if __name__ == "__main__":
-    import sys
-    from AnyQt.QtWidgets import QApplication
 
-    a = QApplication(sys.argv)
-    ow = OWUnivariateRegression()
+if __name__ == "__main__":
     learner = RidgeRegressionLearner(alpha=1.0)
-    polylearner = PolynomialLearner(learner, degree=2)
-    d = Table('iris')
-    ow.set_data(d)
-    # ow.set_learner(learner)
-    ow.show()
-    a.exec_()
-    ow.saveSettings()
+    iris = Table('iris')
+    WidgetPreview(OWUnivariateRegression).run(set_data=iris)#, set_learner=learner)
