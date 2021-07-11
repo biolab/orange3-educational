@@ -25,13 +25,9 @@ class TestOWPolynomialRegression(WidgetTest):
         self.widget.set_data(self.data)
 
         self.assertEqual(self.data, self.widget.data)
-        self.assertEqual(continuous_variables, self.widget.x_var_model._list)
-        self.assertEqual(continuous_variables, self.widget.y_var_model._list)
-        self.assertEqual(self.widget.x_var_index, 0)
-        self.assertEqual(self.widget.y_var_index,
-                         len(continuous_variables) - 1
-                         if len(class_variables) == 0
-                         else len(continuous_variables) - len(class_variables))
+        self.assertEqual(continuous_variables, list(self.widget.var_model))
+        self.assertEqual(self.widget.x_var, continuous_variables[0])
+        self.assertEqual(self.widget.y_var, continuous_variables[1])
 
         # check for none data
         self.widget.set_data(None)
@@ -39,18 +35,13 @@ class TestOWPolynomialRegression(WidgetTest):
 
         # data set with continuous class to check if nclass > 0
         variables = self.data_housing.domain.variables
-        class_variables = self.data_housing.domain.class_vars
         continuous_variables = [var for var in variables if var.is_continuous]
 
         self.widget.set_data(self.data_housing)
         self.assertEqual(self.data_housing, self.widget.data)
-        self.assertEqual(continuous_variables, self.widget.x_var_model._list)
-        self.assertEqual(continuous_variables, self.widget.y_var_model._list)
-        self.assertEqual(self.widget.x_var_index, 0)
-        self.assertEqual(self.widget.y_var_index,
-                         len(continuous_variables) - 1
-                         if len(class_variables) == 0
-                         else len(continuous_variables) - len(class_variables))
+        self.assertEqual(continuous_variables, list(self.widget.var_model))
+        self.assertEqual(self.widget.x_var, continuous_variables[0])
+        self.assertEqual(self.widget.y_var, self.data_housing.domain.class_var)
 
         # check with data with all none
         data = Table.from_list(

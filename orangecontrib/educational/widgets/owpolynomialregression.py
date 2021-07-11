@@ -19,10 +19,11 @@ from Orange.regression import Learner
 from Orange.regression.mean import MeanModel
 from Orange.statistics.distribution import Continuous
 from Orange.widgets import settings, gui
-from Orange.widgets.utils import itemmodels
+from Orange.widgets.widget import Msg, Input, Output
+from Orange.widgets.settings import DomainContextHandler
+from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
-from Orange.widgets.widget import Msg, Input, Output
 
 
 class RegressTo0(Learner):
@@ -59,8 +60,9 @@ class OWUnivariateRegression(OWBaseLearner):
 
     polynomialexpansion = settings.Setting(1)
 
-    x_var_index = settings.ContextSetting(0)
-    y_var_index = settings.ContextSetting(1)
+    settingsHandler = DomainContextHandler()
+    x_var = settings.ContextSetting(None)
+    y_var = settings.ContextSetting(None)
     error_bars_enabled = settings.Setting(False)
     fit_intercept = settings.Setting(True)
 
@@ -76,7 +78,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
     class Error(OWBaseLearner.Error):
         all_none = Msg("One of the features has no defined values.")
-        no_cont_variables = Msg("Polynomial Regression requires at least one numeric feature.")
+        no_cont_variables = Msg("Polynomial Regression requires at least two numeric variables.")
         same_dep_indepvar = Msg("Dependent and independent variables must be differnt.")
 
     def add_main_layout(self):
@@ -94,15 +96,16 @@ class OWUnivariateRegression(OWBaseLearner):
         self.mae = ""
         self.regressor_name = self.default_learner_name
 
+        self.var_model = DomainModel(
+            valid_types=(ContinuousVariable, ),
+            order=DomainModel.MIXED)
+
         box = gui.vBox(self.controlArea, "Predictor")
-        self.x_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesX = gui.comboBox(
-            box, self, value='x_var_index', callback=self.apply)
-        self.comboBoxAttributesX.setModel(self.x_var_model)
-        gui.widgetLabel(box, "Polynomial degree")
-        self.expansion_spin = gui.hSlider(
-            gui.indentedBox(box), self, "polynomialexpansion",
-            minValue=0, maxValue=10, ticks=True,
+            box, self, value='x_var', model=self.var_model, callback=self.apply)
+        self.expansion_spin = gui.spin(
+            box, self, "polynomialexpansion", label="Polynomial degree: ",
+            minv=0, maxv=10, alignment=Qt.AlignmentFlag.AlignRight,
             callback=self.apply)
         gui.checkBox(
             box, self, "fit_intercept",
@@ -112,10 +115,8 @@ class OWUnivariateRegression(OWBaseLearner):
         )
 
         box = gui.vBox(self.controlArea, "Target")
-        self.y_var_model = itemmodels.VariableListModel()
         self.comboBoxAttributesY = gui.comboBox(
-            box, self, value="y_var_index", callback=self.apply)
-        self.comboBoxAttributesY.setModel(self.y_var_model)
+            box, self, value="y_var", model=self.var_model, callback=self.apply)
 
         self.error_bars_checkbox = gui.checkBox(
             widget=box, master=self, value='error_bars_enabled',
@@ -195,33 +196,33 @@ class OWUnivariateRegression(OWBaseLearner):
     @check_sql_input
     def set_data(self, data):
         self.clear()
-        self.Error.no_cont_variables.clear()
-        if data is not None:
-            cvars = [var for var in data.domain.variables if var.is_continuous]
-            class_cvars = [var for var in data.domain.class_vars
-                           if var.is_continuous]
-
-            nvars = len(cvars)
-            nclass = len(class_cvars)
-            self.x_var_model[:] = cvars
-            self.y_var_model[:] = cvars
-            if nvars == 0:
-                self.data = None
-                self.Error.no_cont_variables()
-                return
-
-            self.x_var_index = min(max(0, self.x_var_index), nvars - 1)
-            if nclass > 0:
-                self.y_var_index = min(max(0, nvars-nclass), nvars - 1)
-            else:
-                self.y_var_index = min(max(0, nvars-1), nvars - 1)
+        self.Error.clear()
+        self.closeContext()
         self.data = data
+        if data is None:
+            self.var_model.set_domain(None)
+            return
+
+        self.var_model.set_domain(data.domain)
+        if len(self.var_model) < 2:
+            self.data = None
+            self.x_var = self.y_var = None
+            self.Error.no_cont_variables()
+            return
+
+        self.x_var = self.var_model[0]
+        if data.domain.class_var in self.var_model:
+            self.y_var = data.domain.class_var
+        else:
+            self.y_var = self.var_model[1]
+        self.openContext(data)
 
     @Inputs.learner
     def set_learner(self, learner):
         self.learner = learner
         self.controls.fit_intercept.setDisabled(learner is not None)
-        self.regressor_name = (learner.name if learner is not None else self.default_learner_name)
+        self.regressor_name = (learner.name if learner is not None
+                               else self.default_learner_name)
 
     def handleNewSignals(self):
         self.apply()
@@ -333,16 +334,14 @@ class OWUnivariateRegression(OWBaseLearner):
         self.Error.same_dep_indepvar.clear()
 
         if self.data is not None:
-            attributes = self.x_var_model[self.x_var_index]
-            class_var = self.y_var_model[self.y_var_index]
-            if attributes is class_var:
+            if self.x_var is self.y_var:
                 self.Error.same_dep_indepvar()
                 self.clear_plot()
                 return
 
             data_table = Table.from_table(
-                Domain([attributes], class_vars=[class_var]), self.data
-            )
+                Domain([self.x_var], self.y_var),
+                self.data)
 
             # all lines has nan
             if sum(math.isnan(line[0]) or math.isnan(line.get_class())
@@ -395,14 +394,8 @@ class OWUnivariateRegression(OWBaseLearner):
             else:
                 self.plot_regression_line(x_data, y_data)
 
-            x_label = self.x_var_model[self.x_var_index]
-            axis = self.plot.getAxis("bottom")
-            axis.setLabel(x_label)
-
-            y_label = self.y_var_model[self.y_var_index]
-            axis = self.plot.getAxis("left")
-            axis.setLabel(y_label)
-
+            self.plot.getAxis("bottom").setLabel(self.x_var.name)
+            self.plot.getAxis("left").setLabel(self.y_var.name)
             self.set_range(x, y)
 
         self.Outputs.learner.send(learner)
@@ -412,7 +405,7 @@ class OWUnivariateRegression(OWBaseLearner):
         if model is not None and hasattr(model, "coef_"):
             domain = Domain([ContinuousVariable("coef")],
                             metas=[StringVariable("name")])
-            names = self._varnames(x_label.name)
+            names = self._varnames(self.x_var.name)
             coefs = list(model.coef_)
             if self._has_intercept:
                 model.coef_[0] += model.intercept_
@@ -425,11 +418,8 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def send_data(self):
         if self.data is not None:
-            attributes = self.x_var_model[self.x_var_index]
-            class_var = self.y_var_model[self.y_var_index]
-
             data_table = Table.from_table(
-                Domain([attributes], class_vars=[class_var]), self.data)
+                Domain([self.x_var], self.y_var), self.data)
             polyfeatures = skl_preprocessing.PolynomialFeatures(
                 self.polynomialexpansion, include_bias=self._has_intercept)
 
@@ -439,13 +429,13 @@ class OWUnivariateRegression(OWBaseLearner):
             else:
                 x = data_table.X[valid_mask]
                 x = polyfeatures.fit_transform(x)
-            x_label = data_table.domain.attributes[0].name
 
             out_array = np.concatenate((x, data_table.Y[np.newaxis].T[valid_mask]), axis=1)
 
             out_domain = Domain(
-                [ContinuousVariable(name) for name in self._varnames(x_label)],
-                class_var)
+                [ContinuousVariable(name)
+                 for name in self._varnames(self.x_var.name)],
+                self.y_var)
             self.Outputs.data.send(Table.from_numpy(out_domain, out_array))
             return
 
