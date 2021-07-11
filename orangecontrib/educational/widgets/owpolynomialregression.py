@@ -111,7 +111,7 @@ class OWUnivariateRegression(OWBaseLearner):
             box, self, value='x_var_index', label="Input: ",
             orientation=Qt.Horizontal, callback=self.apply)
         self.comboBoxAttributesX.setModel(self.x_var_model)
-        self.expansion_spin = gui.doubleSpin(
+        self.expansion_spin = gui.spin(
             gui.indentedBox(box),
             self, "polynomialexpansion", 0, 10,
             label="Polynomial expansion:", callback=self.apply)
@@ -456,6 +456,12 @@ class OWUnivariateRegression(OWBaseLearner):
     def add_bottom_buttons(self):
         pass
 
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        # polynomialexpansion used to be controlled by doublespin and was hence
+        # float. Just convert to `int`, ignore settings versions.
+        settings["polynomialexpansion"] = \
+            int(settings.get("polynomialexpansion", 1))
 
 
 if __name__ == "__main__":
