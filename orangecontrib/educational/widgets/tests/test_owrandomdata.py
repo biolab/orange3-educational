@@ -460,21 +460,9 @@ class TestOWRandomData(WidgetTest):
         widget.pack_editor_settings()
         self.assertEqual(widget.distributions, [])
 
-    def test_output_summary(self):
-        widget = self.widget
-        setsum = widget.info.set_output_summary = Mock()
-        widget.n_instances = 7
-        widget.generate()
-        self.assertEqual(setsum.call_args[0][0], 7)
-        widget.n_instances = 5
-        widget.generate()
-        self.assertEqual(setsum.call_args[0][0], 5)
-
         with patch.object(widget, "sender", new=lambda: widget.editors[0]):
             while widget.editors:
                 widget.remove_editor()
-
-        self.assertIs(setsum.call_args[0][0], widget.info.NoOutput)
 
 
 if __name__ == "__main__":
