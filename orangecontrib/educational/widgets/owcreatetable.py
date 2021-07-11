@@ -345,7 +345,7 @@ class OWCreateTable(OWWidget):
         if data is not None:
             self.table_model.set_domain(data.domain)
             self.context_data = [
-                [None] * (len(data.domain) + len(data.domain.metas))
+                [None] * (len(data.domain.variables) + len(data.domain.metas))
                 for _ in range(self.table_model.rowCount())
             ]
         else:
