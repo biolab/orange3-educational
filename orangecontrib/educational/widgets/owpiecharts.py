@@ -82,7 +82,7 @@ class OWPieChart(widget.OWWidget):
     @Inputs.data
     def set_data(self, dataset):
         if dataset is not None and (
-                not bool(dataset) or not len(dataset.domain)):
+                not bool(dataset) or not len(dataset.domain.variables)):
             dataset = None
         self.closeContext()
         self.dataset = dataset
