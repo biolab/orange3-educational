@@ -1,21 +1,18 @@
 import numpy as np
-from os import path
-from itertools import chain
 import time
 
-from AnyQt.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QObject
+import pyqtgraph as pg
 
-import Orange
-from Orange.widgets.widget import OWWidget, Msg, Input, Output
-from Orange.data import DiscreteVariable, Table, Domain
+from AnyQt.QtCore import QThread, Qt, pyqtSignal as Signal, QTimer, QPointF
+from AnyQt.QtGui import QPen, QFont, QPalette
+
 from Orange.widgets import gui, settings
-from orangewidget.report import report
-
+from Orange.widgets.utils.colorpalettes import DefaultRGBColors
+from Orange.widgets.utils.itemmodels import DomainModel
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
+from Orange.data import DiscreteVariable, ContinuousVariable, Domain, Table
 
 from orangecontrib.educational.widgets.utils.kmeans import Kmeans
-from orangecontrib.educational.widgets.utils.color_transform import \
-    rgb_hash_brighter
-from orangecontrib.educational.widgets.highcharts import Highchart
 
 
 class Autoplay(QThread):
@@ -54,80 +51,92 @@ class Autoplay(QThread):
         self.owkmeans.stop_auto_play_trigger.emit()
 
 
-class Scatterplot(Highchart):
-    """
-    Scatterplot extends Highchart and just defines some sane defaults:
-    * enables scroll-wheel zooming,
-    * set callback functions for click (in empty chart), drag and drop
-    * enables moving of centroids points
-    * include drag_drop_js script by highchart
-    """
-    prew_time = 0
+class AnimateNumpy:
+    factors = [0.07, 0.26, 0.52, 0.77, 0.95, 1]
 
-    # to make unit tesest
-    count_replots = 0
+    def __init__(self, start, final, callback, done):
+        self.start = start
+        self.final = final
+        self.diff = final - start
+        self.callback = callback
+        self.done = done
+        self.step = 0
 
-    def __init__(self, click_callback, drop_callback, **kwargs):
+    def __call__(self):
+        self.step += 1
+        if self.step == len(self.factors):
+            self.done(self.final)
+        else:
+            try:
+                self.callback(self.start + self.diff * self.factors[self.step])
+            except:
+                # this is bad, but move on, otherwise you'll be stuck here forever
+                pass
 
-        # read javascript for drag and drop
-        with open(path.join(path.dirname(__file__), 'resources', 'draggable-points.js'),
-                  encoding='utf-8') as f:
-            drag_drop_js = f.read()
 
-        class Bridge(QObject):
-            @pyqtSlot(float, float)
-            def chart_clicked(_, x, y):
-                self.click_callback(x, y)
+class KMeansPlotWidget(pg.PlotWidget):
+    centroid_dragged = Signal(int, float, float)
+    centroid_done_dragging = Signal(int, float, float)
+    centroid_clicked = Signal(int)
+    graph_clicked = Signal(float, float)
 
-            @pyqtSlot(int, float, float)
-            def point_dropped(_, index, x, y):
-                self.drop_callback(index, x, y)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.centroids_item = None
+        self.moved = False
+        self.mouse_down = False
+        self.centroid_index = None
 
-        super().__init__(
-            enable_zoom=False,
-            bridge=Bridge(),
-            enable_select='',
-            plotOptions_series_point_events_drop="""/**/(function(event) {
-                var index = this.series.data.indexOf( this );
-                window.pybridge.point_dropped(index, this.x, this.y);
-                return false;
-            })
-            """,
-            plotOptions_series_states_hover_enabled=False,
-            plotOptions_series_showInLegend=False,
-            javascript=drag_drop_js,
-            **kwargs)
+    def set_centroids_item(self, centroids_item):
+        self.centroids_item = centroids_item
 
-        self.click_callback = click_callback
-        self.drop_callback = drop_callback
+    def mousePressEvent(self, ev):
+        if ev.button() != Qt.LeftButton \
+                or self.centroids_item is None:
+            ev.ignore()
+            return
 
-    def chart(self, *args, **kwargs):
-        self.count_replots += 1
-        super(Scatterplot, self).chart(*args, **kwargs)
+        ev.accept()
+        self.mouse_down = True
+        pos = self.plotItem.mapToView(QPointF(ev.pos()))
+        pts = self.centroids_item.pointsAt(pos)
+        if len(pts) != 0:
+            self.centroid_index = \
+                self.centroids_item.points().tolist().index(pts[0])
 
-    def update_series(self, series_no, data):
-        for i, d in enumerate(data):
-            self.evalJS("""chart.series[%d].points[%d].update({x: %f, y: %f},
-                        %s,
-                        {duration: 500, easing: 'linear'})"""
-                        % (series_no, i, d[0], d[1],
-                           ("true" if i == len(data) - 1 else "false")))
+    def mouseReleaseEvent(self, ev):
+        if ev.button() != Qt.LeftButton:
+            ev.ignore()
+            return
 
-    def remove_last_series(self, no):
-        self.evalJS("""for(var i = 0; i < %d; i++)
-                    chart.series[1].remove(true);""" % no)
+        ev.accept()
+        pos = self.plotItem.mapToView(QPointF(ev.pos()))
+        x, y = pos.x(), pos.y()
+        if self.centroid_index is not None:
+            if self.moved:
+                self.centroid_done_dragging.emit(self.centroid_index, x, y)
+            else:
+                self.centroid_clicked.emit(self.centroid_index)
+        else:
+            if not self.moved:
+                self.graph_clicked.emit(x, y)
+        self.centroid_index = None
+        self.mouse_down = False
+        self.moved = False
 
-    def add_series(self, series):
-        for i, s in enumerate(series):
-            self.exposeObject('series%d' % i, series[i])
-            self.evalJS("chart.addSeries('series%d', true);" % i)
+    def mouseMoveEvent(self, ev):
+        if not self.mouse_down:
+            ev.ignore()
+            return
+
+        ev.accept()
+        self.moved = True
+        if self.centroid_index is not None:
+            pos = self.plotItem.mapToView(QPointF(ev.pos()))
+            self.centroid_dragged.emit(self.centroid_index, pos.x(), pos.y())
 
 
 class OWKmeans(OWWidget):
-    """
-    K-means widget
-    """
-
     name = "Interactive k-Means"
     description = "Widget demonstrates working of k-means algorithm."
     keywords = ["kmeans", "clustering", "interactive"]
@@ -135,7 +144,6 @@ class OWKmeans(OWWidget):
     want_main_area = True
     priority = 300
 
-    # inputs and outputs
     class Inputs:
         data = Input("Data", Table)
 
@@ -144,74 +152,61 @@ class OWKmeans(OWWidget):
         centroids = Output("Centroids", Table)
 
     class Warning(OWWidget.Warning):
-        num_features = Msg("Widget requires at least two numeric features with valid values")
-        cluster_points = Msg("The number of clusters can't exceed the number of points")
+        num_features = Msg("Data must contain at least two numeric variables.")
 
-    # settings
+    settingsHandler = settings.DomainContextHandler()
+    attr_x = settings.ContextSetting(None)
+    attr_y = settings.ContextSetting(None)
     number_of_clusters = settings.Setting(3)
-    auto_play_enabled = False
-    auto_play_thread = None
-
-    # data
-    data = None
-    selected_rows = None  # rows that are selected for kmeans (not nan rows)
-
-    # selected attributes in chart
-    attr_x = settings.Setting('')
-    attr_y = settings.Setting('')
-
-    # other settings
-    k_means = None
     auto_play_speed = settings.Setting(1)
-    lines_to_centroids = settings.Setting(True)
+
     graph_name = 'scatter'
-    output_name = "cluster"
     STEP_BUTTONS = ["Reassign Membership", "Recompute Centroids"]
     AUTOPLAY_BUTTONS = ["Run", "Stop"]
 
-    # colors taken from chart.options.colors in Highchart
-    # (if more required check for more in chart.options.color)
-    colors = ["#1F7ECA", "#D32525", "#28D825", "#D5861F", "#98257E",
-              "#2227D5", "#D5D623", "#D31BD6", "#6A7CDB", "#78D5D4"]
-
-    # signals
-    step_trigger = pyqtSignal()
-    stop_auto_play_trigger = pyqtSignal()
+    step_trigger = Signal()
+    stop_auto_play_trigger = Signal()
 
     def __init__(self):
         super().__init__()
+        self.data = None
+        self.selected_rows = None  # rows that are selected for kmeans (not nan rows)
+        self.auto_play_enabled = False
+        self.auto_play_thread = None
+        self.k_means = None
+        self.color_map = np.empty(0, dtype=int)
 
-        # options box
-        self.options_box = gui.widgetBox(self.controlArea, "Data")
+        self.variables_box = gui.widgetBox(self.controlArea, "Variables")
+        self.var_model = DomainModel(
+            valid_types=(ContinuousVariable, ),
+            order=DomainModel.MIXED)
         opts = dict(
-            widget=self.options_box, master=self, orientation=Qt.Horizontal,
-            callback=self.restart, sendSelectedValue=True,
+            widget=self.variables_box, master=self, orientation=Qt.Horizontal,
+            callback=self.restart, sendSelectedValue=True, model=self.var_model,
+            #sizePolicy=(QSizePolicy.Fixed, QSizePolicy.MinimumExpanding)
         )
 
-        self.cbx = gui.comboBox(value='attr_x', label='X: ', **opts)
-        self.cby = gui.comboBox(value='attr_y', label='Y: ', **opts)
+        self.cbx = gui.comboBox(value='attr_x', **opts)
+        self.cby = gui.comboBox(value='attr_y', **opts)
 
         self.centroids_box = gui.widgetBox(self.controlArea, "Centroids")
         self.centroid_numbers_spinner = gui.spin(
             self.centroids_box, self, 'number_of_clusters',
-            minv=1, maxv=10, step=1, label='Number of centroids:',
+            minv=1, maxv=10, step=1, label='Number of clusters:',
             alignment=Qt.AlignRight, callback=self.number_of_clusters_change)
         self.restart_button = gui.button(
             self.centroids_box, self, "Randomize Positions",
             callback=self.restart)
-        gui.separator(self.centroids_box)
-        self.lines_checkbox = gui.checkBox(
-            self.centroids_box, self, 'lines_to_centroids',
-            'Show membership lines', callback=self.complete_replot)
 
         # control box
-        self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
+        self.step_box = gui.widgetBox(
+            self.controlArea, "Manually step through", spacing=0)
         self.step_button = gui.button(
             self.step_box, self, self.STEP_BUTTONS[1], callback=self.step)
         self.step_back_button = gui.button(
             self.step_box, self, "Step Back", callback=self.step_back)
 
-        self.run_box = gui.widgetBox(self.controlArea, "Run")
+        self.run_box = gui.vBox(self.controlArea, "Run")
 
         self.auto_play_speed_spinner = gui.hSlider(
             self.run_box, self, 'auto_play_speed', label='Speed:',
@@ -226,17 +221,175 @@ class OWKmeans(OWWidget):
         # disable until data loaded
         self.set_disabled_all(True)
 
-        # graph in mainArea
-        self.scatter = Scatterplot(
-            click_callback=self.graph_clicked,
-            drop_callback=self.centroid_dropped,
-            xAxis_gridLineWidth=0, yAxis_gridLineWidth=0,
-            tooltip_enabled=False,
-            debug=False)
+        self.points_item = None
+        self.centroids_item = None
+        self.lines_item = None
 
-        # Just render an empty chart so it shows a nice 'No data to display'
-        self.scatter.chart()
-        self.mainArea.layout().addWidget(self.scatter)
+        self.plotview = KMeansPlotWidget(background="w", autoRange=False)
+        self.plot = self.plotview.getPlotItem()
+        axis_pen = QPen(self.palette().color(QPalette.Text))
+        tickfont = QFont(self.font())
+        tickfont.setPixelSize(max(int(tickfont.pixelSize() * 2 // 3), 11))
+        for axis in ("bottom", "left"):
+            axis = self.plot.getAxis(axis)
+            axis.setPen(axis_pen)
+            axis.setTextPen(axis_pen)
+            axis.setTickFont(tickfont)
+        self.plot.hideButtons()
+        self.plot.setMouseEnabled(x=False, y=False)
+        self.plotview.centroid_clicked.connect(self.on_centroid_clicked)
+        self.plotview.centroid_dragged.connect(self.on_centroid_dragged)
+        self.plotview.centroid_done_dragging.connect(self.on_centroid_done_dragging)
+        self.plotview.graph_clicked.connect(self.on_centroid_add)
+        self.mainArea.layout().addWidget(self.plotview)
+
+    def set_points(self):
+        km = self.k_means
+        self.points_item = pg.ScatterPlotItem(
+            x=km.data.get_column_view(0)[0],
+            y=km.data.get_column_view(1)[0],
+            symbol="o", size=8, antialias=True, useCache=False)
+        self.update_membership()
+        self.plotview.addItem(self.points_item)
+        self.plotview.autoRange()
+        self.plotview.replot()
+
+    def update_membership(self):
+        self.update_point_colors()
+        self.update_membership_lines()
+
+    def update_point_colors(self):
+        assert self.points_item is not None
+        km = self.k_means
+        self.points_item.setPen(self.pens[km.clusters])
+        self.points_item.setBrush(self.brushes[km.clusters])
+
+    def set_membership_lines(self):
+        m = np.zeros(2 * len(self.data))
+        self.lines_item = pg.PlotCurveItem(
+            x=m, y=m, pen=pg.mkPen(0.5), connect="pairs", antialias=True)
+        self.plotview.addItem(self.lines_item)
+
+    def set_centroids(self):
+        k = self.k_means.k
+        m = np.zeros(k)
+        self.centroids_item = pg.ScatterPlotItem(
+            x=m, y=m, pen=self.centr_pens[:k], brush=self.brushes[:k],
+            symbol="s", size=13, antialias=True, useCache=False)
+        self.plotview.set_centroids_item(self.centroids_item)
+        self.plotview.addItem(self.centroids_item)
+        self.update_centroid_positions()
+        self.update_membership_lines()
+
+    def on_centroid_dragged(self, centroid_index, x, y):
+        self.k_means.centroids[centroid_index] = [x, y]
+        self.update_centroid_positions()
+        self.update_membership_lines()
+
+    def on_centroid_done_dragging(self, centroid_index, x, y):
+        self.k_means.move_centroid(centroid_index, x, y)
+        self.animate_membership()
+        self.send_data()
+
+    def on_centroid_clicked(self, centroid_index):
+        if self.number_of_clusters == 1:
+            return
+        self.k_means.delete_centroid(centroid_index)
+        self.color_map = np.hstack((self.color_map[:centroid_index],
+                                    self.color_map[centroid_index + 1:]))
+        self._set_colors()
+        self.number_of_clusters -= 1
+        self.update_centroid_positions()
+        self.animate_membership()
+        self.send_data()
+
+    def on_centroid_add(self, x, y):
+        if not self.data or \
+                self.number_of_clusters \
+                == self.controls.number_of_clusters.maximum():
+            return
+
+        self.number_of_clusters += 1
+        self.color_map = np.hstack(
+            (self.color_map,
+             [min(set(range(10)) - set(self.color_map))]))
+        self._set_colors()
+        self.k_means.add_centroids([[x, y]])
+        self.update_centroid_positions()
+        self.animate_membership()
+        self.send_data()
+        self.button_text_change()
+
+    def update_centroid_positions(self, cx=None, cy=None):
+        assert self.centroids_item is not None
+        assert self.lines_item is not None
+
+        km = self.k_means
+        k = km.k
+        if cx is None:
+            cx, cy = km.centroids.T
+        self.centroids_item.setData(
+            cx, cy,
+            pen=self.centr_pens[:k], brush=self.brushes[:k])
+
+    def update_plot(self):
+        self.update_centroid_positions()
+        self.update_membership()
+
+    def update_membership_lines(self, cx=None, cy=None):
+        x, y = self._membership_lines_data(cx, cy)
+        self.lines_item.setData(x, y)
+
+    def _membership_lines_data(self, cx=None, cy=None):
+        km = self.k_means
+        if cx is None:
+            cx, cy = km.centroids.T
+        n = len(self.data)
+        x = np.empty(2 * n)
+        y = np.empty(2 * n)
+        x[::2] = km.data.get_column_view(0)[0]
+        x[1::2] = cx[km.clusters]
+        y[::2] = km.data.get_column_view(1)[0]
+        y[1::2] = cy[km.clusters]
+        return x, y
+
+    def animate_centroids(self):
+        def update(pos):
+            self.update_centroid_positions(*pos.T)
+            self.update_membership_lines(*pos.T)
+
+        def done(pos):
+            timer.stop()
+            self.set_disabled_all(False)
+            update(pos)
+
+        timer = QTimer(self.centroids_item, interval=50)
+        start = np.array(self.centroids_item.getData()).T
+        final = self.k_means.centroids
+        timer.timeout.connect(AnimateNumpy(start, final, update, done))
+        self.set_disabled_all(True)
+        timer.start()
+
+    def animate_membership(self):
+        def update(pos):
+            self.lines_item.setData(*pos.T)
+
+        def done(pos):
+            timer.stop()
+            self.set_disabled_all(False)
+            update(pos)
+            self.update_point_colors()
+
+        timer = QTimer(self.lines_item, interval=100)
+        start = np.array(self.lines_item.getData()).T
+        final = np.array(self._membership_lines_data()).T
+        diff = np.any((start != final)[1::2], axis=1)
+        pens = self.pens[self.k_means.clusters]
+        pens[diff] = [pg.mkPen(pen.color(), width=2) for pen in pens[diff]]
+        self.points_item.setPen(pens)
+        timer.timeout.connect(AnimateNumpy(start, final, update, done))
+        self.set_disabled_all(True)
+        timer.start()
 
     def concat_x_y(self):
         """
@@ -248,27 +401,24 @@ class OWKmeans(OWWidget):
         Orange.data.Table
             table with selected columns
         """
-        attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y]
-        cols = []
-        for attr in (attr_x, attr_y):
-            subset = self.data[:, attr]
-            cols.append(subset.Y if subset.Y.size else subset.X)
-        x = np.column_stack(cols)
+        attrs = [self.attr_x, self.attr_y]
+        x = np.vstack(tuple(self.data.get_column_view(attr)[0]
+                            for attr in attrs)).T
+        # Prevent crash due to having the same attribute in the domain twice
+        # (alternative, having a single column, would complicate other code)
+        if self.attr_x is self.attr_y:
+            attrs = [self.attr_x.renamed(name) for name in "xy"]
         not_nan = ~np.isnan(x).any(axis=1)
         x = x[not_nan]  # remove rows with nan
         self.selected_rows = np.where(not_nan)
-        domain = Domain([attr_x, attr_y])
+        domain = Domain(attrs)
         return Table.from_numpy(domain, x)
-
-    def set_empty_plot(self):
-        self.scatter.clear()
 
     def set_disabled_all(self, disabled):
         """
         Function disable all controls
         """
-        self.options_box.setDisabled(disabled)
+        self.variables_box.setDisabled(disabled)
         self.centroids_box.setDisabled(disabled)
         self.step_box.setDisabled(disabled)
         self.run_box.setDisabled(disabled)
@@ -285,62 +435,63 @@ class OWKmeans(OWWidget):
         data : Orange.data.Table or None
             input data
         """
-        self.data = data
-
-        def get_valid_attributes(data):
-            attrs = [var for var in data.domain.attributes if var.is_continuous]
-            return [var for var in attrs if sum(~np.isnan(data[:, var])) > 0]
-
-        def reset_combos():
-            self.cbx.clear()
-            self.cby.clear()
-
-        def init_combos():
-            """
-            function initialize the combos with attributes
-            """
-            reset_combos()
-            valid_class_vars = [var for var in data.domain.class_vars
-                                if data is not None and var.is_continuous]
-            for var in chain(valid_attributes, valid_class_vars):
-                self.cbx.addItem(gui.attributeIconDict[var], var.name)
-                self.cby.addItem(gui.attributeIconDict[var], var.name)
-
-        # remove warnings about too less continuous attributes and not enough data
         self.Warning.clear()
-
+        self.plotview.clear()
+        self.set_disabled_all(True)
         if self.auto_play_thread:
             self.auto_play_thread.stop()
 
-        if data is None or len(data) == 0:
-            reset_combos()
-            self.set_empty_plot()
-            self.set_disabled_all(True)
+        self.data = data
+        if not data:
+            self.var_model.set_domain(None)
             return
-
-        valid_attributes = get_valid_attributes(data)
-
-        if len(valid_attributes) < 2:
-            reset_combos()
-            self.Warning.num_features()
-            self.set_empty_plot()
-            self.set_disabled_all(True)
         else:
-            init_combos()
-            self.set_disabled_all(False)
-            self.attr_x = self.cbx.itemText(0)
-            self.attr_y = self.cbx.itemText(1)
-            if self.k_means is None:
-                self.k_means = Kmeans(self.concat_x_y())
+            self.var_model.set_domain(data.domain)
+            if len(self.var_model) < 2:
+                self.Warning.num_features()
+                return
+
+        self.set_disabled_all(False)
+        self.attr_x, self.attr_y = self.var_model[:2]
+
+        max_clusters = min(10, len(self.data))
+        self.controls.number_of_clusters.setMaximum(max_clusters)
+        if self.number_of_clusters > max_clusters:
+            self.number_of_clusters = max_clusters
+        self.k_means = Kmeans(self.concat_x_y())
+
+        self.color_map = np.arange(self.k_means.k)
+        self.number_of_clusters_change()
+        self._simplify_widget()
+
+    def _set_colors(self):
+        colors = DefaultRGBColors.qcolors[self.color_map]
+        self.pens = np.array([pg.mkPen(col.darker(120)) for col in colors])
+        self.centr_pens = np.array([pg.mkPen(col.darker(120), width=2) for col in colors])
+        self.brushes = np.array([pg.mkBrush(col) for col in colors])
+
+    def _simplify_widget(self):
+        axes = ("bottom", "left")
+        self.variables_box.setVisible(len(self.var_model) > 2)
+        if [var.name for var in self.var_model] == ["x", "y"]:
+            if np.min(self.k_means.data) >= 0 and np.max(self.k_means.data) <= 1:
+                for axis in axes:
+                    self.plot.hideAxis(axis)
             else:
-                self.k_means.set_data(self.concat_x_y())
-            self.number_of_clusters_change()
+                for axis in axes:
+                    self.plot.getAxis(axis).showLabel(False)
+        else:
+            for axis, attr in zip(axes, (self.attr_x, self.attr_y)):
+                axis = self.plot.getAxis(axis)
+                axis.showLabel(True)
+                axis.setLabel(attr.name)
 
     def restart(self):
         """
         Function triggered on data change or restart button pressed
         """
         self.k_means = Kmeans(self.concat_x_y())
+        self.color_map = np.arange(self.number_of_clusters)
         self.number_of_clusters_change()
 
     def step(self):
@@ -380,7 +531,7 @@ class OWKmeans(OWWidget):
         self.auto_play_button.setText(
             self.AUTOPLAY_BUTTONS[self.auto_play_enabled])
         if self.auto_play_enabled:
-            self.options_box.setDisabled(True)
+            self.variables_box.setDisabled(True)
             self.centroids_box.setDisabled(True)
             self.step_box.setDisabled(True)
             self.auto_play_thread = Autoplay(self)
@@ -394,7 +545,7 @@ class OWKmeans(OWWidget):
         """
         Called when stop autoplay button pressed or in the end of autoplay
         """
-        self.options_box.setDisabled(False)
+        self.variables_box.setDisabled(False)
         self.centroids_box.setDisabled(False)
         self.step_box.setDisabled(False)
         self.auto_play_enabled = False
@@ -408,116 +559,17 @@ class OWKmeans(OWWidget):
         """
         if self.data is None or not self.attr_x or not self.attr_y:
             return
-
         km = self.k_means
         if not km.centroids_moved:
-            self.complete_replot()
-            return
+            self.animate_membership()
+        else:
+            self.animate_centroids()
 
-        # when centroids moved during step
-        self.scatter.update_series(0, self.k_means.centroids)
-
-        if self.lines_to_centroids:
-            for i, (c, pts) in enumerate(zip(
-                    km.centroids, km.centroids_belonging_points)):
-                self.scatter.update_series(1 + i, list(chain.from_iterable(
-                    ([p[0], p[1]], [c[0], c[1]])
-                    for p in pts)))
-
-    def complete_replot(self):
-        """
-        This function performs complete replot of the graph without animation
-        """
-        try:
-            attr_x = self.data.domain[self.attr_x]
-            attr_y = self.data.domain[self.attr_y]
-        except KeyError:
-            return
-
-        # plot centroids
-        options = dict(series=[])
-        n_colors = len(self.colors)
-        km = self.k_means
-        options['series'].append(
-            dict(
-                data=[{'x': p[0], 'y': p[1],
-                       'marker':{'fillColor': self.colors[i % n_colors]}}
-                      for i, p in enumerate(km.centroids)],
-                type="scatter",
-                draggableX=True,
-                draggableY=True,
-                cursor="move",
-                zIndex=10,
-                marker=dict(symbol='square', radius=8)))
-
-        # plot lines between centroids and points
-        if self.lines_to_centroids:
-            for i, (c, pts) in enumerate(zip(
-                    km.centroids, km.centroids_belonging_points)):
-                options['series'].append(dict(
-                    data=list(
-                        chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
-                                            for p in pts)),
-                    type="line",
-                    lineWidth=0.2,
-                    enableMouseTracking=False,
-                    color="#ccc"))
-
-        # plot data points
-        for i, points in enumerate(km.centroids_belonging_points):
-            options['series'].append(dict(
-                data=points,
-                type="scatter",
-                color=rgb_hash_brighter(
-                    self.colors[i % len(self.colors)], 0.3)))
-
-        # highcharts parameters
-        kwargs = dict(
-            xAxis_title_text=attr_x.name,
-            yAxis_title_text=attr_y.name,
-            tooltip_headerFormat="",
-            tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
-                                "<strong>%s:</strong> {point.y:.2f}" %
-                                (self.attr_x, self.attr_y))
-
-        # plot
-        self.scatter.chart(options, **kwargs)
-
-    def replot_series(self):
-        """
-        This function replot just series connected with centroids and
-        uses animation for that
-        """
-        km = self.k_means
-        k = km.k
-
-        series = []
-        # plot lines between centroids and points
-        if self.lines_to_centroids:
-            for i, (c, pts) in enumerate(zip(
-                    km.centroids, km.centroids_belonging_points)):
-                series.append(dict(
-                   data=list(
-                       chain.from_iterable(([p[0], p[1]], [c[0], c[1]])
-                                           for p in pts)),
-                   type="line",
-                   showInLegend=False,
-                   lineWidth=0.2,
-                   enableMouseTracking=False,
-                   color="#ccc"))
-
-        # plot data points
-        for i, points in enumerate(km.centroids_belonging_points):
-            series.append(dict(
-                data=points,
-                type="scatter",
-                showInLegend=False,
-                color=rgb_hash_brighter(
-                    self.colors[i % len(self.colors)], 0.5)))
-
-        self.scatter.add_series(series)
-
-        self.scatter.remove_last_series(k * 2 if self.lines_to_centroids else k)
+    def set_plot_items(self):
+        self.plotview.clear()
+        self.set_membership_lines()
+        self.set_points()
+        self.set_centroids()
 
     def number_of_clusters_change(self):
         """
@@ -525,45 +577,19 @@ class OWKmeans(OWWidget):
         """
         if self.data is None:
             return
-        if self.number_of_clusters > len(self.data):
-            # if too less data for clusters number
-            self.Warning.cluster_points()
-            self.set_empty_plot()
-            self.step_box.setDisabled(True)
-            self.run_box.setDisabled(True)
-        else:
-            self.Warning.cluster_points.clear()
-            self.step_box.setDisabled(False)
-            self.run_box.setDisabled(False)
-            if self.k_means is None:  # if before too less data k_means is None
-                self.k_means = Kmeans(self.concat_x_y())
-            if self.k_means.k < self.number_of_clusters:
-                self.k_means.add_centroids(
-                    self.number_of_clusters - self.k_means.k)
-            elif not self.k_means.k == self.number_of_clusters:
-                self.k_means.delete_centroids(
-                    self.k_means.k - self.number_of_clusters)
-            self.replot()
-            self.send_data()
-        self.button_text_change()
 
-    def graph_clicked(self, x, y):
-        """
-        Function called when user click in graph. Centroid have to be added.
-        """
-        if self.k_means is not None and self.data is not None:
-            self.k_means.add_centroids([x, y])
-            self.number_of_clusters += 1
-            self.replot()
-            self.send_data()
-            self.button_text_change()
-
-    def centroid_dropped(self, _index, x, y):
-        """
-        Function called when centroid with _index moved.
-        """
-        self.k_means.move_centroid(_index, x, y)
-        self.complete_replot()
+        self.step_box.setDisabled(False)
+        self.run_box.setDisabled(False)
+        increase = self.number_of_clusters - self.k_means.k
+        if increase > 0:
+            available = sorted(set(range(10)) - set(self.color_map))
+            self.color_map = np.hstack((self.color_map, available[:increase]))
+            self.k_means.add_centroids(increase)
+        elif increase < 0:
+            self.color_map = self.color_map[:self.number_of_clusters]
+            self.k_means.delete_centroids(-increase)
+        self._set_colors()
+        self.set_plot_items()
         self.send_data()
         self.button_text_change()
 
@@ -578,8 +604,10 @@ class OWKmeans(OWWidget):
             self.Outputs.centroids.send(None)
         else:
             clust_var = DiscreteVariable(
-                self.output_name,
-                values=["C%d" % (x + 1) for x in range(km.k)])
+                "cluster",
+                values=["C%d" % (x + 1) for x in range(km.k)],
+            )
+            clust_var.colors = DefaultRGBColors.palette[self.color_map]
             attributes = self.data.domain.attributes
             classes = self.data.domain.class_vars
             meta_attrs = self.data.domain.metas
@@ -599,11 +627,7 @@ class OWKmeans(OWWidget):
     def send_report(self):
         if self.data is None:
             return
-        caption = report.render_items_vert((
-             ("Number of centroids:", self.number_of_clusters),
-        ))
-        self.report_plot(self.scatter)
-        self.report_caption(caption)
+        self.report_plot(self.plot)
 
 
 if __name__ == "__main__":

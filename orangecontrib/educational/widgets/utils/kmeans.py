@@ -180,6 +180,14 @@ class Kmeans:
             self.centroids = np.vstack((self.centroids, np.array(points)))
         self.recompute_clusters()
 
+    def delete_centroid(self, num):
+        """
+        Remove a centroid
+        """
+        self.centroids = np.vstack((self.centroids[:num],
+                                    self.centroids[num + 1:]))
+        self.recompute_clusters()
+
     def delete_centroids(self, num):
         """
         Remove last num centroids

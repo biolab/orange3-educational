@@ -49,14 +49,14 @@ class TestOWKmeans(WidgetTest):
 
         # none input
         self.widget.set_data(None)
-        self.assertEqual(self.widget.options_box.isEnabled(), False)
+        self.assertEqual(self.widget.variables_box.isEnabled(), False)
         self.assertEqual(self.widget.centroids_box.isEnabled(), False)
         self.assertEqual(self.widget.step_box.isEnabled(), False)
         self.assertEqual(self.widget.run_box.isEnabled(), False)
 
         # if data provided
         self.widget.set_data(self.data)
-        self.assertEqual(self.widget.options_box.isEnabled(), True)
+        self.assertEqual(self.widget.variables_box.isEnabled(), True)
         self.assertEqual(self.widget.centroids_box.isEnabled(), True)
         self.assertEqual(self.widget.step_box.isEnabled(), True)
         self.assertEqual(self.widget.run_box.isEnabled(), True)
@@ -66,7 +66,7 @@ class TestOWKmeans(WidgetTest):
                                     self.data.domain.class_var)
         data1 = Orange.data.Table.from_table(domain, self.data)
         self.widget.set_data(data1)
-        self.assertEqual(self.widget.options_box.isEnabled(), False)
+        self.assertEqual(self.widget.variables_box.isEnabled(), False)
         self.assertEqual(self.widget.centroids_box.isEnabled(), False)
         self.assertEqual(self.widget.step_box.isEnabled(), False)
         self.assertEqual(self.widget.run_box.isEnabled(), False)
@@ -74,7 +74,7 @@ class TestOWKmeans(WidgetTest):
         # if too much clusters for data
         self.widget.number_of_clusters = 3
         self.widget.set_data(self.data[:2])
-        self.assertEqual(self.widget.options_box.isEnabled(), True)
+        self.assertEqual(self.widget.variables_box.isEnabled(), True)
         self.assertEqual(self.widget.centroids_box.isEnabled(), True)
         self.assertEqual(self.widget.step_box.isEnabled(), False)
         self.assertEqual(self.widget.run_box.isEnabled(), False)
@@ -122,7 +122,7 @@ class TestOWKmeans(WidgetTest):
         # start autoplay
         self.widget.auto_play_button.click()
 
-        self.assertEqual(self.widget.options_box.isEnabled(), False)
+        self.assertEqual(self.widget.variables_box.isEnabled(), False)
         self.assertEqual(self.widget.centroids_box.isEnabled(), False)
         self.assertEqual(self.widget.step_button.isEnabled(), False)
         self.assertEqual(self.widget.step_back_button.isEnabled(), False)
@@ -133,7 +133,7 @@ class TestOWKmeans(WidgetTest):
         # stop autoplay
         self.widget.auto_play_button.click()
 
-        self.assertEqual(self.widget.options_box.isEnabled(), True)
+        self.assertEqual(self.widget.variables_box.isEnabled(), True)
         self.assertEqual(self.widget.centroids_box.isEnabled(), True)
         self.assertEqual(self.widget.step_button.isEnabled(), True)
         self.assertEqual(self.widget.auto_play_button.isEnabled(), True)
