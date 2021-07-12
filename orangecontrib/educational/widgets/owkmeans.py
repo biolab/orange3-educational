@@ -6,7 +6,7 @@ import pyqtgraph as pg
 from AnyQt.QtCore import QThread, Qt, pyqtSignal as Signal, QTimer, QPointF
 from AnyQt.QtGui import QPen, QFont, QPalette, QColor
 from AnyQt.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, \
-    QGraphicsItemGroup
+    QGraphicsItemGroup, QSizePolicy
 
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.colorpalettes import DefaultRGBColors
@@ -49,7 +49,7 @@ class Autoplay(QThread):
                 self.owkmeans.step_trigger.emit()
             except RuntimeError:
                 return
-            time.sleep(2 - self.owkmeans.auto_play_speed)
+            time.sleep(1.5)
         self.owkmeans.stop_auto_play_trigger.emit()
 
 
@@ -149,6 +149,7 @@ class OWKmeans(OWWidget):
     keywords = ["kmeans", "clustering", "interactive"]
     icon = "icons/InteractiveKMeans.svg"
     want_main_area = True
+    want_control_area = False
     priority = 300
 
     class Inputs:
@@ -164,12 +165,10 @@ class OWKmeans(OWWidget):
     settingsHandler = settings.DomainContextHandler()
     attr_x = settings.ContextSetting(None)
     attr_y = settings.ContextSetting(None)
-    number_of_clusters = settings.Setting(3)
-    auto_play_speed = settings.Setting(1)
 
     graph_name = 'scatter'
     STEP_BUTTONS = ["Reassign Membership", "Recompute Centroids"]
-    AUTOPLAY_BUTTONS = ["Run", "Stop"]
+    AUTOPLAY_BUTTONS = ["Run Simulation", "Stop"]
 
     step_trigger = Signal()
     stop_auto_play_trigger = Signal()
@@ -182,48 +181,39 @@ class OWKmeans(OWWidget):
         self.auto_play_thread = None
         self.k_means = None
         self.color_map = np.empty(0, dtype=int)
+        self.number_of_clusters = 3
 
-        self.variables_box = gui.widgetBox(self.controlArea, "Variables")
+        self._create_variables_box()
+        self._create_plot()
+        self._create_buttons_box()
+        self.set_disabled_all(True)
+
+    def _create_variables_box(self):
+        self.variables_box = gui.hBox(self.mainArea, box=True)
+        gui.widgetLabel(self.variables_box, "Variables:")
         self.var_model = DomainModel(
             valid_types=(ContinuousVariable, ),
             order=DomainModel.MIXED)
-        opts = dict(
-            widget=self.variables_box, master=self, orientation=Qt.Horizontal,
-            callback=self.restart, sendSelectedValue=True, model=self.var_model,
-            #sizePolicy=(QSizePolicy.Fixed, QSizePolicy.MinimumExpanding)
-        )
+        for attr in ("attr_x", "attr_y"):
+            gui.comboBox(
+                self.variables_box, self, value=attr, model=self.var_model,
+                callback=self.restart, orientation=Qt.Horizontal,
+                sizePolicy=(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            )
 
-        self.cbx = gui.comboBox(value='attr_x', **opts)
-        self.cby = gui.comboBox(value='attr_y', **opts)
-
-        self.centroids_box = gui.widgetBox(self.controlArea, "Centroids")
-        self.restart_button = gui.button(
-            self.centroids_box, self, "Randomize Positions",
-            callback=self.restart)
-
-        # control box
-        self.step_box = gui.widgetBox(
-            self.controlArea, "Manually step through", spacing=0)
+    def _create_buttons_box(self):
+        self.button_box = box = gui.hBox(self.plot_box, spacing=0, margin=0)
         self.step_button = gui.button(
-            self.step_box, self, self.STEP_BUTTONS[1], callback=self.step)
+            box, self, self.STEP_BUTTONS[1], callback=self.step)
         self.step_back_button = gui.button(
-            self.step_box, self, "Step Back", callback=self.step_back)
-
-        self.run_box = gui.vBox(self.controlArea, "Run")
-
-        self.auto_play_speed_spinner = gui.hSlider(
-            self.run_box, self, 'auto_play_speed', label='Speed:',
-            minValue=0, maxValue=1.91, step=0.1, intOnly=False,
-            createLabel=False)
+            box, self, "Step Back", callback=self.step_back)
+        gui.rubber(box)
+        self.restart_button = gui.button(
+            box, self, "Randomize", callback=self.restart)
         self.auto_play_button = gui.button(
-            self.run_box, self, self.AUTOPLAY_BUTTONS[0],
-            callback=self.auto_play)
+            box, self, self.AUTOPLAY_BUTTONS[0], callback=self.auto_play)
 
-        gui.rubber(self.controlArea)
-
-        # disable until data loaded
-        self.set_disabled_all(True)
-
+    def _create_plot(self):
         self.points_item = None
         self.centroids_item = None
         self.lines_item = None
@@ -244,7 +234,9 @@ class OWKmeans(OWWidget):
         self.plotview.centroid_dragged.connect(self.on_centroid_dragged)
         self.plotview.centroid_done_dragging.connect(self.on_centroid_done_dragging)
         self.plotview.graph_clicked.connect(self.on_centroid_add)
-        self.mainArea.layout().addWidget(self.plotview)
+
+        self.plot_box = gui.vBox(self.mainArea, box=True)
+        self.plot_box.layout().addWidget(self.plotview)
 
         self._create_tooltip()
         self.plotview.mouse_entered.connect(self.show_tooltip)
@@ -316,17 +308,21 @@ class OWKmeans(OWWidget):
         self.update_membership_lines()
 
     def on_centroid_dragged(self, centroid_index, x, y):
+        if self.auto_play_enabled:
+            return
         self.k_means.centroids[centroid_index] = [x, y]
         self.update_centroid_positions()
         self.update_membership_lines()
 
     def on_centroid_done_dragging(self, centroid_index, x, y):
+        if self.auto_play_enabled:
+            return
         self.k_means.move_centroid(centroid_index, x, y)
         self.animate_membership()
         self.send_data()
 
     def on_centroid_clicked(self, centroid_index):
-        if self.number_of_clusters == 1:
+        if self.number_of_clusters == 1 or self.auto_play_enabled:
             return
         self.k_means.delete_centroid(centroid_index)
         self.color_map = np.hstack((self.color_map[:centroid_index],
@@ -343,7 +339,9 @@ class OWKmeans(OWWidget):
         return max(10, len(self.k_means.data))
 
     def on_centroid_add(self, x, y):
-        if not self.data or self.number_of_clusters == self.max_clusters():
+        if not self.data \
+                or self.number_of_clusters == self.max_clusters() \
+                or self.auto_play_enabled:
             return
 
         self.number_of_clusters += 1
@@ -452,13 +450,16 @@ class OWKmeans(OWWidget):
         return Table.from_numpy(domain, x)
 
     def set_disabled_all(self, disabled):
-        """
-        Function disable all controls
-        """
+        # Auto play is never disabled during animation
+        self.auto_play_button.setDisabled(
+            disabled and not self.auto_play_enabled)
+        # All other buttons are disabled during animation
+        disabled = disabled or self.auto_play_enabled
         self.variables_box.setDisabled(disabled)
-        self.centroids_box.setDisabled(disabled)
-        self.step_box.setDisabled(disabled)
-        self.run_box.setDisabled(disabled)
+        self.step_button.setDisabled(disabled)
+        self.step_back_button.setDisabled(
+            disabled or self.k_means is None or self.k_means.step_no <= 0)
+        self.restart_button.setDisabled(disabled)
 
     @Inputs.data
     def set_data(self, data):
@@ -566,9 +567,8 @@ class OWKmeans(OWWidget):
         self.auto_play_button.setText(
             self.AUTOPLAY_BUTTONS[self.auto_play_enabled])
         if self.auto_play_enabled:
-            self.variables_box.setDisabled(True)
-            self.centroids_box.setDisabled(True)
-            self.step_box.setDisabled(True)
+            # This will disable all except the auto_play button
+            self.set_disabled_all(False)
             self.auto_play_thread = Autoplay(self)
             self.step_trigger.connect(self.step)
             self.stop_auto_play_trigger.connect(self.stop_auto_play)
@@ -580,9 +580,7 @@ class OWKmeans(OWWidget):
         """
         Called when stop autoplay button pressed or in the end of autoplay
         """
-        self.variables_box.setDisabled(False)
-        self.centroids_box.setDisabled(False)
-        self.step_box.setDisabled(False)
+        self.set_disabled_all(False)
         self.auto_play_enabled = False
         self.auto_play_button\
             .setText(self.AUTOPLAY_BUTTONS[self.auto_play_enabled])
@@ -613,8 +611,7 @@ class OWKmeans(OWWidget):
         if self.data is None:
             return
 
-        self.step_box.setDisabled(False)
-        self.run_box.setDisabled(False)
+        self.button_box.setDisabled(False)
         increase = self.number_of_clusters - self.k_means.k
         if increase > 0:
             available = sorted(set(range(10)) - set(self.color_map))
