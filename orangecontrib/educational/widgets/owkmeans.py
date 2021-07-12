@@ -4,7 +4,9 @@ import time
 import pyqtgraph as pg
 
 from AnyQt.QtCore import QThread, Qt, pyqtSignal as Signal, QTimer, QPointF
-from AnyQt.QtGui import QPen, QFont, QPalette
+from AnyQt.QtGui import QPen, QFont, QPalette, QColor
+from AnyQt.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, \
+    QGraphicsItemGroup
 
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.colorpalettes import DefaultRGBColors
@@ -79,6 +81,7 @@ class KMeansPlotWidget(pg.PlotWidget):
     centroid_done_dragging = Signal(int, float, float)
     centroid_clicked = Signal(int)
     graph_clicked = Signal(float, float)
+    mouse_entered = Signal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -134,6 +137,10 @@ class KMeansPlotWidget(pg.PlotWidget):
         if self.centroid_index is not None:
             pos = self.plotItem.mapToView(QPointF(ev.pos()))
             self.centroid_dragged.emit(self.centroid_index, pos.x(), pos.y())
+
+    def enterEvent(self, ev):
+        super().enterEvent(ev)
+        self.mouse_entered.emit()
 
 
 class OWKmeans(OWWidget):
@@ -242,6 +249,37 @@ class OWKmeans(OWWidget):
         self.plotview.centroid_done_dragging.connect(self.on_centroid_done_dragging)
         self.plotview.graph_clicked.connect(self.on_centroid_add)
         self.mainArea.layout().addWidget(self.plotview)
+
+        self._create_tooltip()
+        self.plotview.mouse_entered.connect(self.show_tooltip)
+
+    def _create_tooltip(self):
+        text = QGraphicsTextItem()
+        text.setHtml("Drag centroids to move them, click to add and remove them.")
+        text.setPos(4, 2)
+        r = text.boundingRect()
+        text.setTextWidth(r.width())
+        rect = QGraphicsRectItem(0, 0, r.width() + 8, r.height() + 4)
+        rect.setBrush(QColor(224, 224, 224, 212))
+        rect.setPen(QPen(Qt.NoPen))
+
+        tooltip_group = QGraphicsItemGroup()
+        tooltip_group.addToGroup(rect)
+        tooltip_group.addToGroup(text)
+        tooltip_group.setFlag(tooltip_group.ItemIgnoresTransformations)
+        self.tooltip = tooltip_group
+
+    def show_tooltip(self):
+        if self.tooltip is None or self.data is None or self.k_means is None:
+            return
+
+        tooltip = self.tooltip
+        self.tooltip = None
+
+        self.plot.scene().addItem(tooltip)
+        tooltip.setPos(10, 10)
+        timer = QTimer(self)
+        timer.singleShot(5000, lambda: self.plot.scene().removeItem(tooltip))
 
     def set_points(self):
         km = self.k_means
