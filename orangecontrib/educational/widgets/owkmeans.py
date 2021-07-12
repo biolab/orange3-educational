@@ -197,10 +197,6 @@ class OWKmeans(OWWidget):
         self.cby = gui.comboBox(value='attr_y', **opts)
 
         self.centroids_box = gui.widgetBox(self.controlArea, "Centroids")
-        self.centroid_numbers_spinner = gui.spin(
-            self.centroids_box, self, 'number_of_clusters',
-            minv=1, maxv=10, step=1, label='Number of clusters:',
-            alignment=Qt.AlignRight, callback=self.number_of_clusters_change)
         self.restart_button = gui.button(
             self.centroids_box, self, "Randomize Positions",
             callback=self.restart)
@@ -341,10 +337,13 @@ class OWKmeans(OWWidget):
         self.animate_membership()
         self.send_data()
 
+    def max_clusters(self):
+        if self.k_means is None:
+            return 10
+        return max(10, len(self.k_means.data))
+
     def on_centroid_add(self, x, y):
-        if not self.data or \
-                self.number_of_clusters \
-                == self.controls.number_of_clusters.maximum():
+        if not self.data or self.number_of_clusters == self.max_clusters():
             return
 
         self.number_of_clusters += 1
@@ -492,10 +491,8 @@ class OWKmeans(OWWidget):
         self.set_disabled_all(False)
         self.attr_x, self.attr_y = self.var_model[:2]
 
-        max_clusters = min(10, len(self.data))
-        self.controls.number_of_clusters.setMaximum(max_clusters)
-        if self.number_of_clusters > max_clusters:
-            self.number_of_clusters = max_clusters
+        if self.number_of_clusters > self.max_clusters():
+            self.number_of_clusters = self.max_clusters()
         self.k_means = Kmeans(self.concat_x_y())
 
         self.color_map = np.arange(self.k_means.k)
