@@ -40,8 +40,7 @@ class Kmeans:
         self.centroids = None
         self.history: List[HistoryEntry] = []
         self.clusters = None
-        if data is not None:
-            self.reset(data, centroids)
+        self.reset(data, centroids)
 
     @property
     def k(self):
