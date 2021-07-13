@@ -40,9 +40,6 @@ class Autoplay(QThread):
         self.is_running = False
 
     def run(self):
-        """
-        Stepping through the algorithm until converge or user interrupts
-        """
         while (self.is_running and
                not self.owkmeans.k_means.converged and
                self.step_count < 100 and
@@ -177,6 +174,7 @@ class OWKmeans(OWWidget):
     def __init__(self):
         super().__init__()
         self.data = None
+        self.reduced_data = None  # data from selected columns, no nans
         self.selected_rows = None  # rows without nans, which are used in kmeans
         self.in_animation = False
         self.auto_play_enabled = False
@@ -189,6 +187,24 @@ class OWKmeans(OWWidget):
         self._create_plot()
         self._create_buttons_box()
 
+    def _simplify_widget(self):
+        axes = ("bottom", "left")
+        self.variables_box.setVisible(len(self.var_model) > 2)
+        if [var.name for var in self.var_model] == ["x", "y"]:
+            if np.min(self.reduced_data) >= 0 and np.max(self.reduced_data) <= 1:
+                for axis in axes:
+                    self.plot.hideAxis(axis)
+            else:
+                for axis in axes:
+                    self.plot.getAxis(axis).showLabel(False)
+        else:
+            for axis, attr in zip(axes, (self.attr_x, self.attr_y)):
+                axis = self.plot.getAxis(axis)
+                axis.showLabel(True)
+                axis.setLabel(attr.name)
+
+    #########################################
+    # Variable combo boxes
     def _create_variables_box(self):
         self.variables_box = gui.hBox(self.mainArea, box=True)
         gui.widgetLabel(self.variables_box, "Variables:")
@@ -202,6 +218,8 @@ class OWKmeans(OWWidget):
                 sizePolicy=(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
             )
 
+    #########################################
+    # Buttons: creation and updates, and actions
     def _create_buttons_box(self):
         box = gui.hBox(self.plot_box, spacing=0, margin=0)
         self.step_button = \
@@ -215,6 +233,70 @@ class OWKmeans(OWWidget):
             gui.button(box, self, "", callback=self.auto_play)
         self._update_buttons()
 
+    def _update_buttons(self):
+        animation = self.in_animation
+        no_data = self.data is None or self.k_means is None
+        running = self.auto_play_enabled
+        disabled = animation or no_data or running
+
+        self.variables_box.setDisabled(disabled)
+
+        self.step_button.setDisabled(disabled)
+        self.step_button.setText(
+            "Reassign Membership"
+            if self.k_means and self.k_means.waits_reassignment
+            else "Recompute Centroids")
+
+        history = bool(self.k_means and self.k_means.history)
+        self.step_back_button.setVisible(history)
+        self.step_back_button.setDisabled(
+            disabled
+            or history
+            and len(self.k_means.history[-1].centroids)
+            != self.number_of_clusters)
+
+        self.restart_button.setDisabled(disabled)
+
+        # Stop button is never disabled when running (even during animation)
+        self.auto_play_button.setDisabled(disabled and not running)
+        self.auto_play_button.setText("Stop" if running else "Run Simulation")
+
+    def step(self):
+        if self.k_means.waits_reassignment:
+            self.k_means.assign_membership()
+            self.animate_membership()
+        else:
+            self.k_means.move_centroids()
+            self.animate_centroids()
+        self._update_buttons()
+        self.send_data()
+
+    def step_back(self):
+        self.k_means.step_back()
+        self.animate_centroids()
+        self.animate_membership()
+        self._update_buttons()
+        self.send_data()
+        self.number_of_clusters = self.k_means.k
+
+    def auto_play(self):
+        self.auto_play_enabled = not self.auto_play_enabled
+        self._update_buttons()
+        if self.auto_play_enabled:
+            # This will disable all except the auto_play button
+            self.auto_play_thread = Autoplay(self)
+            self.step_trigger.connect(self.step)
+            self.stop_auto_play_trigger.connect(self.stop_auto_play)
+            self.auto_play_thread.start()
+        else:
+            self.stop_auto_play()
+
+    def stop_auto_play(self):
+        self.auto_play_enabled = False
+        self._update_buttons()
+
+    #########################################
+    # Plot creation
     def _create_plot(self):
         self.points_item = None
         self.centroids_item = None
@@ -271,7 +353,19 @@ class OWKmeans(OWWidget):
         timer = QTimer(self)
         timer.singleShot(5000, lambda: self.plot.scene().removeItem(tooltip))
 
-    def set_points(self):
+    def _set_plot_items(self):
+        self._set_membership_lines()
+        self._set_points()
+        self._set_centroids()
+
+    def _set_membership_lines(self):
+        m = np.zeros(2 * len(self.data))
+        self.lines_item = pg.PlotCurveItem(
+            x=m, y=m, pen=pg.mkPen(0.5), connect="pairs", antialias=True)
+        self.plotview.addItem(self.lines_item)
+
+    def _set_points(self):
+        assert self.k_means is not None
         km = self.k_means
         self.points_item = pg.ScatterPlotItem(
             x=km.data.get_column_view(0)[0],
@@ -282,23 +376,8 @@ class OWKmeans(OWWidget):
         self.plotview.autoRange()
         self.plotview.replot()
 
-    def update_membership(self):
-        self.update_point_colors()
-        self.update_membership_lines()
-
-    def update_point_colors(self):
-        assert self.points_item is not None
-        km = self.k_means
-        self.points_item.setPen(self.pens[km.clusters])
-        self.points_item.setBrush(self.brushes[km.clusters])
-
-    def set_membership_lines(self):
-        m = np.zeros(2 * len(self.data))
-        self.lines_item = pg.PlotCurveItem(
-            x=m, y=m, pen=pg.mkPen(0.5), connect="pairs", antialias=True)
-        self.plotview.addItem(self.lines_item)
-
-    def set_centroids(self):
+    def _set_centroids(self):
+        assert self.k_means is not None
         k = self.k_means.k
         m = np.zeros(k)
         self.centroids_item = pg.ScatterPlotItem(
@@ -309,53 +388,21 @@ class OWKmeans(OWWidget):
         self.update_centroid_positions()
         self.update_membership_lines()
 
-    def on_centroid_dragged(self, centroid_index, x, y):
-        if self.auto_play_enabled:
-            return
-        centroids = self.k_means.centroids.copy()
-        centroids[centroid_index] = [x, y]
-        self.update_centroid_positions(*centroids.T)
-        self.update_membership_lines(*centroids.T)
-
-    def on_centroid_done_dragging(self, centroid_index, x, y):
-        if self.auto_play_enabled:
-            return
-        self.k_means.move_centroid(centroid_index, x, y)
-        self.animate_membership()
-        self.send_data()
-
-    def on_centroid_clicked(self, centroid_index):
-        if self.number_of_clusters == 1 or self.auto_play_enabled:
-            return
-        self.k_means.delete_centroid(centroid_index)
-        self.color_map = np.hstack((self.color_map[:centroid_index],
-                                    self.color_map[centroid_index + 1:]))
-        self._set_colors()
-        self.number_of_clusters -= 1
+    #########################################
+    # Plot element updates and animations
+    def update_plot(self):
         self.update_centroid_positions()
-        self.animate_membership()
-        self.send_data()
+        self.update_membership()
 
-    def max_clusters(self):
-        if self.k_means is None:
-            return 10
-        return min(10, len(self.k_means.data))
+    def update_membership(self):
+        self.update_point_colors()
+        self.update_membership_lines()
 
-    def on_centroid_add(self, x, y):
-        if not self.data \
-                or self.number_of_clusters == self.max_clusters() \
-                or self.auto_play_enabled:
-            return
-
-        self.number_of_clusters += 1
-        self.color_map = np.hstack(
-            (self.color_map,
-             [min(set(range(10))- set(self.color_map))]))
-        self._set_colors()
-        self.k_means.add_centroid(x, y)
-        self.update_centroid_positions()
-        self.animate_membership()
-        self.send_data()
+    def update_point_colors(self):
+        assert self.points_item is not None
+        km = self.k_means
+        self.points_item.setPen(self.pens[km.clusters])
+        self.points_item.setBrush(self.brushes[km.clusters])
 
     def update_centroid_positions(self, cx=None, cy=None):
         assert self.centroids_item is not None
@@ -368,10 +415,6 @@ class OWKmeans(OWWidget):
         self.centroids_item.setData(
             cx, cy,
             pen=self.centr_pens[:k], brush=self.brushes[:k])
-
-    def update_plot(self):
-        self.update_centroid_positions()
-        self.update_membership()
 
     def update_membership_lines(self, cx=None, cy=None):
         x, y = self._membership_lines_data(cx, cy)
@@ -428,69 +471,62 @@ class OWKmeans(OWWidget):
         timer.start()
         timer.timeout.connect(AnimateNumpy(start, final, update, my_done))
 
-    def concat_x_y(self):
-        """
-        Function takes two selected columns from data table and merge them in
-        new Orange.data.Table
+    #########################################
+    # Plot: user interaction
+    def on_centroid_dragged(self, centroid_index, x, y):
+        if self.auto_play_enabled:
+            return
+        centroids = self.k_means.centroids.copy()
+        centroids[centroid_index] = [x, y]
+        self.update_centroid_positions(*centroids.T)
+        self.update_membership_lines(*centroids.T)
 
-        Returns
-        -------
-        Orange.data.Table
-            table with selected columns
-        """
-        attrs = [self.attr_x, self.attr_y]
-        x = np.vstack(tuple(self.data.get_column_view(attr)[0]
-                            for attr in attrs)).T
-        # Prevent crash due to having the same attribute in the domain twice
-        # (alternative, having a single column, would complicate other code)
-        if self.attr_x is self.attr_y:
-            attrs = [self.attr_x.renamed(name) for name in "xy"]
-        not_nan = ~np.isnan(x).any(axis=1)
-        x = x[not_nan]  # remove rows with nan
-        self.selected_rows = np.where(not_nan)
-        domain = Domain(attrs)
-        return Table.from_numpy(domain, x)
+    def on_centroid_done_dragging(self, centroid_index, x, y):
+        if self.auto_play_enabled:
+            return
+        self.k_means.move_centroid(centroid_index, x, y)
+        self.animate_membership()
+        self.send_data()
 
-    def _update_buttons(self):
-        animation = self.in_animation
-        no_data = self.data is None
-        running = self.auto_play_enabled
-        disabled = animation or no_data or running
+    def on_centroid_clicked(self, centroid_index):
+        if self.number_of_clusters == 1 or self.auto_play_enabled:
+            return
+        self.k_means.delete_centroid(centroid_index)
+        self.color_map = np.hstack((self.color_map[:centroid_index],
+                                    self.color_map[centroid_index + 1:]))
+        self._set_colors()
+        self.number_of_clusters -= 1
+        self.update_centroid_positions()
+        self.animate_membership()
+        self.send_data()
 
-        self.variables_box.setDisabled(disabled)
+    def on_centroid_add(self, x, y):
+        if not self.data \
+                or self.k_means is None \
+                or self.number_of_clusters == self.max_clusters() \
+                or self.auto_play_enabled:
+            return
 
-        self.step_button.setDisabled(disabled)
-        self.step_button.setText(
-            "Reassign Membership"
-            if self.k_means and self.k_means.waits_reassignment
-            else "Recompute Centroids")
+        self.number_of_clusters += 1
+        self.color_map = np.hstack(
+            (self.color_map,
+             [min(set(range(10))- set(self.color_map))]))
+        self._set_colors()
+        self.k_means.add_centroid(x, y)
+        self.update_centroid_positions()
+        self.animate_membership()
+        self.send_data()
 
-        history = bool(self.k_means and self.k_means.history)
-        self.step_back_button.setVisible(history)
-        self.step_back_button.setDisabled(
-            disabled
-            or history
-            and len(self.k_means.history[-1].centroids)
-            != self.number_of_clusters)
+    def _set_colors(self):
+        colors = DefaultRGBColors.qcolors[self.color_map]
+        self.pens = np.array([pg.mkPen(col.darker(120)) for col in colors])
+        self.centr_pens = np.array([pg.mkPen(col.darker(120), width=2) for col in colors])
+        self.brushes = np.array([pg.mkBrush(col) for col in colors])
 
-        self.restart_button.setDisabled(disabled)
-
-        # Stop button is never disabled when running (even during animation)
-        self.auto_play_button.setDisabled(disabled and not running)
-        self.auto_play_button.setText("Stop" if running else "Run Simulation")
-
+    #########################################
+    # Signals reports ...
     @Inputs.data
     def set_data(self, data):
-        """
-        Function receives data from input and init part of widget if data are
-        ok. Otherwise set empty plot and notice
-        user about that
-
-        Parameters
-        ----------
-        data : Orange.data.Table or None
-            input data
-        """
         self.Warning.clear()
         self.plotview.clear()
         self._update_buttons()
@@ -498,6 +534,7 @@ class OWKmeans(OWWidget):
             self.auto_play_thread.stop()
 
         self.data = data
+        self.reduced_data = None  # updated below, at restart
         if not data:
             self.var_model.set_domain(None)
             return
@@ -508,96 +545,53 @@ class OWKmeans(OWWidget):
                 return
 
         self.attr_x, self.attr_y = self.var_model[:2]
-
-        if self.number_of_clusters > self.max_clusters():
-            self.number_of_clusters = self.max_clusters()
         self.restart()
-        self._simplify_widget()
-
-    def _set_colors(self):
-        colors = DefaultRGBColors.qcolors[self.color_map]
-        self.pens = np.array([pg.mkPen(col.darker(120)) for col in colors])
-        self.centr_pens = np.array([pg.mkPen(col.darker(120), width=2) for col in colors])
-        self.brushes = np.array([pg.mkBrush(col) for col in colors])
-
-    def _simplify_widget(self):
-        axes = ("bottom", "left")
-        self.variables_box.setVisible(len(self.var_model) > 2)
-        if [var.name for var in self.var_model] == ["x", "y"]:
-            if np.min(self.k_means.data) >= 0 and np.max(self.k_means.data) <= 1:
-                for axis in axes:
-                    self.plot.hideAxis(axis)
-            else:
-                for axis in axes:
-                    self.plot.getAxis(axis).showLabel(False)
-        else:
-            for axis, attr in zip(axes, (self.attr_x, self.attr_y)):
-                axis = self.plot.getAxis(axis)
-                axis.showLabel(True)
-                axis.setLabel(attr.name)
 
     def restart(self):
-        """
-        Function triggered on data change or restart button pressed
-        """
-        self.k_means = Kmeans(self.concat_x_y(), self.number_of_clusters)
-        self.color_map = np.arange(self.number_of_clusters)
-        self._set_colors()
-        self.set_plot_items()
-        self._update_buttons()
-        self.send_data()
-
-    def step(self):
-        if self.k_means.waits_reassignment:
-            self.k_means.assign_membership()
-            self.animate_membership()
-        else:
-            self.k_means.move_centroids()
-            self.animate_centroids()
-        self._update_buttons()
-        self.send_data()
-
-    def step_back(self):
-        self.k_means.step_back()
-        self.animate_centroids()
-        self.animate_membership()
-        self._update_buttons()
-        self.send_data()
-        self.number_of_clusters = self.k_means.k
-
-    def auto_play(self):
-        """
-        Function called when autoplay button pressed
-        """
-        self.auto_play_enabled = not self.auto_play_enabled
-        self._update_buttons()
-        if self.auto_play_enabled:
-            # This will disable all except the auto_play button
-            self.auto_play_thread = Autoplay(self)
-            self.step_trigger.connect(self.step)
-            self.stop_auto_play_trigger.connect(self.stop_auto_play)
-            self.auto_play_thread.start()
-        else:
-            self.stop_auto_play()
-
-    def stop_auto_play(self):
-        """
-        Called when stop autoplay button pressed or in the end of autoplay
-        """
-        self.auto_play_enabled = False
-        self._update_buttons()
-
-    def set_plot_items(self):
+        """Triggered on data change, attribute change or restart button"""
         self.plotview.clear()
-        self.set_membership_lines()
-        self.set_points()
-        self.set_centroids()
+        self.reduced_data = self._prepare_data()
+        if self.reduced_data is None:
+            self.k_means = None
+        else:
+            if self.number_of_clusters > self.max_clusters():
+                self.number_of_clusters = self.max_clusters()
+            self.k_means = Kmeans(self.reduced_data, self.number_of_clusters)
+            self.color_map = np.arange(self.number_of_clusters)
+            self._set_colors()
+            self._set_plot_items()
+            self._simplify_widget()
+        self._update_buttons()
+        self.send_data()
+
+    def _prepare_data(self):
+        """
+        Prepare 2d data for clustering
+
+        Put the two columns into a new table and remove rows with nans.
+        Return None if there are no non-nan columns
+        """
+        attrs = [self.attr_x, self.attr_y]
+        x = np.vstack(tuple(self.data.get_column_view(attr)[0]
+                            for attr in attrs)).T
+        # Prevent crash due to having the same attribute in the domain twice
+        # (alternative, having a single column, would complicate other code)
+        if self.attr_x is self.attr_y:
+            attrs = [self.attr_x.renamed(name) for name in "xy"]
+        not_nan = ~np.isnan(x).any(axis=1)
+        x = x[not_nan]  # remove rows with nan
+        if not x.size:
+            return None
+        self.selected_rows = np.where(not_nan)
+        domain = Domain(attrs)
+        return Table.from_numpy(domain, x)
+
+    def max_clusters(self):
+        if self.reduced_data is None:
+            return 10
+        return min(10, len(self.reduced_data))
 
     def send_data(self):
-        """
-        Function sends data with clusters column and data with centroids
-        position to the output
-        """
         km = self.k_means
         if km is None or km.clusters is None:
             self.Outputs.annotated_data.send(None)
