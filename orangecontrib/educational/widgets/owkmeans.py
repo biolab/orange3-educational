@@ -31,6 +31,7 @@ class Autoplay(QThread):
         QThread.__init__(self)
         self.owkmeans = owkmeans
         self.is_running = True
+        self.step_count = 0
 
     def __del__(self):
         self.wait()
@@ -44,9 +45,11 @@ class Autoplay(QThread):
         """
         while (self.is_running and
                not self.owkmeans.k_means.converged and
+               self.step_count < 100 and
                self.owkmeans.auto_play_enabled):
             try:
                 self.owkmeans.step_trigger.emit()
+                self.step_count += 1
             except RuntimeError:
                 return
             time.sleep(1.5)
@@ -167,8 +170,6 @@ class OWKmeans(OWWidget):
     attr_y = settings.ContextSetting(None)
 
     graph_name = 'scatter'
-    STEP_BUTTONS = ["Reassign Membership", "Recompute Centroids"]
-    AUTOPLAY_BUTTONS = ["Run Simulation", "Stop"]
 
     step_trigger = Signal()
     stop_auto_play_trigger = Signal()
@@ -176,7 +177,8 @@ class OWKmeans(OWWidget):
     def __init__(self):
         super().__init__()
         self.data = None
-        self.selected_rows = None  # rows that are selected for kmeans (not nan rows)
+        self.selected_rows = None  # rows without nans, which are used in kmeans
+        self.in_animation = False
         self.auto_play_enabled = False
         self.auto_play_thread = None
         self.k_means = None
@@ -186,7 +188,6 @@ class OWKmeans(OWWidget):
         self._create_variables_box()
         self._create_plot()
         self._create_buttons_box()
-        self.set_disabled_all(True)
 
     def _create_variables_box(self):
         self.variables_box = gui.hBox(self.mainArea, box=True)
@@ -202,16 +203,17 @@ class OWKmeans(OWWidget):
             )
 
     def _create_buttons_box(self):
-        self.button_box = box = gui.hBox(self.plot_box, spacing=0, margin=0)
-        self.step_button = gui.button(
-            box, self, self.STEP_BUTTONS[1], callback=self.step)
-        self.step_back_button = gui.button(
-            box, self, "Step Back", callback=self.step_back)
+        box = gui.hBox(self.plot_box, spacing=0, margin=0)
+        self.step_button = \
+            gui.button(box, self, "", callback=self.step)
+        self.step_back_button = \
+            gui.button(box, self, "Step Back", callback=self.step_back)
         gui.rubber(box)
-        self.restart_button = gui.button(
-            box, self, "Randomize", callback=self.restart)
-        self.auto_play_button = gui.button(
-            box, self, self.AUTOPLAY_BUTTONS[0], callback=self.auto_play)
+        self.restart_button = \
+            gui.button(box, self, "Randomize", callback=self.restart)
+        self.auto_play_button = \
+            gui.button(box, self, "", callback=self.auto_play)
+        self._update_buttons()
 
     def _create_plot(self):
         self.points_item = None
@@ -310,9 +312,10 @@ class OWKmeans(OWWidget):
     def on_centroid_dragged(self, centroid_index, x, y):
         if self.auto_play_enabled:
             return
-        self.k_means.centroids[centroid_index] = [x, y]
-        self.update_centroid_positions()
-        self.update_membership_lines()
+        centroids = self.k_means.centroids.copy()
+        centroids[centroid_index] = [x, y]
+        self.update_centroid_positions(*centroids.T)
+        self.update_membership_lines(*centroids.T)
 
     def on_centroid_done_dragging(self, centroid_index, x, y):
         if self.auto_play_enabled:
@@ -336,7 +339,7 @@ class OWKmeans(OWWidget):
     def max_clusters(self):
         if self.k_means is None:
             return 10
-        return max(10, len(self.k_means.data))
+        return min(10, len(self.k_means.data))
 
     def on_centroid_add(self, x, y):
         if not self.data \
@@ -347,13 +350,12 @@ class OWKmeans(OWWidget):
         self.number_of_clusters += 1
         self.color_map = np.hstack(
             (self.color_map,
-             [min(set(range(10)) - set(self.color_map))]))
+             [min(set(range(10))- set(self.color_map))]))
         self._set_colors()
-        self.k_means.add_centroids([[x, y]])
+        self.k_means.add_centroid(x, y)
         self.update_centroid_positions()
         self.animate_membership()
         self.send_data()
-        self.button_text_change()
 
     def update_centroid_positions(self, cx=None, cy=None):
         assert self.centroids_item is not None
@@ -393,38 +395,38 @@ class OWKmeans(OWWidget):
             self.update_centroid_positions(*pos.T)
             self.update_membership_lines(*pos.T)
 
-        def done(pos):
-            timer.stop()
-            self.set_disabled_all(False)
-            update(pos)
-
-        timer = QTimer(self.centroids_item, interval=50)
         start = np.array(self.centroids_item.getData()).T
         final = self.k_means.centroids
-        timer.timeout.connect(AnimateNumpy(start, final, update, done))
-        self.set_disabled_all(True)
-        timer.start()
+        self._animate(start, final, update, update)
 
     def animate_membership(self):
         def update(pos):
             self.lines_item.setData(*pos.T)
 
         def done(pos):
-            timer.stop()
-            self.set_disabled_all(False)
             update(pos)
             self.update_point_colors()
 
-        timer = QTimer(self.lines_item, interval=100)
         start = np.array(self.lines_item.getData()).T
         final = np.array(self._membership_lines_data()).T
         diff = np.any((start != final)[1::2], axis=1)
         pens = self.pens[self.k_means.clusters]
         pens[diff] = [pg.mkPen(pen.color(), width=2) for pen in pens[diff]]
         self.points_item.setPen(pens)
-        timer.timeout.connect(AnimateNumpy(start, final, update, done))
-        self.set_disabled_all(True)
+        self._animate(start, final, update, done)
+
+    def _animate(self, start, final, update, done):
+        def my_done(pos):
+            timer.stop()
+            self.in_animation = False
+            self._update_buttons()
+            done(pos)
+
+        timer = QTimer(self, interval=50)
+        self.in_animation = True
+        self._update_buttons()
         timer.start()
+        timer.timeout.connect(AnimateNumpy(start, final, update, my_done))
 
     def concat_x_y(self):
         """
@@ -449,17 +451,33 @@ class OWKmeans(OWWidget):
         domain = Domain(attrs)
         return Table.from_numpy(domain, x)
 
-    def set_disabled_all(self, disabled):
-        # Auto play is never disabled during animation
-        self.auto_play_button.setDisabled(
-            disabled and not self.auto_play_enabled)
-        # All other buttons are disabled during animation
-        disabled = disabled or self.auto_play_enabled
+    def _update_buttons(self):
+        animation = self.in_animation
+        no_data = self.data is None
+        running = self.auto_play_enabled
+        disabled = animation or no_data or running
+
         self.variables_box.setDisabled(disabled)
+
         self.step_button.setDisabled(disabled)
+        self.step_button.setText(
+            "Reassign Membership"
+            if self.k_means and self.k_means.waits_reassignment
+            else "Recompute Centroids")
+
+        history = bool(self.k_means and self.k_means.history)
+        self.step_back_button.setVisible(history)
         self.step_back_button.setDisabled(
-            disabled or self.k_means is None or self.k_means.step_no <= 0)
+            disabled
+            or history
+            and len(self.k_means.history[-1].centroids)
+            != self.number_of_clusters)
+
         self.restart_button.setDisabled(disabled)
+
+        # Stop button is never disabled when running (even during animation)
+        self.auto_play_button.setDisabled(disabled and not running)
+        self.auto_play_button.setText("Stop" if running else "Run Simulation")
 
     @Inputs.data
     def set_data(self, data):
@@ -475,7 +493,7 @@ class OWKmeans(OWWidget):
         """
         self.Warning.clear()
         self.plotview.clear()
-        self.set_disabled_all(True)
+        self._update_buttons()
         if self.auto_play_thread:
             self.auto_play_thread.stop()
 
@@ -489,15 +507,11 @@ class OWKmeans(OWWidget):
                 self.Warning.num_features()
                 return
 
-        self.set_disabled_all(False)
         self.attr_x, self.attr_y = self.var_model[:2]
 
         if self.number_of_clusters > self.max_clusters():
             self.number_of_clusters = self.max_clusters()
-        self.k_means = Kmeans(self.concat_x_y())
-
-        self.color_map = np.arange(self.k_means.k)
-        self.number_of_clusters_change()
+        self.restart()
         self._simplify_widget()
 
     def _set_colors(self):
@@ -526,49 +540,39 @@ class OWKmeans(OWWidget):
         """
         Function triggered on data change or restart button pressed
         """
-        self.k_means = Kmeans(self.concat_x_y())
+        self.k_means = Kmeans(self.concat_x_y(), self.number_of_clusters)
         self.color_map = np.arange(self.number_of_clusters)
-        self.number_of_clusters_change()
+        self._set_colors()
+        self.set_plot_items()
+        self._update_buttons()
+        self.send_data()
 
     def step(self):
-        """
-        Function called on every step
-        """
-        self.k_means.step()
-        self.replot()
-        self.button_text_change()
+        if self.k_means.waits_reassignment:
+            self.k_means.assign_membership()
+            self.animate_membership()
+        else:
+            self.k_means.move_centroids()
+            self.animate_centroids()
+        self._update_buttons()
         self.send_data()
 
     def step_back(self):
-        """
-        Function called for step back
-        """
         self.k_means.step_back()
-        self.replot()
-        self.button_text_change()
+        self.animate_centroids()
+        self.animate_membership()
+        self._update_buttons()
         self.send_data()
         self.number_of_clusters = self.k_means.k
-
-    def button_text_change(self):
-        """
-        Function changes text on ste button and chanbe the button text
-        """
-        self.step_button.setText(self.STEP_BUTTONS[self.k_means.step_completed])
-        if self.k_means.step_no <= 0:
-            self.step_back_button.setDisabled(True)
-        elif not self.auto_play_enabled:
-            self.step_back_button.setDisabled(False)
 
     def auto_play(self):
         """
         Function called when autoplay button pressed
         """
         self.auto_play_enabled = not self.auto_play_enabled
-        self.auto_play_button.setText(
-            self.AUTOPLAY_BUTTONS[self.auto_play_enabled])
+        self._update_buttons()
         if self.auto_play_enabled:
             # This will disable all except the auto_play button
-            self.set_disabled_all(False)
             self.auto_play_thread = Autoplay(self)
             self.step_trigger.connect(self.step)
             self.stop_auto_play_trigger.connect(self.stop_auto_play)
@@ -580,50 +584,14 @@ class OWKmeans(OWWidget):
         """
         Called when stop autoplay button pressed or in the end of autoplay
         """
-        self.set_disabled_all(False)
         self.auto_play_enabled = False
-        self.auto_play_button\
-            .setText(self.AUTOPLAY_BUTTONS[self.auto_play_enabled])
-        self.button_text_change()
-
-    def replot(self):
-        """
-        Function refreshes the chart
-        """
-        if self.data is None or not self.attr_x or not self.attr_y:
-            return
-        km = self.k_means
-        if not km.centroids_moved:
-            self.animate_membership()
-        else:
-            self.animate_centroids()
+        self._update_buttons()
 
     def set_plot_items(self):
         self.plotview.clear()
         self.set_membership_lines()
         self.set_points()
         self.set_centroids()
-
-    def number_of_clusters_change(self):
-        """
-        Function that change number of clusters if required
-        """
-        if self.data is None:
-            return
-
-        self.button_box.setDisabled(False)
-        increase = self.number_of_clusters - self.k_means.k
-        if increase > 0:
-            available = sorted(set(range(10)) - set(self.color_map))
-            self.color_map = np.hstack((self.color_map, available[:increase]))
-            self.k_means.add_centroids(increase)
-        elif increase < 0:
-            self.color_map = self.color_map[:self.number_of_clusters]
-            self.k_means.delete_centroids(-increase)
-        self._set_colors()
-        self.set_plot_items()
-        self.send_data()
-        self.button_text_change()
 
     def send_data(self):
         """
