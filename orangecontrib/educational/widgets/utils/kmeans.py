@@ -32,18 +32,12 @@ class Kmeans:
 
     Parameters
     ----------
-    data: Orange.data.Table
-        Data used for k-means
-    centroids: list or numpy.array
-        List of centroids
-    distance_metric: Orange.distance
-        Distance used to measure distance to point in k-means
+    data (np.ndarray): two-column d ata used for k-means
+    centroids (int, list or numpy.array or int): number of coordinates of centroids
     """
-    def __init__(self, data,
-                 centroids=None, distance_metric=Orange.distance.Euclidean):
+    def __init__(self, data, centroids=3):
         self.data = None
         self.centroids = None
-        self.distance_metric = distance_metric
         self.history: List[HistoryEntry] = []
         self.clusters = None
         if data is not None:
@@ -71,7 +65,7 @@ class Kmeans:
                and np.all(a.clusters == c.clusters)
 
     def _find_clusters(self):
-        dist = self.distance_metric(self.data.X, self.centroids)
+        dist = Orange.distance.Euclidean(self.data, self.centroids)
         return np.argmin(dist, axis=1)
 
     def _store_history(self, step):
@@ -96,9 +90,8 @@ class Kmeans:
 
     @historic(reassign=False)
     def move_centroids(self):
-        d = self.data.X
         for i in range(self.k):
-            points = d[self.clusters == i]
+            points = self.data[self.clusters == i]
             self.centroids[i, :] = np.average(points, axis=0) if points.size \
                                    else self._random_position()
 
@@ -118,5 +111,6 @@ class Kmeans:
         self.centroids[_index, :] = np.array([x, y])
 
     def _random_position(self):
-        sample = np.random.choice(len(self.data), np.min((5, len(self.data))))
-        return np.mean(self.data.X[sample], axis=0)
+        n = len(self.data)
+        sample = np.random.choice(n, np.min((5, n)))
+        return np.mean(self.data[sample], axis=0)

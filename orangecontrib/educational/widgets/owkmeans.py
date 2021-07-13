@@ -368,8 +368,7 @@ class OWKmeans(OWWidget):
         assert self.k_means is not None
         km = self.k_means
         self.points_item = pg.ScatterPlotItem(
-            x=km.data.get_column_view(0)[0],
-            y=km.data.get_column_view(1)[0],
+            *self.reduced_data.T,
             symbol="o", size=8, antialias=True, useCache=False)
         self.update_membership()
         self.plotview.addItem(self.points_item)
@@ -427,9 +426,8 @@ class OWKmeans(OWWidget):
         n = len(self.data)
         x = np.empty(2 * n)
         y = np.empty(2 * n)
-        x[::2] = km.data.get_column_view(0)[0]
+        x[::2], y[::2] = self.reduced_data.T
         x[1::2] = cx[km.clusters]
-        y[::2] = km.data.get_column_view(1)[0]
         y[1::2] = cy[km.clusters]
         return x, y
 
@@ -574,17 +572,12 @@ class OWKmeans(OWWidget):
         attrs = [self.attr_x, self.attr_y]
         x = np.vstack(tuple(self.data.get_column_view(attr)[0]
                             for attr in attrs)).T
-        # Prevent crash due to having the same attribute in the domain twice
-        # (alternative, having a single column, would complicate other code)
-        if self.attr_x is self.attr_y:
-            attrs = [self.attr_x.renamed(name) for name in "xy"]
         not_nan = ~np.isnan(x).any(axis=1)
         x = x[not_nan]  # remove rows with nan
         if not x.size:
             return None
         self.selected_rows = np.where(not_nan)
-        domain = Domain(attrs)
-        return Table.from_numpy(domain, x)
+        return x
 
     def max_clusters(self):
         if self.reduced_data is None:
@@ -612,9 +605,11 @@ class OWKmeans(OWWidget):
             annotated_data = Table.from_table(domain, self.data)
             annotated_data.Y[self.selected_rows] = km.clusters
 
-            centroids = Table.from_numpy(
-                Domain(km.data.domain.attributes), km.centroids
-            )
+            if self.attr_x is self.attr_y:
+                attrs = [self.attr_x.renamed(name) for name in "xy"]
+            else:
+                attrs = [self.attr_x, self.attr_y]
+            centroids = Table.from_numpy(Domain(attrs), km.centroids)
             self.Outputs.annotated_data.send(annotated_data)
             self.Outputs.centroids.send(centroids)
 
