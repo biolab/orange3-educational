@@ -167,7 +167,7 @@ class TestOWKmeans(WidgetTest):
         self.widget.set_data(data1)
         self.assertIsNone(self.widget.reduced_data)
         self.assertIsNone(self.widget.k_means)
-        self.assertEqual(self.widget.var_model.rowCount(), 1)
+        self.assertTrue(self.widget.Error.num_features.is_shown())
 
     def test_data_no_non_nan_data(self):
         self.dataxy[:5, 0] = np.nan
@@ -175,6 +175,7 @@ class TestOWKmeans(WidgetTest):
         self.send_signal(self.widget.Inputs.data, self.dataxy)
         self.assertIsNone(self.widget.reduced_data)
         self.assertIsNone(self.widget.k_means)
+        self.assertTrue(self.widget.Error.no_nonnan_data.is_shown())
 
     def test_restart(self):
         self.widget.set_data(self.data)

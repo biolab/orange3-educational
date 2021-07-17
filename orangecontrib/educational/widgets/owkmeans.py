@@ -159,8 +159,9 @@ class OWKmeans(OWWidget):
         annotated_data = Output("Annotated Data", Table, default=True)
         centroids = Output("Centroids", Table)
 
-    class Warning(OWWidget.Warning):
+    class Error(OWWidget.Error):
         num_features = Msg("Data must contain at least two numeric variables.")
+        no_nonnan_data = Msg("No points with defined values.")
 
     settingsHandler = settings.DomainContextHandler()
     attr_x = settings.ContextSetting(None)
@@ -525,7 +526,7 @@ class OWKmeans(OWWidget):
     # Signals reports ...
     @Inputs.data
     def set_data(self, data):
-        self.Warning.clear()
+        self.Error.clear()
         self.plotview.clear()
         self._update_buttons()
         if self.auto_play_thread:
@@ -539,7 +540,8 @@ class OWKmeans(OWWidget):
         else:
             self.var_model.set_domain(data.domain)
             if len(self.var_model) < 2:
-                self.Warning.num_features()
+                self.Error.num_features()
+                self.var_model.set_domain(None)
                 return
 
         self.attr_x, self.attr_y = self.var_model[:2]
@@ -548,8 +550,10 @@ class OWKmeans(OWWidget):
     def restart(self):
         """Triggered on data change, attribute change or restart button"""
         self.plotview.clear()
+        self.Error.no_nonnan_data.clear()
         self.reduced_data = self._prepare_data()
         if self.reduced_data is None:
+            self.Error.no_nonnan_data()
             self.k_means = None
         else:
             if self.number_of_clusters > self.max_clusters():
