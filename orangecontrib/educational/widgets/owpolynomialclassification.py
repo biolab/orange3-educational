@@ -2,29 +2,27 @@ import copy
 from colorsys import rgb_to_hsv, hsv_to_rgb
 from itertools import chain
 
-import pyqtgraph as pg
-from AnyQt.QtWidgets import QGraphicsSceneMouseEvent, QGraphicsTextItem
-from AnyQt.QtGui import QPalette, QPen, QFont
-
-from Orange.preprocess.transformation import Indicator
-
 import numpy as np
 from scipy.interpolate import splprep, splev
 from scipy.ndimage.filters import gaussian_filter
 
 from AnyQt.QtCore import Qt, QRectF, QObject, QPointF
+from AnyQt.QtGui import QPalette, QPen, QFont
+from AnyQt.QtWidgets import QGraphicsSceneMouseEvent, QGraphicsTextItem
 
-from Orange.base import Learner
-from Orange.data import ContinuousVariable, Table, Domain, StringVariable, \
-    DiscreteVariable
-from Orange.widgets import settings, gui
+import pyqtgraph as pg
+
+from Orange.data import \
+    Table, Domain, ContinuousVariable, StringVariable, DiscreteVariable
+from Orange.classification import \
+    Learner, LogisticRegressionLearner, RandomForestLearner, TreeLearner
+from Orange.preprocess.transformation import Indicator
+
+from Orange.widgets import gui
+from Orange.widgets.settings import \
+    DomainContextHandler, Setting, SettingProvider, ContextSetting
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
-from Orange.classification import (
-    LogisticRegressionLearner,
-    RandomForestLearner,
-    TreeLearner
-)
 from Orange.widgets.visualize.owscatterplotgraph import OWScatterPlotBase
 from Orange.widgets.widget import Msg, Input, Output
 
@@ -32,11 +30,7 @@ from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
 from orangecontrib.educational.widgets.utils.contour import Contour
 
-
-# TODO: Disable zoom
-
-class Scatterplot(OWScatterPlotBase):
-    pass
+GRID_SIZE = 60
 
 
 class HoverEventDelegate(QObject):
@@ -45,15 +39,14 @@ class HoverEventDelegate(QObject):
         self.delegate = delegate
 
     def eventFilter(self, obj, event):
-        if isinstance(event, QGraphicsSceneMouseEvent):
-            return self.delegate(event)
-        return False
+        return isinstance(event, QGraphicsSceneMouseEvent) \
+               and self.delegate(event)
 
 
 class OWPolynomialClassification(OWBaseLearner):
     name = "Polynomial Classification"
-    description = "Widget that demonstrates classification in two classes " \
-                  "with polynomial expansion of attributes."
+    description = "Widget that demonstrates classification " \
+                  "with polynomial expansion of variables."
     keywords = ["polynomial classification", "classification", "class",
                 "classification visualization", "polynomial features"]
     icon = "icons/polynomialclassification.svg"
@@ -61,7 +54,6 @@ class OWPolynomialClassification(OWBaseLearner):
     resizing_enabled = True
     priority = 600
 
-    # inputs and outputs
     class Inputs(OWBaseLearner.Inputs):
         learner = Input("Learner", Learner)
 
@@ -69,95 +61,208 @@ class OWPolynomialClassification(OWBaseLearner):
         coefficients = Output("Coefficients", Table, default=True)
         data = Output("Data", Table)
 
-    # data attributes
-    data = None
-    selected_data = None
-    probabilities_grid = None
-    xv = None
-    yv = None
-
-    # learners
     LEARNER = LogisticRegressionLearner
-    learner_other = None
-    default_preprocessor = PolynomialTransform
 
-    learner_name = settings.Setting("Polynomial Classification")
+    settingsHandler = DomainContextHandler(
+        match_values=DomainContextHandler.MATCH_VALUES_CLASS)
+    graph = SettingProvider(OWScatterPlotBase)
 
-    # widget properties
-    attr_x = settings.Setting(None)
-    attr_y = settings.Setting(None)
-    target_class = settings.Setting("")
-    degree = settings.Setting(1)
-    legend_enabled = settings.Setting(True)
-    contours_enabled = settings.Setting(False)
-    contour_step = settings.Setting(0.1)
+    learner_name = Setting("Polynomial Classification")
+    attr_x = ContextSetting(None)
+    attr_y = ContextSetting(None)
+    target_class = Setting("")
+    degree = Setting(1)
+    contours_enabled = Setting(True)
 
     graph_name = 'graph'
-
-    # settings
-    grid_size = 60
-    contour_color = "#1f1f1f"
-
-    # layout elements
-    options_box = None
-    cbx = None
-    cby = None
-    degree_spin = None
-    plot_properties_box = None
-    contours_enabled_checkbox = None
-    legend_enabled_checkbox = None
-    contour_step_slider = None
-    target_class_combo = None
 
     class Error(OWBaseLearner.Error):
         num_features = Msg("Data must contain at least two numeric variables.")
         no_class = Msg("Data must have a single target attribute.")
         no_class_values = Msg("Target must have at least two different values.")
         no_nonnan_data = Msg("No points with defined values.")
-        no_classifier = Msg("Learning algorithm must be a classifier, not regressor.")
 
     def __init__(self, *args, **kwargs):
+        # Some attributes must be created before super().__init__
+        self._add_graph()
+        self.var_model = DomainModel(valid_types=(ContinuousVariable, ))
+
         super().__init__(*args, **kwargs)
+        self.input_learner = None
+        self.data = None
+
         self.learner = None
-        self.other_learner = None
-        self.init_learner()
+        self.selected_data = None
+        self.probabilities_grid = None
+        self.xv = None
+        self.yv = None
         self.contours = []
+        self.init_learner()
 
     def add_main_layout(self):
-        self.options_box = gui.widgetBox(self.controlArea, "Options")
-        opts = dict(
-            widget=self.options_box, master=self, orientation=Qt.Horizontal)
-        self.var_model = DomainModel(valid_types=(ContinuousVariable, ))
-        for value in ("attr_x", "attr_y"):
-            gui.comboBox(
-                value=value, label=f'{value[-1].upper()}: ',
-                callback=self.apply, model=self.var_model, **opts)
-        self.target_class_combo = gui.comboBox(
-            value='target_class', label='Target: ', callback=self.apply,
-            sendSelectedValue=True, **opts)
-        self.degree_spin = gui.spin(
-            value='degree', label='Polynomial expansion:',
-            minv=1, maxv=5, step=1, callback=self.on_degree_changed,
-            alignment=Qt.AlignRight, controlWidth=70, **opts)
+        box = gui.widgetBox(self.controlArea, "Variables")
+        gui.comboBox(
+            box, self, "attr_x", model=self.var_model,
+            callback=self._on_attr_changed)
+        gui.comboBox(
+            box, self, "attr_y", model=self.var_model,
+            callback=self._on_attr_changed)
+        gui.spin(
+            box, self, value='degree', label='Polynomial expansion:',
+            minv=1, maxv=5, step=1, alignment=Qt.AlignRight, controlWidth=70,
+            callback=self._on_degree_changed)
+        gui.comboBox(
+            box, self, 'target_class', label='Target:',
+            orientation=Qt.Horizontal, sendSelectedValue=True,
+            callback=self._on_target_changed)
 
-        # plot properties box
-        self.plot_properties_box = gui.widgetBox(
-            self.controlArea, "Plot Properties")
-        self.legend_enabled_checkbox = gui.checkBox(
-            self.plot_properties_box, self, 'legend_enabled',
-            label="Show legend", callback=self.replot)
-        self.contours_enabled_checkbox = gui.checkBox(
-            self.plot_properties_box, self, 'contours_enabled',
-            label="Show contours", callback=self.plot_contour)
-        self.contour_step_slider = gui.spin(
-            self.plot_properties_box, self, 'contour_step',
-            minv=0.10, maxv=0.50, step=0.05, callback=self.plot_contour,
-            label='Contour step:', decimals=2, spinType=float,
-            alignment=Qt.AlignRight, controlWidth=70)
+        box = gui.widgetBox(self.controlArea, box=True)
+        gui.checkBox(
+            box, self.graph, 'show_legend',"Show legend",
+            callback=self.graph.update_legend_visibility)
+        gui.checkBox(
+            box, self, 'contours_enabled', label="Show contours",
+            callback=self.plot_contour)
 
         gui.rubber(self.controlArea)
 
-        self.graph = Scatterplot(self)
+    def add_bottom_buttons(self):
+        pass
+
+    def _on_degree_changed(self):
+        self.init_learner()
+        self.apply()
+
+    def _on_attr_changed(self):
+        for place, attr in (("bottom", self.attr_x), ("left", self.attr_y)):
+            self.graph.plot_widget.getAxis(place).setLabel(attr.name)
+        self.selected_data = self._select_data()
+        self.apply()
+
+    def _on_target_changed(self):
+        self.selected_data = self._select_data()
+        self.apply()
+
+    ##############################
+    # Input signal-related stuff
+    @Inputs.learner
+    def set_learner(self, learner):
+        self.input_learner = learner
+        self.init_learner()
+
+    @Inputs.data
+    def set_data(self, data):
+        def init_class_combo():
+            non_empty = np.bincount(data.Y[np.isfinite(data.Y)].astype(int)) > 0
+            if not np.any(non_empty):
+                return False
+            values = np.array(domain.class_var.values)[non_empty]
+            combo.addItems(values.tolist())
+            return True
+
+        combo = self.controls.target_class
+
+        self.closeContext()
+        self.Error.clear()
+        combo.clear()
+        self.var_model.set_domain(None)
+        self.data = self.selected_data = None
+        self.xv = None
+        self.yv = None
+        self.probabilities_grid = None
+
+        if not data:
+            return
+        domain = data.domain
+        if domain.class_var is None or domain.class_var.is_continuous:
+            self.Error.no_class()
+            return
+        if sum(var.is_continuous
+                 for var in chain(domain.variables, domain.metas)) < 2:
+            self.Error.num_features()
+            return
+        if not init_class_combo():
+            self.Error.no_class_values()
+            return
+
+        self.data = data
+        self.var_model.set_domain(self.data.domain)
+        self.attr_x, self.attr_y = self.var_model[:2]
+        self.target_class = combo.itemText(0)
+
+        self.openContext(self.data)
+        self.selected_data = self._select_data()
+
+    def init_learner(self):
+        self.learner = copy.copy(self.input_learner
+                                 or self.LEARNER(penalty='l2', C=1e10))
+        self.learner.preprocessors = (
+            [PolynomialTransform(self.degree)] +
+            list(self.preprocessors or []) +
+            list(self.learner.preprocessors or []))
+        self.send_learner()
+
+    def handleNewSignals(self):
+        self.apply()
+
+    def _attr_columns(self):
+        return tuple(self.data.get_column_view(attr)[0]
+                     for attr in (self.attr_x, self.attr_y))
+
+    def _select_data(self):
+        """Put the two selected columns in a new Orange.data.Table"""
+        self.Error.no_nonnan_data.clear()
+        attr_x = self.data.domain[self.attr_x]
+        attr_y = self.data.domain[self.attr_y]
+        old_class = self.data.domain.class_var
+        values = old_class.values
+        target_idx = values.index(self.target_class)
+
+        new_class = DiscreteVariable(
+            old_class.name + "'",
+            values=(values[1 - target_idx] if len(values) == 2 else 'Others',
+                    self.target_class),
+            compute_value=Indicator(old_class, target_idx))
+
+        domain = Domain([attr_x, attr_y], new_class, [old_class])
+        new_data = self.data.transform(domain)
+
+        self.valid_data = \
+            np.flatnonzero(
+                np.all(
+                    np.isfinite(np.vstack(self._attr_columns())),
+                    axis=0)
+            )
+        if not self.valid_data.size:
+            self.Error.no_nonnan_data()
+            return None
+        return new_data
+
+    def apply(self):
+        self.update_model()
+        self.send_model()
+        self.send_coefficients()
+        self.send_data()
+
+        self.graph.reset_graph()
+        self.plot_gradient()
+        self.plot_contour()
+
+    def update_model(self):
+        self.Error.fitting_failed.clear()
+        self.model = None
+        if self.selected_data is not None and self.learner is not None:
+            try:
+                self.model = self.learner(self.selected_data)
+                self.model.name = self.learner_name
+            except Exception as e:
+                self.Error.fitting_failed(str(e))
+
+    ##############################
+    # Graph and its contents
+    def _add_graph(self):
+        self.graph = OWScatterPlotBase(self)
+        self.mainArea.layout().addWidget(self.graph.plot_widget)
         self.graph.point_width = 1
 
         axis_color = self.palette().color(QPalette.Text)
@@ -172,11 +277,8 @@ class OWPolynomialClassification(OWBaseLearner):
             axis.setTickFont(tickfont)
             axis.show()
 
-        self.mainArea.layout().addWidget(self.graph.plot_widget)
-
-        self._tooltip_delegate = HoverEventDelegate(self.help_event)
-        self.graph.plot_widget.scene().installEventFilter(self._tooltip_delegate)
-
+        self._hover_delegate = HoverEventDelegate(self.help_event)
+        self.graph.plot_widget.scene().installEventFilter(self._hover_delegate)
         self.contour_label = None
 
     @staticmethod
@@ -221,113 +323,20 @@ class OWPolynomialClassification(OWBaseLearner):
             item.setPen(self._contour_pen(item.value, item is hovered))
         return bool(hovered)
 
-    @Inputs.learner
-    def set_learner(self, learner):
-        self.other_learner = learner
-        self.init_learner()
-
-    @Inputs.data
-    def set_data(self, data):
-        def init_class_combo():
-            non_empty = np.bincount(data.Y[np.isfinite(data.Y)].astype(int)) > 0
-            if not np.any(non_empty):
-                return False
-            values = np.array(domain.class_var.values)[non_empty]
-            self.target_class_combo.addItems(values.tolist())
-            return True
-
-        self.Error.clear()
-        self.data = None
-        self.target_class_combo.clear()
-        self.var_model.set_domain(None)
-
-        self.xv = None
-        self.yv = None
-        self.probabilities_grid = None
-
-        if not data:
-            self.reset_graph()
-            return
-        domain = data.domain
-        if domain.class_var is None or domain.class_var.is_continuous:
-            self.Error.no_class()
-        elif sum(var.is_continuous
-                 for var in chain(domain.variables, domain.metas)) < 2:
-            self.Error.num_features()
-        elif not init_class_combo():
-            self.Error.no_class_values()
-        else:
-            self.data = data
-            self.var_model.set_domain(self.data.domain)
-            self.attr_x, self.attr_y = self.var_model[:2]
-            self.target_class = self.target_class_combo.itemText(0)
-        self.graph.reset_graph()
-
-    def init_learner(self):
-        self.learner = copy.deepcopy(self.other_learner
-                                     or self.LEARNER(penalty='l2', C=1e10))
-        self.learner.preprocessors = (
-            [self.default_preprocessor(self.degree)] +
-            list(self.preprocessors or []) +
-            list(self.learner.preprocessors or []))
-        if self.data: # TODO: This is here because of the call from __init__. Improve the logic.
-            self.apply()
-
-    def handleNewSignals(self):
-        self.apply()
-
-    def on_degree_changed(self):
-        self.init_learner()
-        self.apply()
-
-    def _attr_columns(self):
-        return tuple(self.data.get_column_view(attr)[0]
-                     for attr in (self.attr_x, self.attr_y))
-
-    def get_coordinates_data(self):
-        if not self.data:
-            return None, None
-        return tuple(c[self.valid_data] for c in self._attr_columns())
-
-    def get_color_data(self):
-        return self.data.Y[self.valid_data]
-
-    def get_palette(self):
-        return self.data.domain.class_var.palette
-
-    def get_color_labels(self):
-        return self.data.domain.class_var.values
-
-    get_size_data = get_shape_data = get_shape_labels = \
-        get_subset_mask = get_label_data = get_tooltip = selection_changed = \
-        lambda *_: None
-
-    def is_continuous_color(self):
-        return False
-
-    def replot(self):
-        if self.data is None or self.selected_data is None:
-            self.set_empty_plot()
-            return
-
-        self.plot_gradient()
-        self.plot_contour()
-
     def plot_gradient(self):
-        gsize = self.grid_size
         (min_x, max_x), (min_y, max_y) = self.graph.view_box.viewRange()
-        x = np.linspace(min_x, max_x, gsize)
-        y = np.linspace(min_y, max_y, gsize)
+        x = np.linspace(min_x, max_x, GRID_SIZE)
+        y = np.linspace(min_y, max_y, GRID_SIZE)
         self.xv, self.yv = np.meshgrid(x, y)
 
         attr = np.hstack((self.xv.reshape((-1, 1)), self.yv.reshape((-1, 1))))
         nil = np.full((len(attr), 1), np.nan)
         attr_data = Table.from_numpy(self.selected_data.domain, attr, nil, nil)
 
-        self.probabilities_grid = self.model(attr_data, 1)[:, 1]\
+        self.probabilities_grid = self.model(attr_data, 1)[:, 1] \
             .reshape(self.xv.shape)
 
-        if not isinstance(self.learner, (RandomForestLearner, TreeLearner)):
+        if not self._treelike:
             self.probabilities_grid = self.blur_grid(self.probabilities_grid)
 
         bitmap = self.probabilities_grid.copy()
@@ -355,46 +364,37 @@ class OWPolynomialClassification(OWBaseLearner):
         while self.contours:
             self.graph.plot_widget.removeItem(self.contours.pop())
 
-    def plot_contour(self):
-        """
-        Function constructs contour lines
-        """
-        self.remove_contours()
-        if not self.data:
-            return
-        if self.contours_enabled:
-            contour = Contour(self.xv, self.yv, self.probabilities_grid)
-            contour_lines = contour.contours(
-                np.hstack(
-                    (np.arange(0.5, 0, - self.contour_step)[::-1],
-                     np.arange(0.5 + self.contour_step, 1, self.contour_step))))
-            # we want to have contour for 0.5
+    @property
+    def _treelike(self):
+        return isinstance(self.learner, (RandomForestLearner, TreeLearner))
 
-            is_blurred = not isinstance(self.learner,
-                                        (RandomForestLearner, TreeLearner))
-            for key, value in contour_lines.items():
-                for line in value:
-                    if len(line) > self.degree and is_blurred:
-                        tck, u = splprep(
-                            [list(x) for x in zip(*reversed(line))],
-                            s=0.001, k=self.degree,
-                            per=(len(line)
-                                 if np.allclose(line[0], line[-1])
-                                 else 0))
-                        new_int = np.arange(0, 1.01, 0.01)
-                        interpol_line = np.array(splev(new_int, tck)).T.tolist()
-                    else:
-                        interpol_line = line
-                    contour = pg.PlotCurveItem(
-                        *np.array(list(interpol_line)).T,
-                        pen=self._contour_pen(key, False))
-                    # If you want to narrow the hover region, uncomment the
-                    # following line. The counter will remain unclickable, but
-                    # the call sets the mouse width for hover
-                    #contour.setClickable(False, 3)
-                    contour.value = key
-                    self.graph.plot_widget.addItem(contour)
-                    self.contours.append(contour)
+    def plot_contour(self):
+        self.remove_contours()
+        if not self.data or not self.contours_enabled:
+            return
+
+        contour = Contour(self.xv, self.yv, self.probabilities_grid)
+        contour_lines = contour.contours(np.arange(0.1, 1, 0.1))
+        for key, value in contour_lines.items():
+            for line in value:
+                if len(line) > self.degree and not self._treelike:
+                    tck, u = splprep(
+                        [list(x) for x in zip(*reversed(line))],
+                        s=0.001, k=self.degree,
+                        per=(len(line) if np.allclose(line[0], line[-1])
+                             else 0))
+                    new_int = np.arange(0, 1.01, 0.01)
+                    interpol_line = np.array(splev(new_int, tck)).T.tolist()
+                else:
+                    interpol_line = line
+                contour = pg.PlotCurveItem(
+                    *np.array(list(interpol_line)).T,
+                    pen=self._contour_pen(key, False))
+                # To narrow the hover region, uncomment the following line;
+                # it sets the mouse width for hover (but keeps it unclickable)
+                contour.value = key
+                self.graph.plot_widget.addItem(contour)
+                self.contours.append(contour)
 
     @staticmethod
     def blur_grid(grid):
@@ -403,121 +403,63 @@ class OWPolynomialClassification(OWBaseLearner):
                                                        (grid < 0.55)]
         return filtered
 
-    def select_data(self):
-        """
-        Function takes two selected columns from data table and merge them
-        in new Orange.data.Table
-        """
-        self.Error.clear()
+    # The following methods are required by OWScatterPlotBase
+    def get_coordinates_data(self):
+        if not self.data:
+            return None, None
+        return tuple(c[self.valid_data] for c in self._attr_columns())
 
-        attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y]
-        for place, attr in (("bottom", attr_x), ("left", attr_y)):
-            self.graph.plot_widget.getAxis(place).setLabel(attr.name)
-        old_class = self.data.domain.class_var
-        values = old_class.values
-        target_idx = values.index(self.target_class)
+    def get_color_data(self):
+        return self.data.Y[self.valid_data]
 
-        new_class = DiscreteVariable(
-            old_class.name + "'",
-            values=(values[1 - target_idx] if len(values) == 2 else 'Others',
-                    self.target_class),
-            compute_value=Indicator(old_class, target_idx))
+    def get_palette(self):
+        return self.data.domain.class_var.palette
 
-        domain = Domain([attr_x, attr_y], new_class, [old_class])
-        new_data = self.data.transform(domain)
-        if np.isnan(new_data.X).all(axis=0).any():
-            self.Error.all_none_data()
-            return None
-        return new_data
+    def get_color_labels(self):
+        return self.data.domain.class_var.values
 
+    def is_continuous_color(self):
+        return False
 
-    def apply(self):
-        """
-        Applies leaner and sends new model and coefficients
-        """
-        self.valid_data = \
-            np.flatnonzero(
-                np.all(
-                    np.isfinite(
-                        np.vstack(self._attr_columns())
-                    ),
-                    axis=0)
-            )
-        self.graph.reset_graph()
-        self.update_model()
-        self.plot_gradient()
-        self.plot_contour()
-        self.send_learner()
-        self.send_coefficients()
-        self.send_data()
+    get_size_data = get_shape_data = get_shape_labels = \
+        get_subset_mask = get_label_data = get_tooltip = selection_changed = \
+        lambda *_: None
 
+    ##############################
+    # Output signal-related stuff
     def send_learner(self):
-        """
-        Function sends learner on widget's output
-        """
         if self.learner is not None:
             self.learner.name = self.learner_name
         self.Outputs.learner.send(self.learner)
 
-    def update_model(self):
-        """
-        Function sends model on widget's output
-        """
-        self.Error.fitting_failed.clear()
-        self.model = None
-        if self.data is not None and self.learner is not None:
-            self.selected_data = self.select_data()
-            if self.selected_data is not None:
-                try:
-                    self.model = self.learner(self.selected_data)
-                    self.model.name = self.learner_name
-                    self.model.instances = self.selected_data
-                except Exception as e:
-                    self.Error.fitting_failed(str(e))
-
+    def send_model(self):
         self.Outputs.model.send(self.model)
 
     def send_coefficients(self):
-        """
-        Function sends coefficients on widget's output if model has them
-        """
-
-        if (self.model is not None and
-                isinstance(self.learner, LogisticRegressionLearner) and
-                hasattr(self.model, 'skl_model')):
-            model = self.model.skl_model
-            domain = Domain(
-                [ContinuousVariable("coef")], metas=[StringVariable("name")])
-            coefficients = (model.intercept_.tolist() +
-                            model.coef_[0].tolist())
-
-            data = self.model.instances
-            for preprocessor in self.learner.preprocessors:
-                data = preprocessor(data)
-            names = ["Intercept"] + [x.name for x in data.domain.attributes]
-
-            coefficients_table = Table.from_list(
-                domain, list(zip(coefficients, names)))
-            self.Outputs.coefficients.send(coefficients_table)
-        else:
+        if (self.model is None
+                or not isinstance(self.learner, LogisticRegressionLearner)
+                or not hasattr(self.model, 'skl_model')):
             self.Outputs.coefficients.send(None)
+            return
+
+        model = self.model.skl_model
+        domain = Domain(
+            [ContinuousVariable("coef")], metas=[StringVariable("name")])
+        coefficients = model.intercept_.tolist() + model.coef_[0].tolist()
+        names = ["Intercept"] + [x.name for x in self.model.domain.attributes]
+        coefficients_table = Table.from_list(
+            domain, list(zip(coefficients, names)))
+        self.Outputs.coefficients.send(coefficients_table)
 
     def send_data(self):
-        """
-        Function sends data on widget's output
-        """
-        if self.data is not None:
-            data = self.selected_data
-            self.Outputs.data.send(data)
-            return
-        self.Outputs.data.send(None)
-
-    def add_bottom_buttons(self):
-        pass
+        if self.selected_data is None:
+            self.Outputs.data.send(None)
+        else:
+            expanded = PolynomialTransform(self.degree)(self.selected_data)
+            self.Outputs.data.send(expanded)
 
     def send_report(self):
-        if self.data is None:
+        if self.selected_data is None:
             return
         name = "" if self.degree == 1 \
             else f"Model with polynomial expansion {self.degree}"
