@@ -79,7 +79,6 @@ class OWPolynomialClassification(OWBaseLearner):
     class Error(OWBaseLearner.Error):
         num_features = Msg("Data must contain at least two numeric variables.")
         no_class = Msg("Data must have a single target attribute.")
-        no_class_values = Msg("Target must have at least two different values.")
         no_nonnan_data = Msg("No points with defined values.")
 
     def __init__(self, *args, **kwargs):
@@ -134,11 +133,11 @@ class OWPolynomialClassification(OWBaseLearner):
         self.apply()
 
     def _on_attr_changed(self):
-        self.selected_data = self._select_data()
+        self.select_data()
         self.apply()
 
     def _on_target_changed(self):
-        self.selected_data = self._select_data()
+        self.select_data()
         self.apply()
 
     ##############################
@@ -148,16 +147,12 @@ class OWPolynomialClassification(OWBaseLearner):
         self.input_learner = learner
         self.init_learner()
 
+    def set_preprocessor(self, preprocessor):
+        self.preprocessors = [preprocessor] if preprocessor else []
+        self.init_learner()
+
     @Inputs.data
     def set_data(self, data):
-        def init_class_combo():
-            non_empty = np.bincount(data.Y[np.isfinite(data.Y)].astype(int)) > 0
-            if not np.any(non_empty):
-                return False
-            values = np.array(domain.class_var.values)[non_empty]
-            combo.addItems(values.tolist())
-            return True
-
         combo = self.controls.target_class
 
         self.closeContext()
@@ -179,11 +174,11 @@ class OWPolynomialClassification(OWBaseLearner):
                  for var in chain(domain.variables, domain.metas)) < 2:
             self.Error.num_features()
             return
-        if not init_class_combo():
-            self.Error.no_class_values()
-            return
 
         self.data = data
+        non_empty = np.bincount(data.Y[np.isfinite(data.Y)].astype(int)) > 0
+        values = np.array(domain.class_var.values)[non_empty]
+        combo.addItems(values.tolist())
         self.var_model.set_domain(self.data.domain)
         self.attr_x, self.attr_y = self.var_model[:2]
         self.target_class = combo.itemText(0)
@@ -193,7 +188,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.controls.attr_y.setHidden(hide_attrs)
 
         self.openContext(self.data)
-        self.selected_data = self._select_data()
+        self.select_data()
 
     def init_learner(self):
         self.learner = copy.copy(self.input_learner
@@ -207,11 +202,7 @@ class OWPolynomialClassification(OWBaseLearner):
     def handleNewSignals(self):
         self.apply()
 
-    def _attr_columns(self):
-        return tuple(self.data.get_column_view(attr)[0]
-                     for attr in (self.attr_x, self.attr_y))
-
-    def _select_data(self):
+    def select_data(self):
         """Put the two selected columns in a new Orange.data.Table"""
         self.Error.no_nonnan_data.clear()
         attr_x = self.data.domain[self.attr_x]
@@ -232,18 +223,20 @@ class OWPolynomialClassification(OWBaseLearner):
             compute_value=Indicator(old_class, target_idx))
 
         domain = Domain([attr_x, attr_y], new_class, [old_class])
-        new_data = self.data.transform(domain)
 
-        self.valid_data = \
+        self.selected_data = self.data.transform(domain)
+        valid_data = \
             np.flatnonzero(
                 np.all(
-                    np.isfinite(np.vstack(self._attr_columns())),
-                    axis=0)
+                    np.isfinite(self.selected_data.X),
+                    axis=1)
             )
-        if not self.valid_data.size:
+        if not valid_data.size:
             self.Error.no_nonnan_data()
-            return None
-        return new_data
+            self.selected_data = None
+        else:
+            self.selected_data = self.selected_data[valid_data]
+
 
     def apply(self):
         self.update_model()
@@ -258,6 +251,7 @@ class OWPolynomialClassification(OWBaseLearner):
     def update_model(self):
         self.Error.fitting_failed.clear()
         self.model = None
+        self.probabilities_grid = None
         if self.selected_data is not None and self.learner is not None:
             try:
                 self.model = self.learner(self.selected_data)
@@ -331,6 +325,10 @@ class OWPolynomialClassification(OWBaseLearner):
         return bool(hovered)
 
     def plot_gradient(self):
+        if not self.model:
+            self.probabilities_grid = None
+            return
+
         (min_x, max_x), (min_y, max_y) = self.graph.view_box.viewRange()
         x = np.linspace(min_x, max_x, GRID_SIZE)
         y = np.linspace(min_y, max_y, GRID_SIZE)
@@ -377,7 +375,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     def plot_contour(self):
         self.remove_contours()
-        if not self.data or not self.contours_enabled:
+        if self.probabilities_grid is None or not self.contours_enabled:
             return
 
         contour = Contour(self.xv, self.yv, self.probabilities_grid)
@@ -412,18 +410,18 @@ class OWPolynomialClassification(OWBaseLearner):
 
     # The following methods are required by OWScatterPlotBase
     def get_coordinates_data(self):
-        if not self.data:
+        if not self.selected_data:
             return None, None
-        return tuple(c[self.valid_data] for c in self._attr_columns())
+        return self.selected_data.X.T
 
     def get_color_data(self):
-        return self.data.Y[self.valid_data]
+        return self.selected_data and self.selected_data.Y
 
     def get_palette(self):
-        return self.data.domain.class_var.palette
+        return self.data and self.data.domain.class_var.palette
 
     def get_color_labels(self):
-        return self.data.domain.class_var.values
+        return self.data and self.data.domain.class_var.values
 
     def is_continuous_color(self):
         return False
