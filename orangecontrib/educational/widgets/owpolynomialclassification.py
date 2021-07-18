@@ -134,8 +134,6 @@ class OWPolynomialClassification(OWBaseLearner):
         self.apply()
 
     def _on_attr_changed(self):
-        for place, attr in (("bottom", self.attr_x), ("left", self.attr_y)):
-            self.graph.plot_widget.getAxis(place).setLabel(attr.name)
         self.selected_data = self._select_data()
         self.apply()
 
@@ -190,6 +188,10 @@ class OWPolynomialClassification(OWBaseLearner):
         self.attr_x, self.attr_y = self.var_model[:2]
         self.target_class = combo.itemText(0)
 
+        hide_attrs = len(self.var_model) == 2
+        self.controls.attr_x.setHidden(hide_attrs)
+        self.controls.attr_y.setHidden(hide_attrs)
+
         self.openContext(self.data)
         self.selected_data = self._select_data()
 
@@ -214,6 +216,11 @@ class OWPolynomialClassification(OWBaseLearner):
         self.Error.no_nonnan_data.clear()
         attr_x = self.data.domain[self.attr_x]
         attr_y = self.data.domain[self.attr_y]
+        names = [var.name for var in (attr_x, attr_y)]
+        if names == ["x", "y"]:
+            names = [""] * 2
+        for place, name in zip(("bottom", "left"), names):
+            self.graph.plot_widget.getAxis(place).setLabel(name)
         old_class = self.data.domain.class_var
         values = old_class.values
         target_idx = values.index(self.target_class)
