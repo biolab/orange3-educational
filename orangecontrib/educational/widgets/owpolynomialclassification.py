@@ -6,8 +6,8 @@ import numpy as np
 from scipy.interpolate import splprep, splev
 from scipy.ndimage.filters import gaussian_filter
 
-from AnyQt.QtCore import Qt, QRectF, QObject, QPointF
-from AnyQt.QtGui import QPalette, QPen, QFont
+from AnyQt.QtCore import Qt, QRectF, QObject, QPointF, QEvent
+from AnyQt.QtGui import QPalette, QPen, QFont, QCursor
 from AnyQt.QtWidgets import QGraphicsSceneMouseEvent, QGraphicsTextItem
 
 import pyqtgraph as pg
@@ -245,6 +245,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.send_data()
 
         self.graph.reset_graph()
+        self.graph.plot_widget.addItem(self.contour_label)  # Re-add the label
         self.plot_gradient()
         self.plot_contour()
 
@@ -263,6 +264,7 @@ class OWPolynomialClassification(OWBaseLearner):
     # Graph and its contents
     def _add_graph(self):
         self.graph = OWScatterPlotBase(self)
+        self.graph.plot_widget.setCursor(QCursor(Qt.CrossCursor))
         self.mainArea.layout().addWidget(self.graph.plot_widget)
         self.graph.point_width = 1
 
@@ -280,7 +282,14 @@ class OWPolynomialClassification(OWBaseLearner):
 
         self._hover_delegate = HoverEventDelegate(self.help_event)
         self.graph.plot_widget.scene().installEventFilter(self._hover_delegate)
-        self.contour_label = None
+
+        self.contour_label = label = QGraphicsTextItem()
+        label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
+        self.graph.plot_widget.addItem(label)
+        label.hide()
+        # I'm not proud of this and will brew a coffee to the person who
+        # improves it (and comes to claim it)
+        self.graph.plot_widget.scene().leaveEvent = lambda *_: label.hide()
 
     @staticmethod
     def _contour_pen(value, hovered):
@@ -291,6 +300,9 @@ class OWPolynomialClassification(OWBaseLearner):
             # Qt.SolidLine if hovered or value == 0.5 else Qt.DashDotLine
 
     def help_event(self, event):
+        if self.probabilities_grid is None:
+            return
+
         pos = event.scenePos()
         pos = self.graph.plot_widget.mapToView(pos)
 
@@ -299,30 +311,40 @@ class OWPolynomialClassification(OWBaseLearner):
         hovereds = [item for item in self.contours
                     if item.mouseShape().contains(pos)]
         hovered = hovereds[len(hovereds) // 2] if hovereds else None
-
-        # Remove previous label if exists and no longer relevant
-        label = self.contour_label
-        if label and label.labelled is not hovered:
-            self.graph.plot_widget.removeItem(label)
-            self.contour_label = label = None
-
-        # Add label if necessary. Put it to the left and above the mouse cursor
-        if hovered and not label:
-            label = QGraphicsTextItem()
-            label.setFlag(label.ItemIgnoresTransformations)
-            label.setHtml(f"{hovered.value:.1f}")
-            rect = label.boundingRect()
-            spos = event.scenePos()
-            x, y = spos.x() - rect.width(), spos.y() - rect.height()
-            label.setPos(self.graph.plot_widget.mapToView(QPointF(x, y)))
-            label.labelled = hovered
-            self.contour_label = label
-            self.graph.plot_widget.addItem(label)
-
-        # Set the pen for all lines
+        # Set the pen for all lines, hovered and not hovered (any longer)
         for item in self.contours:
             item.setPen(self._contour_pen(item.value, item is hovered))
-        return bool(hovered)
+
+        # Set the probability for the textitem at mouse position.
+        # If there is a hovered line - this acts as a line label.
+        # Otherwise, take the probability from the grid
+        label = self.contour_label
+        if hovered:
+            prob = hovered.value
+        else:
+            min_x, step_x, min_y, step_y = self.probabilities_grid_dimensions
+            prob = self.probabilities_grid.T[
+                int(np.clip(round((pos.x() - min_x) * step_x), 0, GRID_SIZE - 1)),
+                int(np.clip(round((pos.y() - min_y) * step_y), 0, GRID_SIZE - 1))]
+        prob_lab = f"{round(prob, 3):.3g}"
+        if "." not in prob_lab:
+            prob_lab += ".0"  # Showing just 0 or 1 looks ugly
+        label.setHtml(prob_lab)
+
+        # Position the label above and left from mouse; looks nices
+        rect = label.boundingRect()
+        spos = event.scenePos()
+        x, y = spos.x() - rect.width(), spos.y() - rect.height()
+        label.setPos(self.graph.plot_widget.mapToView(QPointF(x, y)))
+
+        label.show()
+        return True
+
+    def changeEvent(self, ev):
+        # This hides the label if the user alt-tabs out of the window
+        if ev.type() == QEvent.ActivationChange and not self.isActiveWindow():
+            self.contour_label.hide()
+        super().changeEvent(ev)
 
     def plot_gradient(self):
         if not self.model:
@@ -340,6 +362,9 @@ class OWPolynomialClassification(OWBaseLearner):
 
         self.probabilities_grid = self.model(attr_data, 1)[:, 1] \
             .reshape(self.xv.shape)
+        self.probabilities_grid_dimensions = (
+            min_x, GRID_SIZE / (max_x - min_x),
+            min_y, GRID_SIZE / (max_y - min_y))
 
         if not self._treelike:
             self.probabilities_grid = self.blur_grid(self.probabilities_grid)
