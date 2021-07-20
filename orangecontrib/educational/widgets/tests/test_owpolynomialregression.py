@@ -3,7 +3,7 @@ import numpy as np
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.educational.widgets.owpolynomialregression \
-    import OWUnivariateRegression
+    import OWPolynomialRegression
 from Orange.regression import (LinearRegressionLearner,
                                RandomForestRegressionLearner)
 from Orange.regression.tree import TreeLearner as TreeRegressionLearner
@@ -13,7 +13,7 @@ from Orange.preprocess.preprocess import Normalize
 class TestOWPolynomialRegression(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWUnivariateRegression)   # type: OWUnivariateRegression
+        self.widget = self.create_widget(OWPolynomialRegression)   # type: OWPolynomialRegression
         self.data = Table.from_file("iris")
         self.data_housing = Table.from_file("housing")
 
@@ -25,13 +25,9 @@ class TestOWPolynomialRegression(WidgetTest):
         self.widget.set_data(self.data)
 
         self.assertEqual(self.data, self.widget.data)
-        self.assertEqual(continuous_variables, self.widget.x_var_model._list)
-        self.assertEqual(continuous_variables, self.widget.y_var_model._list)
-        self.assertEqual(self.widget.x_var_index, 0)
-        self.assertEqual(self.widget.y_var_index,
-                         len(continuous_variables) - 1
-                         if len(class_variables) == 0
-                         else len(continuous_variables) - len(class_variables))
+        self.assertEqual(continuous_variables, list(self.widget.var_model))
+        self.assertEqual(self.widget.x_var, continuous_variables[0])
+        self.assertEqual(self.widget.y_var, continuous_variables[1])
 
         # check for none data
         self.widget.set_data(None)
@@ -39,18 +35,13 @@ class TestOWPolynomialRegression(WidgetTest):
 
         # data set with continuous class to check if nclass > 0
         variables = self.data_housing.domain.variables
-        class_variables = self.data_housing.domain.class_vars
         continuous_variables = [var for var in variables if var.is_continuous]
 
         self.widget.set_data(self.data_housing)
         self.assertEqual(self.data_housing, self.widget.data)
-        self.assertEqual(continuous_variables, self.widget.x_var_model._list)
-        self.assertEqual(continuous_variables, self.widget.y_var_model._list)
-        self.assertEqual(self.widget.x_var_index, 0)
-        self.assertEqual(self.widget.y_var_index,
-                         len(continuous_variables) - 1
-                         if len(class_variables) == 0
-                         else len(continuous_variables) - len(class_variables))
+        self.assertEqual(continuous_variables, list(self.widget.var_model))
+        self.assertEqual(self.widget.x_var, continuous_variables[0])
+        self.assertEqual(self.widget.y_var, self.data_housing.domain.class_var)
 
         # check with data with all none
         data = Table.from_list(
@@ -69,11 +60,9 @@ class TestOWPolynomialRegression(WidgetTest):
         self.assertEqual(w.learner, None)
         self.assertEqual(w.scatterplot_item, None)
         self.assertEqual(w.plot_item, None)
-        self.assertEqual(w.x_label, 'x')
-        self.assertEqual(w.y_label, 'y')
 
         self.assertEqual(
-            w.regressor_label.text(), "Regressor: Linear Regression")
+            w.controls.regressor_name.text(), "Regressor: Linear Regression")
 
     def test_send_report(self):
         # check if nothing happens when polynomialexpansion is None
@@ -117,7 +106,7 @@ class TestOWPolynomialRegression(WidgetTest):
         self.assertEqual(self.widget.learner, lin)
 
         self.assertEqual(
-            w.regressor_label.text(), "Regressor: Linear Regression")
+            w.controls.regressor_name.text(), "Regressor: Linear Regression")
 
         tree = TreeRegressionLearner
         tree.name = "Tree Learner"
@@ -125,8 +114,7 @@ class TestOWPolynomialRegression(WidgetTest):
         self.widget.set_learner(tree)
         self.assertEqual(self.widget.learner, tree)
         self.assertEqual(
-            w.regressor_label.text(), "Regressor: Tree Learner")
-
+            w.controls.regressor_name.text(), "Regressor: Tree Learner")
 
     def test_plot_scatter_points(self):
         x_data = [1, 2, 3]
@@ -134,7 +122,6 @@ class TestOWPolynomialRegression(WidgetTest):
 
         self.widget.plot_scatter_points(x_data, y_data)
 
-        self.assertEqual(self.widget.n_points, len(x_data))
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
         # check case when scatter plot allready exist
@@ -143,7 +130,6 @@ class TestOWPolynomialRegression(WidgetTest):
 
         self.widget.plot_scatter_points(x_data, y_data)
 
-        self.assertEqual(self.widget.n_points, len(x_data))
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
     def test_plot_regression_line(self):
@@ -165,7 +151,8 @@ class TestOWPolynomialRegression(WidgetTest):
     def test_plot_error_bars(self):
         w = self.widget
 
-        w.error_bars_checkbox.click()
+        check = w.controls.error_bars_enabled
+        check.click()
 
         x_data = [1, 2, 3]
         y_data = [2, 3, 4]
@@ -174,12 +161,12 @@ class TestOWPolynomialRegression(WidgetTest):
         self.widget.plot_error_bars(x_data, y_data, y_data_fake)
         self.assertEqual(len(w.error_plot_items), len(x_data))
 
-        w.error_bars_checkbox.click()
+        check.click()
 
         self.widget.plot_error_bars(x_data, y_data, y_data_fake)
         self.assertEqual(len(w.error_plot_items), 0)
 
-        w.error_bars_checkbox.click()
+        check.click()
 
         self.send_signal(w.Inputs.data, self.data)
         self.assertEqual(len(w.error_plot_items), len(self.data))
@@ -224,19 +211,20 @@ class TestOWPolynomialRegression(WidgetTest):
 
         self.assertIsNone(self.get_output(w.Outputs.data))
         self.widget.set_data(self.data)
-        self.widget.expansion_spin.setValue(1)
+        spin = self.widget.controls.polynomialexpansion
+        spin.setValue(1)
         self.widget.send_data()
         self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 2)
 
-        self.widget.expansion_spin.setValue(2)
+        spin.setValue(2)
         self.widget.send_data()
         self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 3)
 
-        self.widget.expansion_spin.setValue(3)
+        spin.setValue(3)
         self.widget.send_data()
         self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 4)
 
-        self.widget.expansion_spin.setValue(4)
+        spin.setValue(4)
         self.widget.send_data()
         self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 5)
 

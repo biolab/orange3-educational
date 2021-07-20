@@ -1,28 +1,38 @@
 import math
 
 from Orange.evaluation import RMSE, TestOnTrainingData, MAE
-from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtGui import QColor, QPalette, QPen, QFont
 
 import sklearn.preprocessing as skl_preprocessing
 import pyqtgraph as pg
 import numpy as np
 
+from orangewidget.report import report
+from orangewidget.utils.widgetpreview import WidgetPreview
+
 from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
                                       LinearRegressionLearner)
 from Orange.regression import Learner
+from Orange.regression.mean import MeanModel
+from Orange.statistics.distribution import Continuous
 from Orange.widgets import settings, gui
-from Orange.widgets.utils import itemmodels
+from Orange.widgets.widget import Msg, Input, Output
+from Orange.widgets.settings import DomainContextHandler
+from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
-from Orange.widgets.widget import Msg, Input, Output
-from orangewidget.report import report
 
 
+class RegressTo0(Learner):
+    @staticmethod
+    def fit(*args, **kwargs):
+        return MeanModel(Continuous(np.empty(0)))
 
-class OWUnivariateRegression(OWBaseLearner):
+
+class OWPolynomialRegression(OWBaseLearner):
     name = "Polynomial Regression"
     description = "Univariate regression with polynomial expansion."
     keywords = ["polynomial regression", "regression",
@@ -40,19 +50,21 @@ class OWUnivariateRegression(OWBaseLearner):
     replaces = [
         "Orange.widgets.regression.owunivariateregression."
         "OWUnivariateRegression",
-        "orangecontrib.prototypes.widgets.owpolynomialregression."
-        "OWPolynomialRegression"
+        "orangecontrib.prototypes.widgets.owpolynomialregression.",
+        "orangecontrib.educational.widgets.owunivariateregression."
     ]
 
     LEARNER = PolynomialLearner
 
-    learner_name = settings.Setting("Univariate Regression")
+    learner_name = settings.Setting("Polynomial Regression")
 
     polynomialexpansion = settings.Setting(1)
 
-    x_var_index = settings.ContextSetting(0)
-    y_var_index = settings.ContextSetting(1)
+    settingsHandler = DomainContextHandler()
+    x_var = settings.ContextSetting(None)
+    y_var = settings.ContextSetting(None)
     error_bars_enabled = settings.Setting(False)
+    fit_intercept = settings.Setting(True)
 
     default_learner_name = "Linear Regression"
     error_plot_items = []
@@ -65,94 +77,78 @@ class OWUnivariateRegression(OWBaseLearner):
     graph_name = 'plot'
 
     class Error(OWBaseLearner.Error):
-        all_none = Msg("One of the features has no defined values")
-        no_cont_variables = Msg("Polynomial Regression requires at least one numeric feature.")
+        all_none = \
+            Msg("All rows have undefined data.")
+        no_cont_variables =\
+            Msg("Regression requires at least two numeric variables.")
+        same_dep_indepvar =\
+            Msg("Dependent and independent variables must be differnt.")
 
-    def add_main_layout(self):
-
+    def __init__(self):
+        super().__init__()
         self.data = None
         self.learner = None
 
         self.scatterplot_item = None
         self.plot_item = None
 
-        self.x_label = 'x'
-        self.y_label = 'y'
-
+    def add_main_layout(self):
         self.rmse = ""
         self.mae = ""
         self.regressor_name = self.default_learner_name
 
-        # info box
-        info_box = gui.vBox(self.controlArea, "Info")
-        self.regressor_label = gui.label(
-            widget=info_box, master=self,
-            label="Regressor: %(regressor_name).30s")
-        gui.label(widget=info_box, master=self,
-            label="Mean absolute error: %(mae).6s")
-        gui.label(widget=info_box, master=self,
-                  label="Root mean square error: %(rmse).6s")
+        self.var_model = DomainModel(
+            valid_types=(ContinuousVariable, ),
+            order=DomainModel.MIXED)
 
-        box = gui.vBox(self.controlArea, "Variables")
+        box = gui.vBox(self.controlArea, "Predictor")
+        gui.comboBox(
+            box, self, value='x_var', model=self.var_model, callback=self.apply)
+        gui.spin(
+            box, self, "polynomialexpansion", label="Polynomial degree: ",
+            minv=0, maxv=10, alignment=Qt.AlignmentFlag.AlignRight,
+            callback=self.apply)
+        gui.checkBox(
+            box, self, "fit_intercept",
+            label="Fit intercept", callback=self.apply, stateWhenDisabled=True,
+            tooltip="Add an intercept term;\n"
+                    "This is always checked if the model is defined on input.")
 
-        self.x_var_model = itemmodels.VariableListModel()
-        self.comboBoxAttributesX = gui.comboBox(
-            box, self, value='x_var_index', label="Input: ",
-            orientation=Qt.Horizontal, callback=self.apply)
-        self.comboBoxAttributesX.setModel(self.x_var_model)
-        self.expansion_spin = gui.doubleSpin(
-            gui.indentedBox(box),
-            self, "polynomialexpansion", 0, 10,
-            label="Polynomial expansion:", callback=self.apply)
-
-        gui.separator(box, height=8)
-        self.y_var_model = itemmodels.VariableListModel()
-        self.comboBoxAttributesY = gui.comboBox(
-            box, self, value="y_var_index", label="Target: ",
-            orientation=Qt.Horizontal, callback=self.apply)
-        self.comboBoxAttributesY.setModel(self.y_var_model)
-
-        properties_box = gui.vBox(self.controlArea, "Properties")
-        self.error_bars_checkbox = gui.checkBox(
-            widget=properties_box, master=self, value='error_bars_enabled',
+        box = gui.vBox(self.controlArea, "Target")
+        gui.comboBox(
+            box, self, value="y_var", model=self.var_model, callback=self.apply)
+        gui.checkBox(
+            widget=box, master=self, value='error_bars_enabled',
             label="Show error bars", callback=self.apply)
 
         gui.rubber(self.controlArea)
 
-        # main area GUI
+        info_box = gui.vBox(self.controlArea, "Info")
+        gui.label(
+            widget=info_box, master=self,
+            label="Regressor: %(regressor_name).30s")
+        gui.label(
+            widget=info_box, master=self,
+            label="Mean absolute error: %(mae).6s")
+        gui.label(
+            widget=info_box, master=self,
+            label="Root mean square error: %(rmse).6s")
+
         self.plotview = pg.PlotWidget(background="w")
         self.plot = self.plotview.getPlotItem()
-
-        axis_color = self.palette().color(QPalette.Text)
-        axis_pen = QPen(axis_color)
-
+        axis_pen = QPen(self.palette().color(QPalette.Text))
         tickfont = QFont(self.font())
         tickfont.setPixelSize(max(int(tickfont.pixelSize() * 2 // 3), 11))
-
-        axis = self.plot.getAxis("bottom")
-        axis.setLabel(self.x_label)
-        axis.setPen(axis_pen)
-        axis.setTickFont(tickfont)
-
-        axis = self.plot.getAxis("left")
-        axis.setLabel(self.y_label)
-        axis.setPen(axis_pen)
-        axis.setTickFont(tickfont)
-
+        for axis in ("bottom", "left"):
+            axis = self.plot.getAxis(axis)
+            axis.setPen(axis_pen)
+            axis.setTickFont(tickfont)
         self.plot.setRange(xRange=(0.0, 1.0), yRange=(0.0, 1.0),
                            disableAutoRange=True)
-
         self.mainArea.layout().addWidget(self.plotview)
 
-    def send_report(self):
-        if self.data is None:
-            return
-        caption = report.render_items_vert((
-             ("Polynomial Expansion: ", self.polynomialexpansion),
-        ))
-        self.report_plot()
-        if caption:
-            self.report_caption(caption)
+    def add_bottom_buttons(self):
+        pass
 
     def clear(self):
         self.data = None
@@ -172,38 +168,41 @@ class OWUnivariateRegression(OWBaseLearner):
             self.scatterplot_item = None
 
         self.remove_error_items()
-
         self.plotview.clear()
 
     @check_sql_input
     def set_data(self, data):
         self.clear()
-        self.Error.no_cont_variables.clear()
-        if data is not None:
-            cvars = [var for var in data.domain.variables if var.is_continuous]
-            class_cvars = [var for var in data.domain.class_vars
-                           if var.is_continuous]
-
-            nvars = len(cvars)
-            nclass = len(class_cvars)
-            self.x_var_model[:] = cvars
-            self.y_var_model[:] = cvars
-            if nvars == 0:
-                self.data = None
-                self.Error.no_cont_variables()
-                return
-
-            self.x_var_index = min(max(0, self.x_var_index), nvars - 1)
-            if nclass > 0:
-                self.y_var_index = min(max(0, nvars-nclass), nvars - 1)
-            else:
-                self.y_var_index = min(max(0, nvars-1), nvars - 1)
+        self.Error.clear()
+        self.closeContext()
         self.data = data
+        if data is None:
+            self.var_model.set_domain(None)
+            return
+
+        self.var_model.set_domain(data.domain)
+        if len(self.var_model) < 2:
+            self.data = None
+            self.x_var = self.y_var = None
+            self.Error.no_cont_variables()
+            return
+
+        self.x_var = self.var_model[0]
+        if data.domain.class_var in self.var_model:
+            self.y_var = data.domain.class_var
+        else:
+            self.y_var = self.var_model[1]
+        self.openContext(data)
 
     @Inputs.learner
     def set_learner(self, learner):
         self.learner = learner
-        self.regressor_name = (learner.name if learner is not None else self.default_learner_name)
+        if learner is None:
+            self.controls.fit_intercept.setDisabled(False)
+            self.regressor_name = self.default_learner_name
+        else:
+            self.controls.fit_intercept.setDisabled(True)
+            self.regressor_name = learner.name
 
     def handleNewSignals(self):
         self.apply()
@@ -211,9 +210,8 @@ class OWUnivariateRegression(OWBaseLearner):
     def plot_scatter_points(self, x_data, y_data):
         if self.scatterplot_item:
             self.plotview.removeItem(self.scatterplot_item)
-        self.n_points = len(x_data)
         self.scatterplot_item = pg.ScatterPlotItem(
-            x=x_data, y=y_data, data=np.arange(self.n_points),
+            x=x_data, y=y_data,
             symbol="o", size=10, pen=pg.mkPen(0.2), brush=pg.mkBrush(0.7),
             antialias=True)
         self.scatterplot_item.opts["useCache"] = False
@@ -223,19 +221,35 @@ class OWUnivariateRegression(OWBaseLearner):
     def set_range(self, x_data, y_data):
         min_x, max_x = np.nanmin(x_data), np.nanmax(x_data)
         min_y, max_y = np.nanmin(y_data), np.nanmax(y_data)
+        if self.polynomialexpansion == 0 and not self._has_intercept:
+            if min_y > 0:
+                min_y = -0.1 * max_y
+            elif max_y < 0:
+                max_y = -0.1 * min_y
+
         self.plotview.setRange(
             QRectF(min_x, min_y, max_x - min_x, max_y - min_y),
             padding=0.025)
         self.plotview.replot()
 
     def plot_regression_line(self, x_data, y_data):
-        if self.plot_item:
-            self.plotview.removeItem(self.plot_item)
-        self.plot_item = pg.PlotCurveItem(
+        item = pg.PlotCurveItem(
             x=x_data, y=y_data,
             pen=pg.mkPen(QColor(255, 0, 0), width=3),
             antialias=True
         )
+        self._plot_regression_item(item)
+
+    def plot_infinite_line(self, x, y, angle):
+        item = pg.InfiniteLine(
+            QPointF(x, y), angle,
+            pen=pg.mkPen(QColor(255, 0, 0), width=3))
+        self._plot_regression_item(item)
+
+    def _plot_regression_item(self, item):
+        if self.plot_item:
+            self.plotview.removeItem(self.plot_item)
+        self.plot_item = item
         self.plotview.addItem(self.plot_item)
         self.plotview.replot()
 
@@ -256,32 +270,72 @@ class OWUnivariateRegression(OWBaseLearner):
                 self.error_plot_items.append(line)
         self.plotview.replot()
 
+    def _varnames(self, name):
+        # If variable name is short, use superscripts
+        # otherwise "^" because superscripts would be lost
+        def ss(x):
+            # Compose a (potentially non-single-digit) superscript
+            return "".join("⁰¹²³⁴⁵⁶⁷⁸⁹"[i] for i in (int(c) for c in str(x)))
+
+        if len(name) <= 3:
+            return [f"{name}{ss(i)}"
+                    for i in range(not self._has_intercept,
+                                   1 + self.polynomialexpansion)]
+        else:
+            return ["intercept"] * self._has_intercept + \
+                   [name] * (self.polynomialexpansion >= 1) + \
+                   [f"{name}^{i}" for i in range(2, 1 + self.polynomialexpansion)]
+
+    @property
+    def _has_intercept(self):
+        return self.learner is not None or self.fit_intercept
+
     def apply(self):
-        degree = int(self.polynomialexpansion)
-        learner = self.LEARNER(
-            preprocessors=self.preprocessors, degree=degree,
-            learner=LinearRegressionLearner() if self.learner is None
-            else self.learner)
+        degree = self.polynomialexpansion
+        if degree == 0 and not self.fit_intercept:
+            learner = RegressTo0()
+        else:
+            # For LinearRegressionLearner, set fit_intercept to False:
+            # the intercept is added as bias term in polynomial expansion
+            # If there is a learner on input, we have not control over this;
+            # we include_bias to have the placeholder for the coefficient
+            lin_learner = self.learner \
+                          or LinearRegressionLearner(fit_intercept=False)
+            learner = self.LEARNER(
+                preprocessors=self.preprocessors, degree=degree,
+                include_bias=self.fit_intercept,
+                learner=lin_learner)
         learner.name = self.learner_name
         predictor = None
+        model = None
 
         self.Error.all_none.clear()
+        self.Error.same_dep_indepvar.clear()
 
         if self.data is not None:
-            attributes = self.x_var_model[self.x_var_index]
-            class_var = self.y_var_model[self.y_var_index]
+            if self.x_var is self.y_var:
+                self.Error.same_dep_indepvar()
+                self.clear_plot()
+                return
+
             data_table = Table.from_table(
-                Domain([attributes], class_vars=[class_var]), self.data
-            )
+                Domain([self.x_var], self.y_var),
+                self.data)
 
             # all lines has nan
-            if sum(math.isnan(line[0]) or math.isnan(line.get_class())
-                   for line in data_table) == len(data_table):
+            if np.all(np.isnan(data_table.X.flatten()) | np.isnan(data_table.Y)):
                 self.Error.all_none()
                 self.clear_plot()
                 return
 
             predictor = learner(data_table)
+            model = None
+            if hasattr(predictor, "model"):
+                model = predictor.model
+                if hasattr(model, "model"):
+                    model = model.model
+                elif hasattr(model, "skl_model"):
+                    model = model.skl_model
 
             preprocessed_data = data_table
             for preprocessor in learner.active_preprocessors:
@@ -308,35 +362,31 @@ class OWUnivariateRegression(OWBaseLearner):
             self.plot_scatter_points(x, y)
 
             # plot regression line
-            self.plot_regression_line(linspace.ravel(), values.ravel())
+            x_data, y_data = linspace.ravel(), values.ravel()
+            if self.polynomialexpansion == 0:
+                self.plot_infinite_line(x_data[0], y_data[0], 0)
+            elif self.polynomialexpansion == 1 and hasattr(model, "coef_"):
+                k = model.coef_[1 if self._has_intercept else 0]
+                self.plot_infinite_line(x_data[0], y_data[0],
+                                        math.degrees(math.atan(k)))
+            else:
+                self.plot_regression_line(x_data, y_data)
 
-            x_label = self.x_var_model[self.x_var_index]
-            axis = self.plot.getAxis("bottom")
-            axis.setLabel(x_label)
-
-            y_label = self.y_var_model[self.y_var_index]
-            axis = self.plot.getAxis("left")
-            axis.setLabel(y_label)
-
+            self.plot.getAxis("bottom").setLabel(self.x_var.name)
+            self.plot.getAxis("left").setLabel(self.y_var.name)
             self.set_range(x, y)
 
         self.Outputs.learner.send(learner)
         self.Outputs.model.send(predictor)
 
         # Send model coefficents
-        model = None
-        if predictor is not None:
-            model = predictor.model
-            if hasattr(model, "model"):
-                model = model.model
-            elif hasattr(model, "skl_model"):
-                model = model.skl_model
         if model is not None and hasattr(model, "coef_"):
             domain = Domain([ContinuousVariable("coef")],
                             metas=[StringVariable("name")])
-            coefs = [model.intercept_ + model.coef_[0]] + list(model.coef_[1:])
-            names = ["1", x_label] + \
-                    ["{}^{}".format(x_label, i) for i in range(2, degree + 1)]
+            names = self._varnames(self.x_var.name)
+            coefs = list(model.coef_)
+            if self._has_intercept:
+                model.coef_[0] += model.intercept_
             coef_table = Table.from_list(domain, list(zip(coefs, names)))
             self.Outputs.coefficients.send(coef_table)
         else:
@@ -346,48 +396,50 @@ class OWUnivariateRegression(OWBaseLearner):
 
     def send_data(self):
         if self.data is not None:
-            attributes = self.x_var_model[self.x_var_index]
-            class_var = self.y_var_model[self.y_var_index]
-
             data_table = Table.from_table(
-                Domain([attributes], class_vars=[class_var]), self.data)
+                Domain([self.x_var], self.y_var), self.data)
             polyfeatures = skl_preprocessing.PolynomialFeatures(
-                int(self.polynomialexpansion))
+                self.polynomialexpansion, include_bias=self._has_intercept)
 
             valid_mask = ~np.isnan(data_table.X).any(axis=1)
-            x = data_table.X[valid_mask]
-            x = polyfeatures.fit_transform(x)
-            x_label = data_table.domain.attributes[0].name
+            if not self._has_intercept and not self.polynomialexpansion:
+                x = np.empty((len(data_table), 0))
+            else:
+                x = data_table.X[valid_mask]
+                x = polyfeatures.fit_transform(x)
 
-            out_array = np.concatenate((x, data_table.Y[np.newaxis].T[valid_mask]), axis=1)
+            out_array = np.hstack((x, data_table.Y[np.newaxis].T[valid_mask]))
 
             out_domain = Domain(
-                [ContinuousVariable("1")] + ([data_table.domain.attributes[0]]
-                                             if self.polynomialexpansion > 0
-                                             else []) +
-                [ContinuousVariable("{}^{}".format(x_label, i))
-                 for i in range(2, int(self.polynomialexpansion) + 1)], class_vars=[class_var])
-
+                [ContinuousVariable(name)
+                 for name in self._varnames(self.x_var.name)],
+                self.y_var)
             self.Outputs.data.send(Table.from_numpy(out_domain, out_array))
             return
 
         self.Outputs.data.send(None)
 
-    def add_bottom_buttons(self):
-        pass
+    def send_report(self):
+        if self.data is None:
+            return
+        caption = report.render_items_vert((
+            ("Polynomial Expansion", self.polynomialexpansion),
+            ("Fit intercept",
+             self._has_intercept and ["No", "Yes"][self.fit_intercept])
+        ))
+        self.report_plot()
+        if caption:
+            self.report_caption(caption)
+
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        # polynomialexpansion used to be controlled by doublespin and was hence
+        # float. Just convert to `int`, ignore settings versions.
+        settings["polynomialexpansion"] = \
+            int(settings.get("polynomialexpansion", 1))
 
 
 if __name__ == "__main__":
-    import sys
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication(sys.argv)
-    ow = OWUnivariateRegression()
     learner = RidgeRegressionLearner(alpha=1.0)
-    polylearner = PolynomialLearner(learner, degree=2)
-    d = Table('iris')
-    ow.set_data(d)
-    ow.set_learner(learner)
-    ow.show()
-    a.exec_()
-    ow.saveSettings()
+    iris = Table('iris')
+    WidgetPreview(OWPolynomialRegression).run(set_data=iris) #, set_learner=learner)
