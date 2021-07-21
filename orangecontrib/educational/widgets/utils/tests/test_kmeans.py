@@ -11,6 +11,9 @@ class TestKmeans(unittest.TestCase):
 
     def test_converged(self):
         """It doesn't converge in a half-step, but does eventually"""
+        self.kmeans.move_centroid(0, 0, 1)
+        self.kmeans.move_centroid(1, 2, 3)
+        self.kmeans.move_centroid(2, 4, 5)
         i = -1
         for i in range(50):
             self.kmeans.move_centroids()
