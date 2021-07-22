@@ -66,14 +66,13 @@ class TestLogisticRegression(unittest.TestCase):
         # it can not converge in the first step
         self.assertFalse(lr.converged)
 
-        # it converge when distance between current theta and this is < 1e-2
-        converge = False
-        while not converge:
+        # it converges eventually
+        for _ in range(5000):
             lr.step()
-            converge = (np.sum(
-                np.abs(lr.theta - lr.history[lr.step_no - 1][0])) /
-                        len(lr.theta) < 1e-2)
-            self.assertEqual(lr.converged, converge)
+            if lr.converged:
+                break
+        else:
+            self.fail()
 
     def test_step(self):
         """

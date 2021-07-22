@@ -1,120 +1,34 @@
-import operator
-
-from os import path
 import time
+from colorsys import rgb_to_hsv, hsv_to_rgb
 
 import numpy as np
-import scipy.sparse as sp
+from scipy.interpolate import splprep, splev
 
-from AnyQt.QtCore import pyqtSlot, Qt, QThread, pyqtSignal, QObject
-from AnyQt.QtGui import QPixmap, QColor, QIcon
-from AnyQt.QtWidgets import QSizePolicy
+from AnyQt.QtCore import Qt, QObject, pyqtSignal, QThread, QEvent, QRectF
+from AnyQt.QtWidgets import QGraphicsSceneMouseEvent, QGraphicsTextItem
+from AnyQt.QtGui import QCursor, QColor
 
-from Orange.widgets.utils import itemmodels
+import pyqtgraph as pg
+
 from Orange.classification import Model
-from Orange.data import Table, ContinuousVariable, Domain, DiscreteVariable, \
-    StringVariable
+from Orange.data import \
+    ContinuousVariable, DiscreteVariable, StringVariable, Domain, Table
+from Orange.preprocess.transformation import Indicator
 from Orange.widgets import gui
 from Orange.widgets import settings
+from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.preprocess.preprocess import Normalize
-from scipy.interpolate import splprep, splev
 from orangewidget.report import report
+from orangewidget.utils.widgetpreview import WidgetPreview
 
-from orangecontrib.educational.widgets.utils.color_transform import (
-    rgb_to_hex, hex_to_rgb)
 from orangecontrib.educational.widgets.utils.linear_regression import \
     LinearRegression
 from orangecontrib.educational.widgets.utils.logistic_regression \
     import LogisticRegression
 from orangecontrib.educational.widgets.utils.contour import Contour
-from orangecontrib.educational.widgets.highcharts import Highchart
 
-
-class Scatterplot(Highchart):
-    """
-    Scatterplot extends Highchart and just defines some sane defaults:
-    * enables scroll-wheel zooming,
-    * set callback functions for click (in empty chart), drag and drop
-    * enables moving of centroids points
-    * include drag_drop_js script by highcharts
-    """
-
-    js_click_function = """/**/(function(e) {
-            window.pybridge.chart_clicked(e.xAxis[0].value, e.yAxis[0].value);
-        })
-        """
-
-    # to make unit tesest
-    count_replots = 0
-
-    def __init__(self, click_callback, **kwargs):
-
-        # read javascript for drag and drop
-        with open(path.join(path.dirname(__file__), 'resources', 'highcharts-contour.js'),
-                  encoding='utf-8') as f:
-            contours_js = f.read()
-
-        class Bridge(QObject):
-            @pyqtSlot(float, float)
-            def chart_clicked(self, x, y):
-                """
-                Function is called from javascript when click event happens
-                """
-                click_callback(x, y)
-
-        super().__init__(enable_zoom=True,
-                         bridge=Bridge(),
-                         enable_select='',
-                         chart_events_click=self.js_click_function,
-                         plotOptions_series_states_hover_enabled=False,
-                         chart_panning=False,
-                         javascript=contours_js,
-                         **kwargs)
-
-        self.click_callback = click_callback
-
-    def chart(self, *args, **kwargs):
-        self.count_replots += 1
-        super(Scatterplot, self).chart(*args, **kwargs)
-
-    def remove_series(self, idx):
-        """
-        Function remove series with id idx
-        """
-        self.evalJS("""
-            series = chart.get('{id}');
-            if (series != null)
-                series.remove(true);
-            """.format(id=idx))
-
-    def remove_last_point(self, idx):
-        """
-        Function remove last point from series with id idx
-        """
-        self.evalJS("""
-            series = chart.get('{id}');
-            if (series != null)
-                series.removePoint(series.data.length - 1, true);
-            """.format(id=idx))
-
-    def add_series(self, series):
-        """
-        Function add series to the chart
-        """
-        for i, s in enumerate(series):
-            self.exposeObject('series%d' % i, series[i])
-            self.evalJS("chart.addSeries(series%d, true);" % i)
-
-    def add_point_to_series(self, idx, point):
-        """
-        Function add point to the series with id idx
-        """
-        self.exposeObject('point', point)
-        self.evalJS("""
-            series = chart.get('{id}');
-            series.addPoint(point);
-        """.format(id=idx))
+GRID_SIZE = 20
 
 
 class Autoplay(QThread):
@@ -146,18 +60,24 @@ class Autoplay(QThread):
                 self.ow_gradient_descent.step_trigger.emit()
             except RuntimeError:
                 return
-            time.sleep(2 - self.ow_gradient_descent.auto_play_speed)
+            time.sleep(0.2)
         self.ow_gradient_descent.stop_auto_play_trigger.emit()
 
 
-class OWGradientDescent(OWWidget):
-    """
-    Gradient descent widget algorithm
-    """
+class HoverEventDelegate(QObject):
+    def __init__(self, delegate, parent=None):
+        super().__init__(parent)
+        self.delegate = delegate
 
+    def eventFilter(self, _, event):
+        return isinstance(event, QGraphicsSceneMouseEvent) \
+               and self.delegate(event)
+
+
+class OWGradientDescent(OWWidget):
     name = "Gradient Descent"
-    description = "Widget shows the procedure of gradient descent " \
-                  "on logistic regression."
+    description = "Demonstration of gradient descent " \
+                  "in logistic or linear regression"
     keywords = ["gradient descent", "optimization", "gradient"]
     icon = "icons/GradientDescent.svg"
     want_main_area = True
@@ -169,88 +89,59 @@ class OWGradientDescent(OWWidget):
     class Outputs:
         model = Output("Model", Model)
         coefficients = Output("Coefficients", Table)
-        data = Output("Data", Table)
 
-    graph_name = "scatter"
+    graph_name = "grapH"
 
-    # selected attributes in chart
-    attr_x = settings.Setting('')
-    attr_y = settings.Setting('')
+    settingsHandler = settings.DomainContextHandler(
+        match_values=settings.DomainContextHandler.MATCH_VALUES_CLASS)
+    attr_x = settings.ContextSetting(None)
+    attr_y = settings.ContextSetting(None)
     target_class = settings.Setting('')
-    alpha = settings.Setting(0.1)
+    alpha = settings.Setting(0.4)
     step_size = settings.Setting(30)  # step size for stochastic gds
     auto_play_speed = settings.Setting(1)
     stochastic = settings.Setting(False)
 
-    # models
-    x_var_model = None
-    y_var_model = None
-
-    # function used in gradient descent
-    learner_name = ""
-    learner = None
-    cost_grid = None
-    grid_size = 10
-    contour_color = "#aaaaaa"
-    default_background_color = "#00BFFF"
-    line_colors = ["#00BFFF", "#ff0000", "#33cc33"]
-    min_x = None
-    max_x = None
-    min_y = None
-    max_y = None
-    current_gradient_color = None
-
-    # data
-    data = None
-    selected_data = None
-
-    # autoplay
-    auto_play_enabled = False
+    default_background_color = np.array([0, 0xbf, 0xff])
     auto_play_button_text = ["Run", "Stop"]
-    auto_play_thread = None
 
-    # signals
     step_trigger = pyqtSignal()
     stop_auto_play_trigger = pyqtSignal()
 
     class Error(OWWidget.Error):
-        """
-        Class used fro widget warnings.
-        """
-        to_few_features = Msg("Too few numeric features.")
-        no_class = Msg("Data must have a single class attribute")
-        to_few_values = Msg("Class attribute must have at least two values.")
-        all_none = Msg("One of the features has no defined values")
+        num_features = Msg("Data must contain at least {}.")
+        no_class = Msg("Data must have a single target variable.")
+        no_class_values = Msg("Target variable must have at least two values.")
+        no_nonnan_data = Msg("No points with defined values.")
+        same_variable = Msg("Select two different variables.")
 
     def __init__(self):
         super().__init__()
+        self.learner = None
+        self.data = None
+        self.selected_data = None
+        self.cost_grid = None
+        self.min_x = self.max_x = self.min_y = self.max_y = None
+        self.contours = []
+        self.optimization_path = self.last_point = None
+        self.hover_label = self.optimization_label = None
 
-        # var models
-        self.x_var_model = itemmodels.VariableListModel()
-        self.y_var_model = itemmodels.VariableListModel()
+        self.auto_play_enabled = False
+        self.auto_play_button_text = ["Run", "Stop"]
+        self.auto_play_thread = None
 
-        # info box
-        self.info_box = gui.widgetBox(self.controlArea, "Info")
-        self.learner_label = gui.label(
-            widget=self.info_box, master=self, label="")
+        self.var_model = DomainModel(valid_types=ContinuousVariable,
+                                     order=DomainModel.ATTRIBUTES)
 
-        # options box
-        policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
-
-        self.options_box = gui.widgetBox(self.controlArea, "Data")
+        self.options_box = gui.widgetBox(self.controlArea, "Variables")
         opts = dict(
             widget=self.options_box, master=self, orientation=Qt.Horizontal,
-            callback=self.change_attributes, sendSelectedValue=True,
-        )
-        self.cbx = gui.comboBox(value='attr_x', label='X:', **opts)
-        self.cby = gui.comboBox(value='attr_y', label='Y:', **opts)
-        self.target_class_combobox = gui.comboBox(
-            value='target_class', label='Target class: ', **opts)
+            callback=self.change_attributes)
+        gui.comboBox(value='attr_x', model=self.var_model, **opts)
+        gui.comboBox(value='attr_y', model=self.var_model, **opts)
+        gui.comboBox(value='target_class', label='Target: ',
+                     sendSelectedValue=True, **opts)
 
-        self.cbx.setModel(self.x_var_model)
-        self.cby.setModel(self.y_var_model)
-
-        # properties box
         self.properties_box = gui.widgetBox(self.controlArea, "Properties")
         self.alpha_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_alpha,
@@ -260,200 +151,69 @@ class OWGradientDescent(OWWidget):
         self.stochastic_checkbox = gui.checkBox(
             widget=self.properties_box, master=self,
             callback=self.change_stochastic, value="stochastic",
-            label="Stochastic ")
+            label="Stochastic descent")
         self.step_size_spin = gui.spin(
             widget=self.properties_box, master=self, callback=self.change_step,
             value="step_size", label="Step size: ",
             minv=1, maxv=100, step=1, alignment=Qt.AlignRight, controlWidth=80)
+
+        self.step_box = gui.widgetBox(self.controlArea, box=True,
+                                      margin=0, spacing=0)
+        hbox = gui.hBox(self.step_box)
+        self.step_button = gui.button(
+            hbox, self, callback=self.step, label="Step", default=True)
+        self.step_back_button = gui.button(
+            hbox, self, callback=self.step_back, label="Back")
         self.restart_button = gui.button(
-            widget=self.properties_box, master=self,
+            widget=self.step_box, master=self,
             callback=self.restart, label="Restart")
 
-        self.alpha_spin.setSizePolicy(policy)
-        self.step_size_spin.setSizePolicy(policy)
-
-        # step box
-        self.step_box = gui.widgetBox(self.controlArea, "Manually step through")
-        self.step_button = gui.button(
-            widget=self.step_box, master=self, callback=self.step, label="Step",
-            default=True)
-        self.step_back_button = gui.button(
-            widget=self.step_box, master=self, callback=self.step_back,
-            label="Step back")
-
-        # run box
-        self.run_box = gui.widgetBox(self.controlArea, "Run")
+        gui.separator(self.step_box)
         self.auto_play_button = gui.button(
-            widget=self.run_box, master=self,
+            widget=self.step_box, master=self,
             label=self.auto_play_button_text[0], callback=self.auto_play)
-        self.auto_play_speed_spinner = gui.hSlider(
-            widget=self.run_box, master=self, value='auto_play_speed',
-            minValue=0, maxValue=1.91, step=0.1,
-            intOnly=False, createLabel=False, label='Speed:')
-
-        # graph in mainArea
-        self.scatter = Scatterplot(click_callback=self.change_theta,
-                                   xAxis_gridLineWidth=0,
-                                   yAxis_gridLineWidth=0,
-                                   title_text='',
-                                   tooltip_shared=False,
-                                   legend=dict(enabled=False),)
 
         gui.rubber(self.controlArea)
 
-        # Just render an empty chart so it shows a nice 'No data to display'
-        self.scatter.chart()
-        self.mainArea.layout().addWidget(self.scatter)
+        self._add_graph()
 
         self.step_size_lock()
         self.step_back_button_lock()
 
-    @Inputs.data
-    def set_data(self, data):
-        """
-        Function receives data from input and init part of widget if data
-        satisfy. Otherwise set empty plot and notice
-        user about that
+    def _add_graph(self):
+        self.graph = pg.PlotWidget(background="w", autoRange=False)
+        self.graph.setCursor(QCursor(Qt.CrossCursor))
+        self._hover_delegate = HoverEventDelegate(self.help_event)
+        self.graph.scene().installEventFilter(self._hover_delegate)
+        self.mainArea.layout().addWidget(self.graph)
 
-        Parameters
-        ----------
-        data : Table
-            Input data
-        """
-        d = data
+        self.hover_label = label = QGraphicsTextItem()
+        label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
+        self.graph.addItem(label)
+        label.setZValue(10)
+        label.hide()
+        # I'm not proud of this and will brew a coffee to the person who
+        # improves it (and comes to claim it). Same in Polynomial Classification
+        self.graph.scene().leaveEvent = lambda *_: self.hover_label.hide()
 
-        def reset_combos():
-            self.x_var_model[:] = []
-            self.y_var_model[:] = []
-            self.target_class_combobox.clear()
+        self.optimization_label = label = QGraphicsTextItem()
+        label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
+        self.graph.addItem(label)
+        label.setZValue(10)
 
-        def init_combos():
-            """
-            function initialize the combos with attributes
-            """
-            reset_combos()
-
-            c_vars = [var for var in d.domain.attributes if var.is_continuous]
-
-            self.x_var_model[:] = c_vars
-            self.y_var_model[:] = c_vars if self.is_logistic else []
-
-            for i, var in (enumerate(d.domain.class_var.values)
-                           if d.domain.class_var.is_discrete else []):
-                pix_map = QPixmap(60, 60)
-                color = tuple(d.domain.class_var.colors[i].tolist())
-                pix_map.fill(QColor(*color))
-                self.target_class_combobox.addItem(QIcon(pix_map), var)
-
-            self.cby.setDisabled(not self.is_logistic)
-            self.target_class_combobox.setDisabled(not self.is_logistic)
-
-        self.Error.clear()
-
-        # clear variables
-        self.cost_grid = None
-        self.learner = None
-        self.selected_data = None
-        self.data = None
-        self.set_empty_plot()
-
-        self.send_output()
-
-        self.cby.setDisabled(False)
-        self.target_class_combobox.setDisabled(False)
-        self.learner_name = ""
-
-        if data is None or len(data) == 0:
-            reset_combos()
-        elif d.domain.class_var is None:
-            reset_combos()
-            self.Error.no_class()
-        elif d.domain.class_var.is_continuous:
-            if sum(True for var in d.domain.attributes
-                   if isinstance(var, ContinuousVariable)) < 1:
-                # not enough (2) continuous variable
-                reset_combos()
-                self.Error.to_few_features()
-            else:
-                self.data = data
-                self.learner_name = "Linear regression"
-                init_combos()
-                self.attr_x = self.cbx.itemText(0)
-                self.step_size_spin.setMaximum(len(d))
-                self.restart()
-        else:  # is discrete, if discrete logistic regression is used
-            if sum(True for var in d.domain.attributes
-                   if isinstance(var, ContinuousVariable)) < 2:
-                # not enough (2) continuous variable
-                reset_combos()
-                self.Error.to_few_features()
-            elif len(d.domain.class_var.values) < 2:
-                reset_combos()
-                self.Error.to_few_values()
-                self.set_empty_plot()
-            else:
-                self.data = data
-                self.learner_name = "Logistic regression"
-                init_combos()
-                self.attr_x = self.cbx.itemText(0)
-                self.attr_y = self.cbx.itemText(1)
-                self.target_class = self.target_class_combobox.itemText(0)
-                self.step_size_spin.setMaximum(len(d))
-                self.restart()
-
-        self.learner_label.setText("Learner: " + self.learner_name)
-
-    def set_empty_plot(self):
-        """
-        Function render empty plot
-        """
-        self.scatter.clear()
+    ##############################
+    # User-interaction
 
     def change_attributes(self):
-        """
-        Function changes when user changes attribute or target
-        """
+        self.set_axis_titles()
         self.learner = None  # that theta does not same equal
         self.restart()
 
-    def restart(self):
-        """
-        Function restarts the algorithm
-        """
-        self.selected_data = self.select_data()
-        if self.selected_data is None:
-            self.set_empty_plot()
-            return
-
-        theta = self.learner.history[0][0] if self.learner is not None else None
-        selected_learner = (LogisticRegression
-                            if self.learner_name == "Logistic regression"
-                            else LinearRegression)
-        self.learner = selected_learner(
-            data=self.selected_data,
-            alpha=self.alpha, stochastic=self.stochastic,
-            theta=theta, step_size=self.step_size,
-            intercept=(self.learner_name == "Linear regression"))
-        self.replot()
-        if theta is None:  # no previous theta exist
-            self.change_theta(np.random.uniform(self.min_x, self.max_x),
-                              np.random.uniform(self.min_y, self.max_y))
-        else:
-            self.change_theta(theta[0], theta[1])
-        self.send_output()
-        self.step_back_button_lock()
-
     def change_alpha(self):
-        """
-        Function changes alpha parameter of the algorithm
-        """
         if self.learner is not None:
             self.learner.set_alpha(self.alpha)
 
     def change_stochastic(self):
-        """
-        Function changes switches between stochastic or usual algorithm
-        """
         if self.learner is not None:
             self.learner.stochastic = self.stochastic
         self.step_size_lock()
@@ -463,314 +223,55 @@ class OWGradientDescent(OWWidget):
             self.learner.stochastic_step_size = self.step_size
 
     def change_theta(self, x, y):
-        """
-        Function set new theta
-        """
-        if self.learner is not None:
-            self.learner.set_theta([x, y])
-            self.scatter.remove_series("path")
-            self.scatter.remove_series("last_point")
-            self.scatter.add_series([
-                dict(id="last_point",
-                     data=[dict(
-                         x=x, y=y, dataLabels=dict(
-                             enabled=True,
-                             format='{0:.2f}'.format(
-                                 self.learner.j(np.array([x, y]))),
-                             verticalAlign='middle',
-                             align="right",
-                             style=dict(
-                                 fontWeight="normal",
-                                 textShadow=False
-                             ))
-                     )],
-                     type="scatter", enableMouseTracking=False,
-                     color="#ffcc00", marker=dict(radius=4)),
-                dict(id="path", data=[dict(
-                    x=x, y=y, h='{0:.2f}'.format(
-                        self.learner.j(np.array([x, y]))))],
-                     type="scatter", lineWidth=1,
-                     color=self.line_color(),
-                     marker=dict(
-                         enabled=True, radius=2),
-                     tooltip=dict(
-                         pointFormat="Cost: {point.h}",
-                         shared=False,
-                         valueDecimals=2
-                     ))])
-            self.send_output()
+        if self.learner is None:
+            return
+        self.learner.set_theta([x, y])
+        self.update_history()
 
     def step(self):
-        """
-        Function performs one step of the algorithm
-        """
         if self.data is None:
             return
         if self.learner.step_no > 500:  # limit step no to avoid freezes
             return
         self.learner.step()
-        theta = self.learner.theta
-        self.plot_point(theta[0], theta[1])
+        self.update_history()
         self.send_output()
         self.step_back_button_lock()
 
     def step_back(self):
-        """
-        Function performs step back
-        """
         if self.data is None:
             return
         if self.learner.step_no > 0:
             self.learner.step_back()
-            self.scatter.remove_last_point("path")
-            theta = self.learner.theta
-            self.plot_last_point(theta[0], theta[1])
+            self.update_history()
             self.send_output()
         self.step_back_button_lock()
 
-    def step_back_button_lock(self):
-        """
-        Function lock or unlock step back button.
-        """
-        self.step_back_button.setDisabled(
-            self.learner is None or self.learner.step_no == 0)
-
-    def step_size_lock(self):
-        self.step_size_spin.setDisabled(not self.stochastic)
-
-    def plot_point(self, x, y):
-        """
-        Function add point to the path
-        """
-        self.scatter.add_point_to_series("path", dict(
-            x=x, y=y, h='{0:.2f}'.format(self.learner.j(np.array([x, y])))
-        ))
-        self.plot_last_point(x, y)
-
-    def plot_last_point(self, x, y):
-        self.scatter.remove_last_point("last_point")
-        self.scatter.add_point_to_series(
-            "last_point",
-            dict(
-                x=x, y=y, dataLabels=dict(
-                    enabled=True,
-                    format='{0:.2f}'.format(
-                        self.learner.j(np.array([x, y]))),
-                    verticalAlign='middle',
-                    align="left" if self.label_right() else "right",
-                    style=dict(
-                        fontWeight="normal",
-                        textShadow=False
-                    ))
-            ))
-
-    def label_right(self):
-        l = self.learner
-        return l.step_no == 0 or l.history[l.step_no - 1][0][0] < l.theta[0]
-
-    def gradient_color(self):
-        if not self.is_logistic:
-            return self.default_background_color
-        else:
-            target_class_idx = self.data.domain.class_var.values.\
-                index(self.target_class)
-            color = self.data.domain.class_var.colors[target_class_idx]
-            return rgb_to_hex(tuple(color))
-
-    def line_color(self):
-        rgb_tuple = hex_to_rgb(self.current_gradient_color)
-        max_index, _ = max(enumerate(rgb_tuple), key=operator.itemgetter(1))
-        return self.line_colors[max_index]
-
-    def replot(self):
-        """
-        This function performs complete replot of the graph
-        """
-        if self.data is None or self.selected_data is None:
-            self.set_empty_plot()
+    def restart(self):
+        self.clear_plot()
+        self.select_columns()
+        self.set_axis_titles()
+        if self.selected_data is None:
             return
 
-        optimal_theta = self.learner.optimized()
-        self.min_x = optimal_theta[0] - 10
-        self.max_x = optimal_theta[0] + 10
-        self.min_y = optimal_theta[1] - 10
-        self.max_y = optimal_theta[1] + 10
-
-        options = dict(series=[])
-
-        # gradient and contour
-        options['series'] += self.plot_gradient_and_contour(
-            self.min_x, self.max_x, self.min_y, self.max_y)
-
-        # select gradient color
-        self.current_gradient_color = self.gradient_color()
-
-        # highcharts parameters
-        kwargs = dict(
-            xAxis_title_text="Θ {attr}".format(
-                attr=self.attr_x if self.is_logistic else 0),
-            yAxis_title_text="Θ {attr}".format(
-                attr=self.attr_y if self.is_logistic else self.attr_x),
-            xAxis_min=self.min_x,
-            xAxis_max=self.max_x,
-            yAxis_min=self.min_y,
-            yAxis_max=self.max_y,
-            xAxis_startOnTick=False,
-            xAxis_endOnTick=False,
-            yAxis_startOnTick=False,
-            yAxis_endOnTick=False,
-            colorAxis=dict(
-                labels=dict(enabled=False),
-                minColor="#ffffff", maxColor=self.current_gradient_color,
-                endOnTick=False, startOnTick=False),
-            plotOptions_contour_colsize=(self.max_y - self.min_y) / 1000,
-            plotOptions_contour_rowsize=(self.max_x - self.min_x) / 1000,
-            tooltip_headerFormat="",
-            tooltip_pointFormat="<strong>%s:</strong> {point.x:.2f} <br/>"
-                                "<strong>%s:</strong> {point.y:.2f}" %
-                                (self.attr_x, self.attr_y))
-
-        self.scatter.chart(options, **kwargs)
-
-    def plot_gradient_and_contour(self, x_from, x_to, y_from, y_to):
-        """
-        Function constructs series for gradient and contour
-
-        Parameters
-        ----------
-        x_from : float
-            Min grid x value
-        x_to : float
-            Max grid x value
-        y_from : float
-            Min grid y value
-        y_to : float
-            Max grid y value
-
-        Returns
-        -------
-        list
-            List containing series with background gradient and contour
-        """
-
-        # grid for gradient
-        x = np.linspace(x_from, x_to, self.grid_size)
-        y = np.linspace(y_from, y_to, self.grid_size)
-        xv, yv = np.meshgrid(x, y)
-        thetas = np.column_stack((xv.flatten(), yv.flatten()))
-
-        # cost_values = np.vstack([self.learner.j(theta) for theta in thetas])
-        cost_values = self.learner.j(thetas)
-
-        # results
-        self.cost_grid = cost_values.reshape(xv.shape)
-
-        return (self.plot_gradient(xv, yv, self.cost_grid) +
-                self.plot_contour(xv, yv, self.cost_grid))
-
-    def plot_gradient(self, x, y, grid):
-        """
-        Function constructs background gradient
-        """
-        return [dict(data=[[x[j, k], y[j, k], grid[j, k]] for j in range(len(x))
-                           for k in range(y.shape[1])],
-                     grid_width=self.grid_size,
-                     type="contour")]
-
-    def plot_contour(self, xv, yv, cost_grid):
-        """
-        Function constructs contour lines
-        """
-        contour = Contour(xv, yv, cost_grid)
-        contour_lines = contour.contours(
-            np.linspace(np.min(cost_grid), np.max(cost_grid), 20))
-
-        series = []
-        count = 0
-        for key, value in contour_lines.items():
-            for line in value:
-                if len(line) > 3:
-                    tck, u = splprep(np.array(line).T, u=None, s=0.0, per=0)
-                    u_new = np.linspace(u.min(), u.max(), 100)
-                    x_new, y_new = splev(u_new, tck, der=0)
-                    interpol_line = np.c_[x_new, y_new]
-                else:
-                    interpol_line = line
-
-                series.append(dict(data=interpol_line,
-                                   color=self.contour_color,
-                                   type="spline",
-                                   lineWidth=0.5,
-                                   marker=dict(enabled=False),
-                                   name="%g" % round(key, 2),
-                                   enableMouseTracking=False
-                                   ))
-                count += 1
-        return series
-
-    def select_data(self):
-        """
-        Function takes two selected columns from data table and merge them
-        in new Orange.data.Table
-
-        Returns
-        -------
-        Table
-            Table with selected columns
-        """
-        if self.data is None:
-            return
-
-        self.Error.clear()
-
-        attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y] if self.is_logistic else None
-        cols = []
-        for attr in (attr_x, attr_y) if attr_y is not None else (attr_x, ):
-            subset = self.data[:, attr]
-            cols.append(subset.X if not sp.issparse(subset.X) else subset.X.toarray())
-        x = np.column_stack(cols)
-        y_c = self.data.Y if not sp.issparse(self.data.Y) else self.data.Y.toarray()
-        if y_c.ndim == 2 and y_c.shape[1] == 1:
-            y_c = y_c.flatten()
-        # remove nans
-        indices = ~np.isnan(x).any(axis=1) & ~np.isnan(y_c)
-        x = x[indices]
-        y_c = y_c[indices]
-
-        if len(x) == 0:
-            self.Error.all_none()
-            return None
-
-        if self.is_logistic:
-            two_classes = len(self.data.domain.class_var.values) == 2
-            if two_classes:
-                domain = Domain([attr_x, attr_y], [self.data.domain.class_var])
-            else:
-                domain = Domain(
-                    [attr_x, attr_y],
-                    [DiscreteVariable(
-                        name=self.data.domain.class_var.name + "-bin",
-                        values=(self.target_class, 'Others'))],
-                    [self.data.domain.class_var])
-
-            y = [(0 if self.data.domain.class_var.values[int(d)] ==
-                       self.target_class else 1)
-                 for d in y_c]
-
-            return Normalize()(Table.from_numpy(domain, x, y_c)
-                               if two_classes else
-                               Table.from_numpy(domain, x, y, y_c[:, None]))
+        theta = self.learner.history[0][0] if self.learner is not None else None
+        selected_learner = (LogisticRegression if self.is_classification
+                            else LinearRegression)
+        self.learner = selected_learner(
+            data=self.selected_data,
+            alpha=self.alpha, stochastic=self.stochastic,
+            theta=theta, step_size=self.step_size,
+            intercept=not self.is_classification)
+        self.replot()
+        if theta is None:  # no previous theta exist
+            self.change_theta(np.random.uniform(self.min_x, self.max_x),
+                              np.random.uniform(self.min_y, self.max_y))
         else:
-            domain = Domain([attr_x], self.data.domain.class_var)
-            return Normalize(transform_class=True)(
-                Table.from_numpy(domain, x, y_c)
-            )
+            self.change_theta(theta[0], theta[1])
+        self.send_output()
+        self.step_back_button_lock()
 
     def auto_play(self):
-        """
-        Function called when autoplay button pressed
-        """
         if self.data is not None:
             self.auto_play_enabled = not self.auto_play_enabled
             self.auto_play_button.setText(
@@ -785,79 +286,161 @@ class OWGradientDescent(OWWidget):
                 self.stop_auto_play()
 
     def stop_auto_play(self):
-        """
-        Called when stop autoplay button pressed or in the end of autoplay
-        """
         self.auto_play_enabled = False
         self.disable_controls(self.auto_play_enabled)
         self.auto_play_button.setText(
             self.auto_play_button_text[self.auto_play_enabled])
 
+    def step_back_button_lock(self):
+        self.step_back_button.setDisabled(
+            self.learner is None
+            or self.learner.step_no == 0
+            or self.auto_play_enabled)
+
+    def step_size_lock(self):
+        self.step_size_spin.setDisabled(not self.stochastic)
+
     def disable_controls(self, disabled):
-        """
-        Function disable or enable all controls except those from run part
-        """
-        self.step_box.setDisabled(disabled)
-        self.options_box.setDisabled(disabled)
-        self.properties_box.setDisabled(disabled)
+        for item in [self.step_button, self.step_back_button,
+                     self.restart_button, self.properties_box, self.options_box]:
+            item.setDisabled(disabled)
+
+    key_actions = {(0, Qt.Key_Space): step}  # space button for step
+
+    def keyPressEvent(self, e):
+        """Bind 'back' key to step back"""
+        if (int(e.modifiers()), e.key()) in self.key_actions:
+            fun = self.key_actions[(int(e.modifiers()), e.key())]
+            fun(self)
+        else:
+            super().keyPressEvent(e)
+
+    ##############################
+    # Signals and data-handling
+
+    @Inputs.data
+    def set_data(self, data):
+        target_combo = self.controls.target_class
+
+        self.closeContext()
+        self.Error.clear()
+
+        self.cost_grid = None
+        self.learner = None
+        self.selected_data = None
+        self.data = None
+        target_combo.clear()
+        self.clear_plot()
+
+        if data:
+            self.var_model.set_domain(data.domain)
+            if data.domain.class_var is None:
+                data = None
+                self.Error.no_class()
+            # don't use self.is_classification -- widget has no self.data yet
+            elif data.domain.class_var.is_discrete:
+                if len(data.domain.class_var.values) < 2:
+                    self.Error.no_class_values()
+                    data = None
+                elif len(self.var_model) < 2:
+                    self.Error.num_features("two numeric variables")
+                    data = None
+            elif len(self.var_model) < 1:
+                self.Error.num_features("one numeric variable")
+                data = None
+
+        if not data:
+            self.var_model.set_domain(None)
+            self.send_output()
+            return
+
+        self.data = data
+        self.controls.attr_y.setHidden(not self.is_classification)
+        target_combo.box.setHidden(not self.is_classification)
+        self.attr_x = self.var_model[0]
+        if self.is_classification:
+            self.attr_y = self.var_model[min(1, len(self.var_model))]
+            target_combo.clear()
+            values = data.domain.class_var.values
+            target_combo.addItems(values)
+            # For binary class, take value with index 1 as a target, so the
+            # output class is the same as the input
+            self.target_class = values[1 if len(values) == 2 else 0]
+        self.step_size_spin.setMaximum(len(data))
+        self.openContext(self.data)
+        self.set_axis_titles()
+        self.restart()
+
+    @property
+    def is_classification(self):
+        return self.data and self.data.domain.class_var.is_discrete
+
+    def select_columns(self):
+        self.Error.no_nonnan_data.clear()
+        self.Error.same_variable.clear()
+        self.selected_data = None
+        if self.data is None:
+            return
+
+        old_class = self.data.domain.class_var
+        if self.is_classification:
+            if self.attr_x is self.attr_y:
+                self.Error.same_variable()
+                return
+            values = old_class.values
+            target_idx = values.index(self.target_class)
+            new_class = DiscreteVariable(
+                old_class.name + "'",
+                values=(values[1 - target_idx] if len(values) == 2 else 'Others',
+                        self.target_class),
+                compute_value=Indicator(old_class, target_idx))
+            domain = Domain([self.attr_x, self.attr_y], new_class, [old_class])
+        else:
+            domain = Domain([self.attr_x], old_class)
+
+        data = self.data.transform(domain)
+        valid_data = \
+            np.flatnonzero(
+                np.all(
+                    np.isfinite(data.X),
+                    axis=1)
+            )
+
+        if not valid_data.size:
+            self.Error.no_nonnan_data()
+            return
+
+        data = data[valid_data]
+        self.selected_data = Normalize(
+            transform_class=not self.is_classification)(
+            data)
 
     def send_output(self):
-        """
-        Function sends output
-        """
         self.send_model()
         self.send_coefficients()
-        self.send_data()
 
     def send_model(self):
-        """
-        Function sends model on output.
-        """
         if self.learner is not None and self.learner.theta is not None:
             self.Outputs.model.send(self.learner.model)
         else:
             self.Outputs.model.send(None)
 
     def send_coefficients(self):
-        """
-        Function sends logistic regression coefficients on output.
-        """
-        if self.learner is not None and self.learner.theta is not None:
-            domain = Domain(
-                    [ContinuousVariable("Coefficients")],
-                    metas=[StringVariable("Name")])
-            names = ["theta 0", "theta 1"]
-
-            coefficients_table = Table.from_list(
-                    domain, list(zip(list(self.learner.theta), names)))
-            self.Outputs.coefficients.send(coefficients_table)
-        else:
+        if self.learner is None or self.learner.theta is None:
             self.Outputs.coefficients.send(None)
+            return
 
-    def send_data(self):
-        """
-        Function sends data on output.
-        """
-        if self.selected_data is not None:
-            self.Outputs.data.send(self.selected_data)
+        domain = Domain(
+            [ContinuousVariable("Coefficient")],
+            metas=[StringVariable("Variable")])
+        if self.is_classification:
+            names = [self.attr_x.name, self.attr_y.name]
         else:
-            self.Outputs.data.send(None)
+            names = ["intercept", self.attr_x.name]
 
-    key_actions = {(0, Qt.Key_Space): step}  # space button for step
-
-    def keyPressEvent(self, e):
-        """
-        Handle default key actions in this widget
-        """
-        if (int(e.modifiers()), e.key()) in self.key_actions:
-            fun = self.key_actions[(int(e.modifiers()), e.key())]
-            fun(self)
-        else:
-            super(OWGradientDescent, self).keyPressEvent(e)
-
-    @property
-    def is_logistic(self):
-        return self.learner_name == "Logistic regression"
+        coefficients_table = Table.from_list(
+            domain, list(zip(list(self.learner.theta), names)))
+        self.Outputs.coefficients.send(coefficients_table)
 
     def send_report(self):
         if self.data is None:
@@ -870,10 +453,208 @@ class OWGradientDescent(OWWidget):
         if self.stochastic:
             caption_items += (("Stochastic step size", self.step_size),)
         caption = report.render_items_vert(caption_items)
-        self.report_plot(self.scatter)
+        self.report_plot(self.graph)
         self.report_caption(caption)
+
+    ##############################
+    # Plot-related methods
+
+    def clear_plot(self):
+        self.graph.clear()
+        self.graph.addItem(self.hover_label)
+        self.graph.addItem(self.optimization_label)
+        self.optimization_label.hide()
+
+    def replot(self):
+        if self.data is None or self.selected_data is None:
+            self.clear_plot()
+            return
+
+        optimal_theta = self.learner.optimized()
+        self.min_x = optimal_theta[0] - 10
+        self.max_x = optimal_theta[0] + 10
+        self.min_y = optimal_theta[1] - 10
+        self.max_y = optimal_theta[1] + 10
+        self.graph.setRange(xRange=(self.min_x, self.max_x),
+                            yRange=(self.min_y, self.max_y))
+
+        x = np.linspace(self.min_x, self.max_x, GRID_SIZE)
+        y = np.linspace(self.min_y, self.max_y, GRID_SIZE)
+        xv, yv = np.meshgrid(x, y)
+        thetas = np.column_stack((xv.flatten(), yv.flatten()))
+        cost_values = self.learner.j(thetas)
+        self.cost_grid = cost_values.reshape(xv.shape)
+
+        self.plot_gradient()
+        self.plot_contour(xv, yv)
+        self.add_paths()
+
+    def plot_gradient(self):
+        if self.cost_grid is None:
+            return
+
+        bitmap = self.cost_grid * (255 / np.max(self.cost_grid))  # make a copy
+        bitmap = bitmap.astype(np.uint8)
+
+        h, s, v = rgb_to_hsv(*self.default_background_color / 255)
+        palette = np.linspace([h, 0, v], [h, s, 1], 255)
+        palette = 255 * np.array([hsv_to_rgb(*col) for col in palette])
+        palette = palette.astype(int)
+
+        density_img = pg.ImageItem(bitmap.T, lut=palette)
+        density_img.setRect(
+            QRectF(self.min_x, self.min_y,
+                   self.max_x - self.min_x, self.max_y - self.min_y))
+        density_img.setZValue(-1)
+        self.graph.addItem(density_img, ignoreBounds=True)
+
+    def plot_contour(self, xv, yv):
+        while self.contours:
+            self.graph.removeItem(self.contours.pop())
+
+        if self.cost_grid is None:
+            return
+
+        contour = Contour(xv, yv, self.cost_grid)
+        contour_lines = contour.contours(
+            np.linspace(np.min(self.cost_grid), np.max(self.cost_grid), 20))
+
+        for key, value in contour_lines.items():
+            for line in value:
+                if len(line) > 3:
+                    tck, u = splprep(np.array(line).T, s=0.0, per=0)
+                    u_new = np.linspace(u.min(), u.max(), 100)
+                    x_new, y_new = splev(u_new, tck, der=0)
+                    interpol_line = np.c_[x_new, y_new]
+                else:
+                    interpol_line = line
+
+                contour = pg.PlotCurveItem(
+                    *np.array(list(interpol_line)).T,
+                    pen=self._contour_pen(False))
+                contour.value = key
+                self.graph.addItem(contour)
+                self.contours.append(contour)
+
+    def add_paths(self):
+        yellow = QColor(255, 165, 0)
+        dark = yellow.darker()
+        self.optimization_path = pg.PlotDataItem(
+            [], [], pen=pg.mkPen(dark, width=2),
+            symbolPen=pg.mkPen(yellow), symbolBrush=pg.mkBrush(dark),
+            symbol="o", symbolSize=4)
+        self.last_point = pg.PlotDataItem(
+            [], [],
+            symbolPen=pg.mkPen(yellow), symbolBrush=pg.mkBrush(yellow),
+            symbol="o", symbolSize=7)
+        self.graph.addItem(self.optimization_path)
+        self.graph.addItem(self.last_point)
+
+    @staticmethod
+    def _contour_pen(is_hovered=False):
+        return pg.mkPen(0.2, width=1 + 2 * is_hovered)
+
+    def set_axis_titles(self):
+        if self.selected_data is None:
+            names = ["", ""]
+        elif self.is_classification:
+            names = [f"Θ({self.attr_x.name})", f"Θ({self.attr_y.name})"]
+        else:
+            names = ["Θ₀", "Θ₁"]
+        for axname, name in zip(("bottom", "left"), names):
+            axis = self.graph.getAxis(axname)
+            axis.setLabel(name)
+
+    def update_history(self):
+        steps = self.learner.step_no
+        x, y = zip(*(coords for coords, *_ in self.learner.history[:steps + 1]))
+        self.optimization_path.setData(x, y, data=np.arange(steps + 1))
+
+        lx, ly = x[-1], y[-1]
+        self.last_point.setData([lx], [ly], shape="o")
+        self.optimization_label.setPos(lx, ly)
+        self.optimization_label.setHtml(self._format_label(lx, ly, steps))
+        self.optimization_label.show()
+
+        self._update_hover_visibility()
+
+        self.send_output()
+
+    ##############################
+    # Plot labels
+
+    def help_event(self, event):
+        if self.cost_grid is None:
+            return False
+
+        pos = event.scenePos()
+        pos = self.graph.mapToView(pos)
+        xc, yc = pos.x(), pos.y()
+
+        if event.button() == Qt.LeftButton:
+            self.change_theta(xc, yc)
+            return True
+
+        label = self.hover_label
+        hovered_line = None
+
+        # In case there are multiple hovered points or lines, pick the middle
+        opt_points = self.optimization_path.scatter.pointsAt(pos)
+        if opt_points.size:
+            point = opt_points[len(opt_points) // 2]
+            ppos = point.pos()
+            label.setHtml(self._format_label(ppos.x(), ppos.y(), point.data()))
+        else:
+            hovereds = [item for item in self.contours
+                        if isinstance(item, pg.PlotCurveItem)
+                        and item.mouseShape().contains(pos)]
+            if hovereds:
+                hovered_line = hovereds[len(hovereds) // 2]
+                # Show the cost for the line at mouse position, not the one
+                # computed from coordinates. Use a different format to
+                # distinguish this "line label" from the usual hover label
+                label.setHtml(f"<b>Cost: {hovered_line.value:.3f}</b>")
+            else:
+                cost = self.learner.j(np.array([xc, yc]))
+                label.setHtml(f"{xc:.3f}, {yc:.3f}<br/>Cost: {cost:.5f}")
+
+        # Set the pen for all lines, hovered and not hovered (any longer)
+        for item in self.contours:
+            item.setPen(self._contour_pen(item is hovered_line))
+
+        label.setPos(pos)
+        label.show()
+        self._update_hover_visibility()
+        return True
+
+    def _update_hover_visibility(self):
+        # QGraphicsTextItem.collidesWith doesn't seem to work. I'm stupid,
+        # or it may be related to ignoring transformations.
+        opt_label = self.optimization_label
+        hover_label = self.hover_label
+        bopt = opt_label.boundingRect()
+        bopt.moveTo(self.graph.mapFromView(opt_label.pos()))
+        bhov = hover_label.boundingRect()
+        bhov.moveTo(self.graph.mapFromView(hover_label.pos()))
+        if hover_label.isVisible() and bhov.intersects(bopt):
+            opt_label.hide()
+        else:
+            opt_label.show()
+
+    def _format_label(self, x, y, step):
+        return \
+            f"<b>Step {step}:</b><br/>" \
+            f"{x:.3f}, {y:.3f}<br/>" \
+            f"Cost: {self.learner.j(np.array([x, y])):.5f}"
+
+    def changeEvent(self, ev):
+        # This hides the label if the user alt-tabs out of the window
+        if ev.type() == QEvent.ActivationChange and not self.isActiveWindow():
+            self.hover_label.hide()
+            self._update_hover_visibility()
+        super().changeEvent(ev)
 
 
 if __name__ == "__main__":
-    from orangewidget.utils.widgetpreview import WidgetPreview
     WidgetPreview(OWGradientDescent).run(Table.from_file('iris'))
+    # WidgetPreview(OWGradientDescent).run(Table.from_file('housing'))

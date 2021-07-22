@@ -1,18 +1,19 @@
 import unittest
+from unittest.mock import Mock
 
 import time
 from numpy.testing import *
 import numpy as np
 import scipy.sparse as sp
 
-from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
-from Orange.widgets.tests.base import WidgetTest
-
 from AnyQt.QtCore import Qt, QEvent
 from AnyQt.QtGui import QKeyEvent
 
+from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
+from Orange.widgets.tests.base import WidgetTest
+
 from orangecontrib.educational.widgets.owgradientdescent import \
-    OWGradientDescent
+    OWGradientDescent, GRID_SIZE
 
 
 class TestOWGradientDescent(WidgetTest):
@@ -25,160 +26,110 @@ class TestOWGradientDescent(WidgetTest):
     def test_fast(self):
         pass
 
-    def test_set_data_no_data(self):
-        """
-        Test set data
-        """
-        w = self.widget
-
-        # test on init
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-
-        # call with none data
-        self.send_signal(w.Inputs.data, None)
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-
-    def test_set_data_no_class(self):
-        """
-        Test set data
-        """
-        w = self.widget
-        # call with no class variable
-        table_no_class = Table.from_list(
-            Domain([ContinuousVariable("x"), ContinuousVariable("y")]),
-            [[1, 2], [2, 3]]
-        )
-        self.send_signal(w.Inputs.data, table_no_class)
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Error.no_class.is_shown())
-
-    def test_set_data_one_class_value(self):
-        """
-        Test set data
-        """
-        w = self.widget
-        # with only one class value
-        table_one_class = Table.from_numpy(
-            Domain([ContinuousVariable("x"), ContinuousVariable("y")],
-                   DiscreteVariable("a", values=("k", ))),
-            [[1, 2], [2, 3]], [0, 0]
-        )
-        self.send_signal(w.Inputs.data, table_one_class)
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Error.to_few_values.is_shown())
-
-    def test_set_data_incomplete_continuous(self):
-        """
-        Test set data
-        """
-        w = self.widget
-        # not enough continuous variables
-        table_no_enough_cont = Table.from_numpy(
-            Domain(
-                [ContinuousVariable("x"),
-                 DiscreteVariable("y", values=("a", "b"))],
-                DiscreteVariable("a", values=('a', 'b'))),
-            [[1, 0], [2, 1]], [0, 1]
-        )
-        self.send_signal(w.Inputs.data, table_no_enough_cont)
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Error.to_few_features.is_shown())
-
     def test_set_data_discrete(self):
         """
         Test set data
         """
         w = self.widget
         # init with ok data, discrete class - logistic regression
-        num_continuous_attributes = sum(
-            True for var in self.iris.domain.attributes
-            if isinstance(var, ContinuousVariable))
+        continuous_attributes = [
+            var for var in self.iris.domain.attributes
+            if isinstance(var, ContinuousVariable)]
 
         self.send_signal(w.Inputs.data, self.iris)
-        self.assertEqual(w.cbx.count(), num_continuous_attributes)
-        self.assertEqual(w.cby.count(), num_continuous_attributes)
+        self.assertEqual(len(w.var_model), len(continuous_attributes))
         self.assertEqual(
-            w.target_class_combobox.count(),
+            w.controls.target_class.count(),
             len(self.iris.domain.class_var.values))
-        self.assertEqual(w.cbx.currentText(), self.iris.domain[0].name)
-        self.assertEqual(w.cby.currentText(), self.iris.domain[1].name)
+        self.assertEqual(w.attr_x.name, continuous_attributes[0].name)
+        self.assertEqual(w.attr_y.name, continuous_attributes[1].name)
         self.assertEqual(
-            w.target_class_combobox.currentText(),
+            w.controls.target_class.currentText(),
             self.iris.domain.class_var.values[0])
 
-        self.assertEqual(w.attr_x, self.iris.domain[0].name)
-        self.assertEqual(w.attr_y, self.iris.domain[1].name)
+        self.assertEqual(w.attr_x.name, self.iris.domain[0].name)
+        self.assertEqual(w.attr_y.name, self.iris.domain[1].name)
         self.assertEqual(w.target_class, self.iris.domain.class_var.values[0])
 
-        # change showed attributes
-        w.attr_x = self.iris.domain[1].name
-        w.attr_y = self.iris.domain[2].name
-        w.target_class = self.iris.domain.class_var.values[1]
-
-        self.assertEqual(w.cbx.currentText(), self.iris.domain[1].name)
-        self.assertEqual(w.cby.currentText(), self.iris.domain[2].name)
-        self.assertEqual(
-            w.target_class_combobox.currentText(),
-            self.iris.domain.class_var.values[1])
-
-        self.assertEqual(w.attr_x, self.iris.domain[1].name)
-        self.assertEqual(w.attr_y, self.iris.domain[2].name)
-        self.assertEqual(w.target_class, self.iris.domain.class_var.values[1])
-
-        # remove data
-        self.send_signal(w.Inputs.data, None)
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-
-    def test_set_data_incomplete_cont_class(self):
+    def test_set_bad_data(self):
         """
         Test set data
         """
         w = self.widget
-        # not enough continuous variables when continuous class
-        table_no_enough_cont = Table.from_numpy(
+
+        table_no_cont = Table.from_numpy(
             Domain(
                 [DiscreteVariable("y", values=("a", "b"))],
                 ContinuousVariable("a")),
             [[1], [0]], [0, 1])
+        table_not_enough_cont = Table.from_numpy(
+            Domain(
+                [ContinuousVariable("x"),
+                 DiscreteVariable("y", values=("a", "b"))],
+                DiscreteVariable("a", values=('a', 'b'))),
+            [[1, 0], [2, 1]], [0, 1]
+        )
+        table_no_class = Table.from_list(
+            Domain([ContinuousVariable("x"), ContinuousVariable("y")]),
+            [[1, 2], [2, 3]]
+        )
+        table_one_class = Table.from_numpy(
+            Domain([ContinuousVariable("x"), ContinuousVariable("y")],
+                   DiscreteVariable("a", values=("k", ))),
+            [[1, 2], [2, 3]], [0, 0]
+        )
 
-        self.send_signal(w.Inputs.data, table_no_enough_cont)
-        self.assertIsNone(w.data)
-        self.assertEqual(w.cbx.count(), 0)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertIsNone(w.learner)
-        self.assertIsNone(w.cost_grid)
-        self.assertTrue(w.Error.to_few_features.is_shown())
+        for data, error, subname in (
+                (table_no_cont, w.Error.num_features, "no numeric"),
+                (table_not_enough_cont, w.Error.num_features, "too few numeric"),
+                (table_no_class, w.Error.no_class, "no class"),
+                (table_one_class, w.Error.no_class_values, "single class"),
+                (None, None, "Mone")):
+            with self.subTest(subname):
+                # Initialize the widget to something
+                self.send_signal(w.Inputs.data, self.iris)
+                self.assertIsNotNone(w.selected_data)
+                self.assertIsNotNone(w.learner)
+                self.assertIsNotNone(w.cost_grid)
+
+                # Now pass some bad data and checkt that it's reset
+                self.send_signal(w.Inputs.data, data)
+                self.assertIsNone(w.data)
+                self.assertIsNone(w.selected_data)
+                self.assertEqual(len(w.var_model), 0)
+                self.assertEqual(w.controls.target_class.count(), 0)
+                self.assertIsNone(w.learner)
+                self.assertIsNone(w.cost_grid)
+                if error is not None:
+                    self.assertTrue(error.is_shown())
+
+    def test_same_variable(self):
+        w = self.widget
+        self.send_signal(w.Inputs.data, self.iris)
+
+        assert w.selected_data is not None
+        assert w.attr_x is w.data.domain[0]
+
+        w.attr_y = w.data.domain[0]
+        w.change_attributes()
+        self.assertIsNone(w.selected_data)
+        self.assertTrue(w.Error.same_variable.is_shown())
+
+        w.attr_y = w.data.domain[1]
+        w.change_attributes()
+        self.assertIsNotNone(w.selected_data)
+        self.assertFalse(w.Error.same_variable.is_shown())
+
+        self.send_signal(w.Inputs.data, None)
+        self.assertFalse(w.Error.same_variable.is_shown())
+
+        self.send_signal(w.Inputs.data, self.iris)
+        w.attr_y = w.data.domain[0]
+        w.change_attributes()
+        self.assertTrue(w.Error.same_variable.is_shown())
+
+        self.send_signal(w.Inputs.data, Table("housing"))
+        self.assertFalse(w.Error.same_variable.is_shown())
 
     def test_set_data_continuous(self):
         """
@@ -186,26 +137,15 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
         # init with ok data, continuous class - linear regression
-        num_continuous_attributes = sum(
-            True for var in self.housing.domain.attributes
-            if isinstance(var, ContinuousVariable))
+        continuous_attributes = [
+            var for var in self.housing.domain.attributes
+            if isinstance(var, ContinuousVariable)]
 
         self.send_signal(w.Inputs.data, self.housing)
-        self.assertEqual(w.cbx.count(), num_continuous_attributes)
-        self.assertEqual(w.cby.count(), 0)
-        self.assertEqual(w.target_class_combobox.count(), 0)
-        self.assertFalse(w.cby.isEnabled())
-        self.assertFalse(w.target_class_combobox.isEnabled())
-        self.assertEqual(w.cbx.currentText(), self.housing.domain[0].name)
-
-        self.assertEqual(w.attr_x, self.housing.domain[0].name)
-
-        # change showed attributes
-        w.attr_x = self.housing.domain[1].name
-
-        self.assertEqual(w.cbx.currentText(), self.housing.domain[1].name)
-
-        self.assertEqual(w.attr_x, self.housing.domain[1].name)
+        self.assertEqual(len(w.var_model), len(continuous_attributes))
+        self.assertFalse(w.controls.attr_y.isVisible())
+        self.assertFalse(w.controls.target_class.isVisible())
+        self.assertIs(w.attr_x, continuous_attributes[0])
 
     def test_set_learner_discrete(self):
         """
@@ -277,7 +217,7 @@ class TestOWGradientDescent(WidgetTest):
         self.send_signal(w.Inputs.data, Table.from_file('iris'))
 
         # check init alpha
-        self.assertEqual(w.learner.alpha, 0.1)
+        self.assertEqual(w.learner.alpha, 0.4)
 
         # change alpha
         w.alpha_spin.setValue(1)
@@ -351,8 +291,6 @@ class TestOWGradientDescent(WidgetTest):
         # change theta
         w.change_theta(1, 1)
         assert_array_equal(w.learner.theta, [1, 1])
-        w.scatter.bridge.chart_clicked(1, 2)
-        assert_array_equal(w.learner.theta, [1, 2])
 
         # just check if nothing happens when no learner
         self.send_signal(w.Inputs.data, None)
@@ -686,43 +624,47 @@ class TestOWGradientDescent(WidgetTest):
         """
         w = self.widget
         # nothing happens when no data
-        w.replot()
+        w.replot = Mock()
 
         self.assertIsNone(w.cost_grid)
-        self.assertEqual(w.scatter.count_replots, 1)
+        w.replot.assert_not_called()
 
     def test_replot_discrete(self):
         w = self.widget
+        w.replot = Mock(wraps=w.replot)
 
         self.send_signal(w.Inputs.data, self.iris[::15])
-        self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
-        self.assertEqual(w.scatter.count_replots, 2)
+        self.assertTupleEqual(w.cost_grid.shape, (GRID_SIZE, GRID_SIZE))
+        w.replot.assert_called_once()
+        w.replot.reset_mock()
 
         # when step no new re-plots
         w.step()
-        self.assertEqual(w.scatter.count_replots, 2)
+        w.replot.assert_not_called()
 
         # triggered new re-plot
         self.send_signal(w.Inputs.data, self.iris[::15])
-        self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
-        self.assertEqual(w.scatter.count_replots, 3)
+        self.assertTupleEqual(w.cost_grid.shape, (GRID_SIZE, GRID_SIZE))
+        w.replot.assert_called_once()
+        w.replot.reset_mock()
 
     def test_replot_continuous(self):
         w = self.widget
-
+        w.replot = Mock(wraps=w.replot)
         # with linear regression
         self.send_signal(w.Inputs.data, self.housing[::100])
-        self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
-        self.assertEqual(w.scatter.count_replots, 2)
+        self.assertTupleEqual(w.cost_grid.shape, (GRID_SIZE, GRID_SIZE))
+        w.replot.assert_called_once()
+        w.replot.reset_mock()
 
         # when step no new re-plots
         w.step()
-        self.assertEqual(w.scatter.count_replots, 2)
+        w.replot.assert_not_called()
 
         # triggered new re-plot
         self.send_signal(w.Inputs.data, self.iris)
-        self.assertTupleEqual(w.cost_grid.shape, (w.grid_size, w.grid_size))
-        self.assertEqual(w.scatter.count_replots, 3)
+        self.assertTupleEqual(w.cost_grid.shape, (GRID_SIZE, GRID_SIZE))
+        w.replot.assert_called_once()
 
     def test_select_data_continuous(self):
         """
@@ -736,10 +678,12 @@ class TestOWGradientDescent(WidgetTest):
 
         # test on housing - continuous class
         self.send_signal(w.Inputs.data, data)
-        self.assertEqual(len(w.select_data()), len(data))
-        self.assertEqual(len(w.select_data().domain.attributes), 1)
-        self.assertEqual(w.select_data().domain.attributes[0].name, w.attr_x)
-        self.assertTrue(w.select_data().domain.class_var.is_continuous)
+        self.assertEqual(len(w.selected_data), len(data))
+        self.assertEqual(len(w.selected_data.domain.attributes), 1)
+        # One is normalized, but the name should still be the same
+        self.assertEqual(w.selected_data.domain.attributes[0].name,
+                         w.attr_x.name)
+        self.assertTrue(w.selected_data.domain.class_var.is_continuous)
 
     def test_select_data_discrete(self):
         """
@@ -753,19 +697,20 @@ class TestOWGradientDescent(WidgetTest):
         data = Table.from_numpy(domain, [[1, 2], [1, 2]], [0, 1])
 
         self.send_signal(w.Inputs.data, data)
-        self.assertEqual(len(w.select_data()), len(data))
-        self.assertEqual(len(w.select_data().domain.attributes), 2)
-        self.assertEqual(len(w.select_data().domain.class_var.values), 2)
+        self.assertEqual(len(w.selected_data), len(data))
+        self.assertEqual(len(w.selected_data.domain.attributes), 2)
+        self.assertEqual(len(w.selected_data.domain.class_var.values), 2)
         self.assertEqual(
-            w.select_data().domain.class_var.values[1],
+            w.selected_data.domain.class_var.values[1],
             data.domain.class_var.values[1])
         self.assertEqual(
-            w.select_data().domain.class_var.values[0],
+            w.selected_data.domain.class_var.values[0],
             data.domain.class_var.values[0])
-        self.assertEqual(w.select_data().domain.attributes[0].name, w.attr_x)
-        self.assertEqual(w.select_data().domain.attributes[1].name, w.attr_y)
+        # One is normalized, but the name should still be the same
+        self.assertEqual(w.selected_data.domain.attributes[0].name, w.attr_x.name)
+        self.assertEqual(w.selected_data.domain.attributes[1].name, w.attr_y.name)
         self.assertEqual(
-            w.select_data().domain.class_var.values[0], w.target_class)
+            w.selected_data.domain.class_var.values[1], w.target_class)
 
     def test_select_data_none(self):
         """
@@ -782,7 +727,7 @@ class TestOWGradientDescent(WidgetTest):
             [[1, None], [1, None]], [0, 1]
         )
         self.send_signal(w.Inputs.data, data)
-        selected_data = w.select_data()
+        selected_data = w.select_columns()
         self.assertIsNone(selected_data)
 
         data = Table.from_numpy(
@@ -793,7 +738,7 @@ class TestOWGradientDescent(WidgetTest):
             [[None, None], [None, None]], [0, 1]
         )
         self.send_signal(w.Inputs.data, data)
-        selected_data = w.select_data()
+        selected_data = w.select_columns()
         self.assertIsNone(selected_data)
 
     def test_autoplay(self):
@@ -811,7 +756,6 @@ class TestOWGradientDescent(WidgetTest):
         # check init
         self.assertFalse(w.auto_play_enabled)
         self.assertEqual(w.auto_play_button.text(), w.auto_play_button_text[0])
-        self.assertTrue((w.step_box.isEnabled()))
         self.assertTrue((w.options_box.isEnabled()))
         self.assertTrue((w.properties_box.isEnabled()))
 
@@ -819,7 +763,6 @@ class TestOWGradientDescent(WidgetTest):
         w.auto_play()
         self.assertTrue(w.auto_play_enabled)
         self.assertEqual(w.auto_play_button.text(), w.auto_play_button_text[1])
-        self.assertFalse((w.step_box.isEnabled()))
         self.assertFalse((w.options_box.isEnabled()))
         self.assertFalse((w.properties_box.isEnabled()))
 
@@ -827,7 +770,6 @@ class TestOWGradientDescent(WidgetTest):
         w.auto_play()
         self.assertFalse(w.auto_play_enabled)
         self.assertEqual(w.auto_play_button.text(), w.auto_play_button_text[0])
-        self.assertTrue((w.step_box.isEnabled()))
         self.assertTrue((w.options_box.isEnabled()))
         self.assertTrue((w.properties_box.isEnabled()))
 
@@ -838,29 +780,24 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         # check init
-        self.assertTrue((w.step_box.isEnabled()))
         self.assertTrue((w.options_box.isEnabled()))
         self.assertTrue((w.properties_box.isEnabled()))
 
         # disable
         w.disable_controls(True)
-        self.assertFalse((w.step_box.isEnabled()))
         self.assertFalse((w.options_box.isEnabled()))
         self.assertFalse((w.properties_box.isEnabled()))
 
         w.disable_controls(True)
-        self.assertFalse((w.step_box.isEnabled()))
         self.assertFalse((w.options_box.isEnabled()))
         self.assertFalse((w.properties_box.isEnabled()))
 
         # enable
         w.disable_controls(False)
-        self.assertTrue((w.step_box.isEnabled()))
         self.assertTrue((w.options_box.isEnabled()))
         self.assertTrue((w.properties_box.isEnabled()))
 
         w.disable_controls(False)
-        self.assertTrue((w.step_box.isEnabled()))
         self.assertTrue((w.options_box.isEnabled()))
         self.assertTrue((w.properties_box.isEnabled()))
 
@@ -898,10 +835,8 @@ class TestOWGradientDescent(WidgetTest):
         coef_out = self.get_output(w.Outputs.coefficients)
         self.assertEqual(len(coef_out), 2)
         self.assertEqual(len(coef_out.domain.attributes), 1)
-        self.assertEqual(coef_out.domain.attributes[0].name, "Coefficients")
         self.assertEqual(len(coef_out.domain.metas), 1)
-        self.assertEqual(coef_out.domain.metas[0].name, "Name")
-        # when data deleted
+        # when data is removed
         self.send_signal(w.Inputs.data, None)
         self.assertIsNone(self.get_output(w.Outputs.coefficients))
 
@@ -919,27 +854,7 @@ class TestOWGradientDescent(WidgetTest):
         coef_out = self.get_output(w.Outputs.coefficients)
         self.assertEqual(len(coef_out), 2)
         self.assertEqual(len(coef_out.domain.attributes), 1)
-        self.assertEqual(coef_out.domain.attributes[0].name, "Coefficients")
         self.assertEqual(len(coef_out.domain.metas), 1)
-        self.assertEqual(coef_out.domain.metas[0].name, "Name")
-
-    def test_send_data(self):
-        """
-        Test sending selected data to output
-        """
-        w = self.widget
-
-        # when no data
-        self.assertIsNone(self.get_output(w.Outputs.data))
-
-        # when everything fine
-        self.send_signal(w.Inputs.data, self.iris)
-        w.change_theta(1., 1.)
-        assert_array_equal(self.get_output(w.Outputs.data), w.selected_data)
-
-        # when data deleted
-        self.send_signal(w.Inputs.data, None)
-        self.assertIsNone(self.get_output(w.Outputs.data))
 
     def test_change_attributes(self):
         """
@@ -965,20 +880,16 @@ class TestOWGradientDescent(WidgetTest):
 
         # when everything fine
         self.send_signal(w.Inputs.data, self.iris)
-        self.process_events(_svg_ready)
         w.send_report()
 
         # when no data
         self.send_signal(w.Inputs.data, None)
-        self.process_events(_svg_ready)
         w.send_report()
 
         # for stochastic
         w.stochastic_checkbox.click()
         self.send_signal(w.Inputs.data, self.iris)
-        self.process_events(_svg_ready)
         w.send_report()
-        self.process_events()
 
     def test_auto_play_data_removed(self):
         """
