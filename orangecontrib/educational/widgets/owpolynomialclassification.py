@@ -294,7 +294,7 @@ class OWPolynomialClassification(OWBaseLearner):
     @staticmethod
     def _contour_pen(value, hovered):
         return pg.mkPen(0.2,
-            width=1 + hovered + (value == 0.5),
+            width=1 + 2 * hovered + (value == 0.5),
             style=Qt.SolidLine)
             # Alternative:
             # Qt.SolidLine if hovered or value == 0.5 else Qt.DashDotLine
@@ -330,6 +330,9 @@ class OWPolynomialClassification(OWBaseLearner):
         if "." not in prob_lab:
             prob_lab += ".0"  # Showing just 0 or 1 looks ugly
         label.setHtml(prob_lab)
+        font = label.font()
+        font.setBold(hovered is not None)
+        label.setFont(font)
 
         # Position the label above and left from mouse; looks nices
         rect = label.boundingRect()
