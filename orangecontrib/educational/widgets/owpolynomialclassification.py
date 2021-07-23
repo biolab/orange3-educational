@@ -423,8 +423,8 @@ class OWPolynomialClassification(OWBaseLearner):
                 contour = pg.PlotCurveItem(
                     *np.array(list(interpol_line)).T,
                     pen=self._contour_pen(key, False))
-                # To narrow the hover region, uncomment the following line;
-                # it sets the mouse width for hover (but keeps it unclickable)
+                # The hover region can be narrowed by calling setClickable
+                # (with False, to keep it unclickable)
                 contour.value = key
                 self.graph.plot_widget.addItem(contour)
                 self.contours.append(contour)
