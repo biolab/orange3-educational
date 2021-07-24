@@ -15,8 +15,9 @@ import pyqtgraph as pg
 
 from Orange.data import \
     Table, Domain, ContinuousVariable, StringVariable, DiscreteVariable
+from Orange.base import Learner
 from Orange.classification import \
-    Learner, LogisticRegressionLearner, RandomForestLearner, TreeLearner
+    LogisticRegressionLearner, RandomForestLearner, TreeLearner
 from Orange.preprocess.transformation import Indicator
 
 from Orange.widgets import gui
