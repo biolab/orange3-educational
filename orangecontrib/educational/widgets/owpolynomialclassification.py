@@ -1,5 +1,6 @@
 import copy
 from colorsys import rgb_to_hsv, hsv_to_rgb
+from xml.sax.saxutils import escape
 from itertools import chain
 
 import numpy as np
@@ -7,7 +8,7 @@ from scipy.interpolate import splprep, splev
 from scipy.ndimage.filters import gaussian_filter
 
 from AnyQt.QtCore import Qt, QRectF, QObject, QPointF, QEvent
-from AnyQt.QtGui import QPalette, QPen, QFont, QCursor
+from AnyQt.QtGui import QPalette, QPen, QFont, QCursor, QColor, QBrush
 from AnyQt.QtWidgets import QGraphicsSceneMouseEvent, QGraphicsTextItem
 
 import pyqtgraph as pg
@@ -21,9 +22,11 @@ from Orange.preprocess.transformation import Indicator
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     DomainContextHandler, Setting, SettingProvider, ContextSetting
+from Orange.widgets.utils.colorpalettes import DiscretePalette
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.visualize.owscatterplotgraph import OWScatterPlotBase
+from Orange.widgets.visualize.utils.plotutils import SymbolItemSample
 from Orange.widgets.widget import Msg, Input, Output
 
 from orangecontrib.educational.widgets.utils.polynomialtransform \
@@ -41,6 +44,29 @@ class HoverEventDelegate(QObject):
     def eventFilter(self, obj, event):
         return isinstance(event, QGraphicsSceneMouseEvent) \
                and self.delegate(event)
+
+
+class PolynomialPlot(OWScatterPlotBase):
+    # Like OWScatterPlotBase, but with reversed legend, so the target class
+    # is first and "others" is seecond.
+    @staticmethod
+    def _make_pen(color, width):
+        p = QPen(color, width)
+        p.setCosmetic(True)
+        return p
+
+    def _update_colored_legend(self, legend, labels, _):
+        if self.scatterplot_item is None or not self.palette:
+            return
+        colors = self.palette.values_to_colors(np.arange(len(labels)))
+        for color, label in reversed(list(zip(colors, labels))):
+            color = QColor(*color)
+            pen = self._make_pen(color.darker(self.DarkerValue), 1.5)
+            color.setAlpha(self.alpha_value)
+            brush = QBrush(color)
+            legend.addItem(
+                SymbolItemSample(pen=pen, brush=brush, size=10, symbol="o"),
+                escape(label))
 
 
 class OWPolynomialClassification(OWBaseLearner):
@@ -65,7 +91,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     settingsHandler = DomainContextHandler(
         match_values=DomainContextHandler.MATCH_VALUES_CLASS)
-    graph = SettingProvider(OWScatterPlotBase)
+    graph = SettingProvider(PolynomialPlot)
 
     learner_name = Setting("Polynomial Classification")
     attr_x = ContextSetting(None)
@@ -221,6 +247,9 @@ class OWPolynomialClassification(OWBaseLearner):
             values=(values[1 - target_idx] if len(values) == 2 else 'Others',
                     self.target_class),
             compute_value=Indicator(old_class, target_idx))
+        new_class.palette = DiscretePalette(
+            "indicator", "indicator",
+            [[64, 64, 64], list(old_class.palette.palette[target_idx])])
 
         domain = Domain([attr_x, attr_y], new_class, [old_class])
 
@@ -263,7 +292,7 @@ class OWPolynomialClassification(OWBaseLearner):
     ##############################
     # Graph and its contents
     def _add_graph(self):
-        self.graph = OWScatterPlotBase(self)
+        self.graph = PolynomialPlot(self)
         self.graph.plot_widget.setCursor(QCursor(Qt.CrossCursor))
         self.mainArea.layout().addWidget(self.graph.plot_widget)
         self.graph.point_width = 1
@@ -376,9 +405,8 @@ class OWPolynomialClassification(OWBaseLearner):
         bitmap *= 255
         bitmap = bitmap.astype(np.uint8)
 
-        class_var = self.data.domain.class_var
-        target_idx = class_var.values.index(self.target_class)
-        h1, s1, v1 = rgb_to_hsv(*class_var.colors[target_idx] / 255)
+        class_var = self.selected_data.domain.class_var
+        h1, s1, v1 = rgb_to_hsv(*class_var.colors[1] / 255)
         palette = np.vstack((
             np.linspace([h1, 0, 0.8], [h1, 0, 1], 128),
             np.linspace([h1, 0, 1], [h1, s1 * 0.5, 0.7 + 0.3 * v1], 128)
@@ -446,10 +474,10 @@ class OWPolynomialClassification(OWBaseLearner):
         return self.selected_data and self.selected_data.Y
 
     def get_palette(self):
-        return self.data and self.data.domain.class_var.palette
+        return self.selected_data and self.selected_data.domain.class_var.palette
 
     def get_color_labels(self):
-        return self.data and self.data.domain.class_var.values
+        return self.selected_data and self.selected_data.domain.class_var.values
 
     def is_continuous_color(self):
         return False
