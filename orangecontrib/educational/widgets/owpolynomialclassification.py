@@ -107,6 +107,7 @@ class OWPolynomialClassification(OWBaseLearner):
         num_features = Msg("Data must contain at least two numeric variables.")
         no_class = Msg("Data must have a single target attribute.")
         no_nonnan_data = Msg("No points with defined values.")
+        same_variable = Msg("Select two different variables.")
 
     def __init__(self, *args, **kwargs):
         # Some attributes must be created before super().__init__
@@ -232,8 +233,14 @@ class OWPolynomialClassification(OWBaseLearner):
     def select_data(self):
         """Put the two selected columns in a new Orange.data.Table"""
         self.Error.no_nonnan_data.clear()
-        attr_x = self.data.domain[self.attr_x]
-        attr_y = self.data.domain[self.attr_y]
+        self.Error.same_variable.clear()
+
+        attr_x, attr_y = self.attr_x, self.attr_y
+        if self.attr_x is self.attr_y:
+            self.selected_data = None
+            self.Error.same_variable()
+            return
+
         names = [var.name for var in (attr_x, attr_y)]
         if names == ["x", "y"]:
             names = [""] * 2

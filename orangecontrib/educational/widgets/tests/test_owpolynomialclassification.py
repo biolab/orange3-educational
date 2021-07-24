@@ -289,6 +289,34 @@ class TestOWPolynomialClassificationNoGrid(WidgetTest):
         self.send_signal(w.Inputs.data, self.iris)
         np.testing.assert_equal(w.selected_data.X, self.iris.X[:-4, :2])
 
+    def test_same_variable(self):
+        w = self.widget
+        self.send_signal(w.Inputs.data, self.iris)
+
+        assert w.selected_data is not None
+        assert w.attr_x is w.data.domain[0]
+
+        w.attr_y = w.data.domain[0]
+        w._on_attr_changed()
+        self.assertIsNone(w.selected_data)
+        self.assertTrue(w.Error.same_variable.is_shown())
+
+        w.attr_y = w.data.domain[1]
+        w._on_attr_changed()
+        self.assertIsNotNone(w.selected_data)
+        self.assertFalse(w.Error.same_variable.is_shown())
+
+        self.send_signal(w.Inputs.data, None)
+        self.assertFalse(w.Error.same_variable.is_shown())
+
+        self.send_signal(w.Inputs.data, self.iris)
+        w.attr_y = w.data.domain[0]
+        w._on_attr_changed()
+        self.assertTrue(w.Error.same_variable.is_shown())
+
+        self.send_signal(w.Inputs.data, Table("housing"))
+        self.assertFalse(w.Error.same_variable.is_shown())
+
 
 class TestOWPolynomialClassification(WidgetTest):
     # Tests that compute the probability grid and contours, so the code is
