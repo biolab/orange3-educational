@@ -75,13 +75,12 @@ class TestLinearRegression(unittest.TestCase):
         self.assertFalse(lr.converged)
 
         # it converge when distance between current theta and this is < 1e-2
-        converge = False
-        while not converge:
+        for _ in range(1500):
             lr.step()
-            converge = (np.sum(
-                np.abs(lr.theta - lr.history[lr.step_no - 1][0])) /
-                        len(lr.theta) < 1e-2)
-            self.assertEqual(lr.converged, converge)
+            if lr.converged:
+                break
+        else:
+            self.fail()
 
     def test_step(self):
         """
