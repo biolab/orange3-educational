@@ -22,6 +22,8 @@ from Orange.preprocess.preprocess import Normalize
 from orangewidget.report import report
 from orangewidget.utils.widgetpreview import WidgetPreview
 
+from orangecontrib.educational.widgets.utils.gradient_grid import \
+    interpolate_grid
 from orangecontrib.educational.widgets.utils.linear_regression import \
     LinearRegression
 from orangecontrib.educational.widgets.utils.logistic_regression \
@@ -493,7 +495,8 @@ class OWGradientDescent(OWWidget):
         if self.cost_grid is None:
             return
 
-        bitmap = self.cost_grid * (255 / np.max(self.cost_grid))  # make a copy
+        cg = interpolate_grid(self.cost_grid, 256)
+        bitmap = cg * (255 / np.max(cg))  # make a copy
         bitmap = bitmap.astype(np.uint8)
 
         h, s, v = rgb_to_hsv(*self.default_background_color / 255)
@@ -518,7 +521,6 @@ class OWGradientDescent(OWWidget):
         contour = Contour(xv, yv, self.cost_grid)
         contour_lines = contour.contours(
             np.linspace(np.min(self.cost_grid), np.max(self.cost_grid), 20))
-
         for key, value in contour_lines.items():
             for line in value:
                 if len(line) > 3:
@@ -531,7 +533,9 @@ class OWGradientDescent(OWWidget):
 
                 contour = pg.PlotCurveItem(
                     *np.array(list(interpol_line)).T,
-                    pen=self._contour_pen(False))
+                    pen=self._contour_pen(False),
+                    antialias=True
+                )
                 contour.value = key
                 self.graph.addItem(contour)
                 self.contours.append(contour)

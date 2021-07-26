@@ -30,6 +30,8 @@ from Orange.widgets.visualize.owscatterplotgraph import OWScatterPlotBase
 from Orange.widgets.visualize.utils.plotutils import SymbolItemSample
 from Orange.widgets.widget import Msg, Input, Output
 
+from orangecontrib.educational.widgets.utils.gradient_grid import \
+    interpolate_grid
 from orangecontrib.educational.widgets.utils.polynomialtransform \
     import PolynomialTransform
 from orangecontrib.educational.widgets.utils.contour import Contour
@@ -409,7 +411,7 @@ class OWPolynomialClassification(OWBaseLearner):
         if not self._treelike:
             self.probabilities_grid = self.blur_grid(self.probabilities_grid)
 
-        bitmap = self.probabilities_grid.copy()
+        bitmap = interpolate_grid(self.probabilities_grid, 256)
         bitmap *= 255
         bitmap = bitmap.astype(np.uint8)
 
