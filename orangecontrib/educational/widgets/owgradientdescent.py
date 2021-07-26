@@ -533,7 +533,9 @@ class OWGradientDescent(OWWidget):
 
                 contour = pg.PlotCurveItem(
                     *np.array(list(interpol_line)).T,
-                    pen=self._contour_pen(False))
+                    pen=self._contour_pen(False),
+                    antialias=True
+                )
                 contour.value = key
                 self.graph.addItem(contour)
                 self.contours.append(contour)
