@@ -28,16 +28,25 @@ class pos_int(int):  # pylint: disable=invalid-name
     validator = QIntValidator()
 
 
-class any_float(float):  # pylint: disable=invalid-name
+class float_convert(float):  # pylint: disable=invalid-name
+    @staticmethod
+    def convert(s):
+        s = s.replace(",", ".")
+        if s.endswith("."):
+            s += "0"
+        return float(s)
+
+
+class any_float(float_convert):  # pylint: disable=invalid-name
     validator = QDoubleValidator()
 
 
-class pos_float(float):  # pylint: disable=invalid-name
+class pos_float(float_convert):  # pylint: disable=invalid-name
     validator = QDoubleValidator()
     validator.setBottom(0.0001)
 
 
-class prob_float(float):  # pylint: disable=invalid-name
+class prob_float(float_convert):  # pylint: disable=invalid-name
     validator = QDoubleValidator(0, 1, 5)
 
 

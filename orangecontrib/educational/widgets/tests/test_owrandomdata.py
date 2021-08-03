@@ -100,6 +100,30 @@ class TestParametersEditor(GuiTest):
         e = MockEditorEmpty()
         self.assertEqual(e.get_parameters(), {})
 
+    def test_parameters_conversion(self):
+        e = MockEditor()
+        parameters = {p.arg_name: p.default for p in MockEditor.parameters}
+
+        e.edits["f"].setText("6.28")
+        parameters["f"] = 6.28
+        self.assertEqual(e.get_parameters(), parameters)
+
+        e.edits["f"].setText("5,17")
+        parameters["f"] = 5.17
+        self.assertEqual(e.get_parameters(), parameters)
+
+        e.edits["f"].setText("4,")
+        parameters["f"] = 4
+        self.assertEqual(e.get_parameters(), parameters)
+
+        e.edits["f"].setText("3.")
+        parameters["f"] = 3
+        self.assertEqual(e.get_parameters(), parameters)
+
+        e.edits["f"].setText("2")
+        parameters["f"] = 2
+        self.assertEqual(e.get_parameters(), parameters)
+
     def test_set_erorr(self):
         e = MockEditor()
         self.assertTrue(e.error.isHidden())
