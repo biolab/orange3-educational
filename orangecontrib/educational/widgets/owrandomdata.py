@@ -1,6 +1,5 @@
 from collections import namedtuple
 from functools import partial
-from itertools import chain
 from math import ceil, log10
 
 import numpy as np
@@ -22,6 +21,10 @@ from Orange.widgets import gui
 ParameterDef = namedtuple(
     "ParameterDef",
     ("label", "arg_name", "default", "arg_type"))
+
+
+class ParameterError(ValueError):
+    pass
 
 
 class pos_int(int):  # pylint: disable=invalid-name
@@ -67,9 +70,11 @@ class ParametersEditor(QGroupBox):
         gui.rubber(hbox)
         self.add_specific_parameters(hbox)
 
+        hbox = gui.hBox(self)
         self.error = QLabel()
         self.error.setHidden(True)
-        self.layout().addWidget(self.error)
+        gui.rubber(hbox)
+        hbox.layout().addWidget(self.error)
 
         self.trash_button = trash = QPushButton(
             self,
@@ -136,10 +141,21 @@ class ParametersEditor(QGroupBox):
 
     def get(self, name):
         edit = self.edits[name]
-        return edit.convert(edit.text())
+        try:
+            return edit.convert(edit.text())
+        except ValueError:
+            return None
 
     def get_parameters(self):
-        return {name: self.get(name) for name in self.edits}
+        parameters = {}
+        for (name, edit), parameter in zip(self.edits.items(), self.parameters):
+            value = self.get(name)
+            if value is None:
+                raise ParameterError(
+                    f"Invalid value ({edit.text()}) "
+                    f"for <em>{parameter.label.lower()}</em>")
+            parameters[name] = value
+        return parameters
 
     @staticmethod
     def check(**_):
@@ -157,15 +173,21 @@ class ParametersEditor(QGroupBox):
         start = used_names.get(name, 0) + 1
         return name, start
 
-    def generate_data(self, ninstances):
-        parameters = self.get_parameters()
-        error = self.check(**parameters)  # pylint: disable=assignment-from-none
+    def generate_partial_data(self, ninstances):
         data = None
-        if not error:
+        error = None
+        try:
+            parameters = self.get_parameters()
+        except ParameterError as exc:
+            error = str(exc)
+        if error is None:
+            # pylint: disable=assignment-from-none
+            error = self.check(**parameters)
+        if error is None:
             try:
                 data = self.rvs(size=(ninstances, self.nvars), **parameters)
             except:  # can throw anything, pylint: disable=bare-except
-                error = f"Error while sampling. Check distribution parameters."
+                error = "Error while sampling. Check distribution parameters."
         self.set_error(error)
         return data
 
@@ -194,7 +216,11 @@ class ParametersEditorDiscrete(ParametersEditor):
     def prepare_variables(self, used_names, ndigits):
         name, start = self.get_name_prefix(used_names)
         used_names[name] = start + self.nvars - 1
-        values = self.get_values(**self.get_parameters())
+        try:
+            parameters = self.get_parameters()
+        except ParameterError:
+            return None
+        values = self.get_values(**parameters)
         return [DiscreteVariable.make(f"{name}{i:0{ndigits}}", values=values)
                 for i in range(start, start + self.nvars)]
 
@@ -420,7 +446,8 @@ class OWRandomData(OWWidget):
         self.controlArea.layout().addWidget(self.scroll_area)
 
         class IgnoreWheelCombo(QComboBox):
-            def wheelEvent(self, event):
+            @staticmethod
+            def wheelEvent(event):
                 event.ignore()
 
         # self.add_combo is needed so that tests can manipulate it
@@ -469,23 +496,33 @@ class OWRandomData(OWWidget):
         editor.deleteLater()
         self.generate()
 
-    def generate(self):
+    def generate_data(self):
+        self.Error.clear()
         used_names = {}
-        editors = self.editors
-        ndigits = int(ceil(log10(1 + sum(e.nvars for e in editors))))
-        attrs = tuple(e.prepare_variables(used_names, ndigits) for e in editors)
-        parts = tuple(e.generate_data(self.n_instances) if attr else None
-                      for e, attr in zip(editors, attrs))
-        if not editors:
-            data = None
-        elif None in attrs or any(part is None for part in parts):
-            data = None
-            self.Error.sampling_error()
-        else:
-            domain = Domain(list(chain(*attrs)))
-            data = Table(domain, np.hstack(parts))
-            self.Error.sampling_error.clear()
 
+        editors = self.editors
+        if not editors:
+            return None
+        ndigits = int(ceil(log10(1 + sum(e.nvars for e in editors))))
+
+        attrs = []
+        data_parts = []
+        for editor in editors:
+            part_attrs = editor.prepare_variables(used_names, ndigits)
+            if part_attrs is None:
+                return None
+            attrs += part_attrs
+
+            part_data = editor.generate_partial_data(self.n_instances)
+            if part_data is None:
+                self.Error.sampling_error()
+                return None
+            data_parts.append(part_data)
+
+        return Table(Domain(attrs), np.hstack(data_parts))
+
+    def generate(self):
+        data = self.generate_data()
         self.Outputs.data.send(data)
 
     def pack_editor_settings(self):
