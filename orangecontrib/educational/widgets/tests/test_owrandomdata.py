@@ -9,7 +9,7 @@ from Orange.widgets.tests.base import WidgetTest, GuiTest
 from Orange.data.domain import ContinuousVariable, DiscreteVariable
 from orangecontrib.educational.widgets.owrandomdata import (
     OWRandomData, distributions,
-    ParameterDef, pos_int, any_float, pos_float, prob_float,
+    ParameterDef, pos_int, any_float, pos_float, prob_float, ParameterError,
     ParametersEditor, ParametersEditorContinuous, ParametersEditorDiscrete,
     Multinomial, HyperGeometric)
 
@@ -124,6 +124,9 @@ class TestParametersEditor(GuiTest):
         parameters["f"] = 2
         self.assertEqual(e.get_parameters(), parameters)
 
+        e.edits["f"].setText("1.e")
+        self.assertRaises(ParameterError, e.get_parameters)
+
     def test_set_erorr(self):
         e = MockEditor()
         self.assertTrue(e.error.isHidden())
@@ -148,38 +151,38 @@ class TestParametersEditor(GuiTest):
         e.name_prefix.setText("baz")
         self.assertEqual(e.get_name_prefix(used), ("baz", 1))
 
-    def test_generate_data(self):
+    def test_generate_partial_data(self):
         e = MockEditor()
         e.number_of_vars.setText("42")
         pars = {"a": 12}
         e.get_parameters = Mock(return_value=pars)
         data = object()
         e.rvs = Mock(return_value=data)
-        self.assertIs(e.generate_data(100), data)
+        self.assertIs(e.generate_partial_data(100), data)
         e.rvs.assert_called_with(size=(100, 42), **pars)
 
-    def test_generate_data_checks_error(self):
+    def test_generate_partial_data_checks_error(self):
         e = MockEditor()
         e.check = lambda **_: "not good"
         e.rvs = Mock()
-        self.assertIsNone(e.generate_data(10))
+        self.assertIsNone(e.generate_partial_data(10))
         self.assertFalse(e.error.isHidden())
         self.assertTrue("not good" in e.error.text())
         e.rvs.assert_not_called()
 
         e.check = lambda **_: None
-        e.generate_data(10)
+        e.generate_partial_data(10)
         self.assertTrue(e.error.isHidden())
         e.rvs.assert_called_once()
 
-    def test_generate_data_rvs_error(self):
+    def test_generate_partial_data_rvs_error(self):
         e = MockEditor()
         e.rvs = Mock(side_effect=ValueError("foo"))
-        self.assertIsNone(e.generate_data(10))
+        self.assertIsNone(e.generate_partial_data(10))
         self.assertFalse(e.error.isHidden())
 
         e.rvs = Mock()
-        e.generate_data(10)
+        e.generate_partial_data(10)
         self.assertTrue(e.error.isHidden())
 
     def test_pack_settings(self):
@@ -424,7 +427,7 @@ class TestOWRandomData(WidgetTest):
         self.assertIsInstance(editor, distributions["Uniform distribution"])
         self.assertEqual(widget.add_combo.currentIndex(), 0)
 
-    def test_error_in_generate(self):
+    def test_error_in_generate_sampling(self):
         settings = {
             "distributions":
             [('Multinomial distribution',
@@ -435,7 +438,7 @@ class TestOWRandomData(WidgetTest):
                'p': '0.5'}),
              ('Uniform distribution',
               {'number_of_vars': '2', 'name_prefix': 'b',
-               'loc': '5', 'scale': '2'}),  # error in generate_data
+               'loc': '5', 'scale': '2'}),  # error in generate_partial_data
              ]}
         widget = self.create_widget(OWRandomData, settings)
         data = self.get_output(widget.Outputs.data, widget)
@@ -453,6 +456,28 @@ class TestOWRandomData(WidgetTest):
         data = self.get_output(widget.Outputs.data, widget)
         self.assertIsNotNone(data)
         self.assertFalse(widget.Error.sampling_error.is_shown())
+
+    def test_error_in_number_format(self):
+        settings = {
+            "distributions":
+            [('Bernoulli distribution',
+              {'number_of_vars': '2', 'name_prefix': 'b',
+               'p': '0.5'}),
+             ('Uniform distribution',
+              {'number_of_vars': '2', 'name_prefix': 'b',
+               # invalid number that is allowed by validator
+               'loc': '1.e', 'scale': '2'})
+             ]}
+        widget = self.create_widget(OWRandomData, settings)
+        data = self.get_output(widget.Outputs.data, widget)
+        self.assertIsNone(data)
+        self.assertFalse(widget.editors[1].error.isHidden())
+
+        widget.editors[1].edits["loc"].setText("1.0")
+        widget.generate()
+        data = self.get_output(widget.Outputs.data, widget)
+        self.assertIsNotNone(data)
+        self.assertTrue(widget.editors[1].error.isHidden())
 
     def test_pack_settings(self):
         settings = {
