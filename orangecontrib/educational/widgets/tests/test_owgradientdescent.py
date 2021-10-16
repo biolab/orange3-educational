@@ -910,8 +910,12 @@ class TestOWGradientDescent(WidgetTest):
         w = self.widget
 
         def send_sparse_data(data):
-            data.X = sp.csr_matrix(data.X)
-            data.Y = sp.csr_matrix(data.Y)
+            Y = data.Y
+            if Y.ndim == 1:
+                Y = np.atleast_2d(data.Y).T
+            data = data.from_numpy(data.domain,
+                                   sp.csr_matrix(data.X),
+                                   sp.csr_matrix(Y))
             self.send_signal(w.Inputs.data, data)
 
         # one class variable

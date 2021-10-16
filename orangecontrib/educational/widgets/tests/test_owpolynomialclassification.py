@@ -266,8 +266,12 @@ class TestOWPolynomialClassificationNoGrid(WidgetTest):
         w = self.widget
 
         def send_sparse_data(data):
-            data.X = sp.csr_matrix(data.X)
-            data.Y = sp.csr_matrix(data.Y)
+            Y = data.Y
+            if Y.ndim == 1:
+                Y = np.atleast_2d(data.Y).T
+            data = data.from_numpy(data.domain,
+                                   sp.csr_matrix(data.X),
+                                   sp.csr_matrix(Y))
             self.send_signal(w.Inputs.data, data)
 
         # one class variable
@@ -283,8 +287,9 @@ class TestOWPolynomialClassificationNoGrid(WidgetTest):
 
     def test_non_in_data(self):
         w = self.widget
-        self.iris.Y[:10] = np.nan
-        self.iris.X[-4:, 0] = np.nan
+        with self.iris.unlocked():
+            self.iris.Y[:10] = np.nan
+            self.iris.X[-4:, 0] = np.nan
 
         self.send_signal(w.Inputs.data, self.iris)
         np.testing.assert_equal(w.selected_data.X, self.iris.X[:-4, :2])

@@ -411,7 +411,7 @@ class OWKmeans(OWWidget):
         km = self.k_means
         k = km.k
         if cx is None:
-            cx, cy = km.centroids.T
+            cx, cy = km.centroids.copy().T
         self.centroids_item.setData(
             cx, cy,
             pen=self.centr_pens[:k], brush=self.brushes[:k])
@@ -438,7 +438,7 @@ class OWKmeans(OWWidget):
             self.update_membership_lines(*pos.T)
 
         start = np.array(self.centroids_item.getData()).T
-        final = self.k_means.centroids
+        final = self.k_means.centroids.copy()
         self._animate(start, final, update, update)
 
     def animate_membership(self):
@@ -607,13 +607,14 @@ class OWKmeans(OWWidget):
             classes = [clust_var]
             domain = Domain(attributes, classes, meta_attrs)
             annotated_data = Table.from_table(domain, self.data)
-            annotated_data.Y[self.selected_rows] = km.clusters
+            with annotated_data.unlocked(annotated_data.Y):
+                annotated_data.Y[self.selected_rows] = km.clusters
 
             if self.attr_x is self.attr_y:
                 attrs = [self.attr_x.renamed(name) for name in "xy"]
             else:
                 attrs = [self.attr_x, self.attr_y]
-            centroids = Table.from_numpy(Domain(attrs), km.centroids)
+            centroids = Table.from_numpy(Domain(attrs), km.centroids.copy())
             self.Outputs.annotated_data.send(annotated_data)
             self.Outputs.centroids.send(centroids)
 

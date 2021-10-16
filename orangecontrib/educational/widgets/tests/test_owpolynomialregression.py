@@ -238,7 +238,8 @@ class TestOWPolynomialRegression(WidgetTest):
         GH-43
         """
         data = self.data[::50]
-        data.X[0] = np.nan
+        with data.unlocked(data.X):
+            data.X[0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
 
 
