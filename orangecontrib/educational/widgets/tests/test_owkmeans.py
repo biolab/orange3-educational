@@ -177,6 +177,11 @@ class TestOWKmeans(WidgetTest):
         self.assertIsNone(self.widget.k_means)
         self.assertTrue(self.widget.Error.no_nonnan_data.is_shown())
 
+    def test_data_some_nan_data(self):
+        self.dataxy[:5, 0] = np.nan
+        self.send_signal(self.widget.Inputs.data, self.dataxy)
+        np.testing.assert_equal(self.widget.reduced_data, self.dataxy.X[5:])
+
     def test_restart(self):
         self.widget.set_data(self.data)
         prev_centroids = self.widget.k_means.centroids
