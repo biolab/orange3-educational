@@ -320,7 +320,7 @@ class TestLinearRegression(unittest.TestCase):
 
         theta = np.ones(len(self.housing.domain.attributes))
         # test with one theta and with list of thetas
-        self.assertEqual(type(lr.j(theta)), np.float64)
+        self.assertEqual(type(lr.j(theta)), float)
         self.assertEqual(
             len(lr.j(np.vstack((theta, theta * 2)))), 2)
 

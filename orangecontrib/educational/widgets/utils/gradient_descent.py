@@ -112,7 +112,7 @@ class GradientDescent:
         # calculates gradient and modify theta
         grad = self.dj(self.theta, self.stochastic)
         if self.stochastic:
-            self.theta -= np.sum(np.float64(self.alpha) * grad, axis=0)
+            self.theta -= np.sum(float(self.alpha) * grad, axis=0)
         else:
             self.theta -= self.alpha * grad
 

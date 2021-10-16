@@ -197,7 +197,7 @@ class TestLogisticRegression(unittest.TestCase):
         lr.set_data(self.iris)
 
         # test with one theta and with list of thetas
-        self.assertEqual(type(lr.j(np.array([1., 1., 1., 1.]))), np.float64)
+        self.assertEqual(type(lr.j(np.array([1., 1., 1., 1.]))), float)
         self.assertEqual(
             len(lr.j(np.array([[1., 1., 1., 1.], [2, 2, 2, 2]]))), 2)
 
@@ -249,7 +249,7 @@ class TestLogisticRegression(unittest.TestCase):
         lr = self.logistic_regression
 
         # test length
-        self.assertEqual(type(lr.g(1)), np.float64)
+        self.assertEqual(type(lr.g(1)), float)
         self.assertEqual(len(lr.g(np.array([1, 1]))), 2)
         self.assertEqual(len(lr.g(np.array([1, 1, 1]))), 3)
         self.assertEqual(len(lr.g(np.array([1, 1, 1, 1]))), 4)
