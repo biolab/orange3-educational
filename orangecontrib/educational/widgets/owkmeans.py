@@ -133,8 +133,8 @@ class KMeansPlotWidget(pg.PlotWidget):
             return
 
         ev.accept()
-        self.moved = True
         if self.centroid_index is not None:
+            self.moved = True
             pos = self.plotItem.mapToView(QPointF(ev.pos()))
             self.centroid_dragged.emit(self.centroid_index, pos.x(), pos.y())
 
