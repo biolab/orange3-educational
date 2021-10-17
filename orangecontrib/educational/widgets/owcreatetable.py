@@ -252,7 +252,7 @@ class CreateTableContextHandler(PerfectDomainContextHandler):
 
 class OWCreateTable(OWWidget):
     name = "Create Table"
-    icon = "icons/CreateTable.png"
+    icon = "icons/CreateTable.svg"
     priority = 50
     keywords = []
 
