@@ -360,7 +360,7 @@ class OWKmeans(OWWidget):
         self._set_centroids()
 
     def _set_membership_lines(self):
-        m = np.zeros(2 * len(self.data))
+        m = np.zeros(2 * len(self.reduced_data))
         self.lines_item = pg.PlotCurveItem(
             x=m, y=m, pen=pg.mkPen(0.5), connect="pairs", antialias=True)
         self.plotview.addItem(self.lines_item)
@@ -424,7 +424,7 @@ class OWKmeans(OWWidget):
         km = self.k_means
         if cx is None:
             cx, cy = km.centroids.T
-        n = len(self.data)
+        n = len(self.reduced_data)
         x = np.empty(2 * n)
         y = np.empty(2 * n)
         x[::2], y[::2] = self.reduced_data.T
