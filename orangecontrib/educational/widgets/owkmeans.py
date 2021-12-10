@@ -1,12 +1,24 @@
 import numpy as np
 import time
+import os
 
 import pyqtgraph as pg
 
 from AnyQt.QtCore import QThread, Qt, pyqtSignal as Signal, QTimer, QPointF
-from AnyQt.QtGui import QPen, QFont, QPalette, QColor
+from AnyQt.QtGui import QPen, QFont, QPalette, QColor, QIcon
 from AnyQt.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, \
-    QGraphicsItemGroup, QSizePolicy
+    QGraphicsItemGroup, QSizePolicy, QToolButton
+
+try:
+    from AnyQt.QtMultimedia import QSound
+    enable_sounds = True
+
+    icons_dir = os.path.join(os.path.split(__file__)[0], "icons")
+    speaker_on_icon = QIcon(os.path.join(icons_dir, "speaker-on.svg"))
+    speaker_off_icon = QIcon(os.path.join(icons_dir, "speaker-off.svg"))
+    del icons_dir
+except ImportError:
+    enable_sounds = False
 
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.colorpalettes import DefaultRGBColors
@@ -166,8 +178,10 @@ class OWKmeans(OWWidget):
     settingsHandler = settings.DomainContextHandler()
     attr_x = settings.ContextSetting(None)
     attr_y = settings.ContextSetting(None)
+    sound_effects = settings.Setting(False)
 
     graph_name = 'scatter'
+    move_sound = regroup_sound = None
 
     step_trigger = Signal()
     stop_auto_play_trigger = Signal()
@@ -187,6 +201,11 @@ class OWKmeans(OWWidget):
         self._create_variables_box()
         self._create_plot()
         self._create_buttons_box()
+
+        if enable_sounds:
+            sound_dir = os.path.join(os.path.split(__file__)[0], "sounds")
+            self.regroup_sound = QSound(os.path.join(sound_dir, "clack.wav"))
+            self.move_sound = QSound(os.path.join(sound_dir, "arrow.wav"))
 
     def _simplify_widget(self):
         axes = ("bottom", "left")
@@ -227,12 +246,28 @@ class OWKmeans(OWWidget):
             gui.button(box, self, "", callback=self.step)
         self.step_back_button = \
             gui.button(box, self, "Step Back", callback=self.step_back)
+        if enable_sounds:
+            self.speaker_button = QToolButton(self)
+            self.speaker_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+            self._update_sound_effect_button()
+            self.speaker_button.clicked.connect(self._toggle_sound_effects)
+            self.speaker_button.setStyleSheet("border: none")
+            box.layout().addWidget(self.speaker_button)
         gui.rubber(box)
         self.restart_button = \
             gui.button(box, self, "Randomize", callback=self.restart)
         self.auto_play_button = \
             gui.button(box, self, "", callback=self.auto_play)
         self._update_buttons()
+
+    if enable_sounds:
+        def _toggle_sound_effects(self):
+            self.sound_effects = not self.sound_effects
+            self._update_sound_effect_button()
+
+        def _update_sound_effect_button(self):
+            self.speaker_button.setIcon(
+                QIcon([speaker_off_icon, speaker_on_icon][self.sound_effects]))
 
     def _update_buttons(self):
         animation = self.in_animation
@@ -440,6 +475,8 @@ class OWKmeans(OWWidget):
         start = np.array(self.centroids_item.getData()).T
         final = self.k_means.centroids
         self._animate(start, final, update, update)
+        if enable_sounds and self.sound_effects:
+            self.move_sound.play()
 
     def animate_membership(self):
         def update(pos):
@@ -456,6 +493,8 @@ class OWKmeans(OWWidget):
         pens[diff] = [pg.mkPen(pen.color(), width=2) for pen in pens[diff]]
         self.points_item.setPen(pens)
         self._animate(start, final, update, done)
+        if enable_sounds and self.sound_effects:
+            self.regroup_sound.play()
 
     def _animate(self, start, final, update, done):
         def my_done(pos):
