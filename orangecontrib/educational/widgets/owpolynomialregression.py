@@ -15,7 +15,7 @@ from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
 from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
                                       LinearRegressionLearner)
-from Orange.regression import Learner
+from Orange.base import Learner
 from Orange.regression.mean import MeanModel
 from Orange.statistics.distribution import Continuous
 from Orange.widgets import settings, gui
@@ -386,7 +386,7 @@ class OWPolynomialRegression(OWBaseLearner):
             names = self._varnames(self.x_var.name)
             coefs = list(model.coef_)
             if self._has_intercept:
-                model.coef_[0] += model.intercept_
+                coefs[0] += model.intercept_
             coef_table = Table.from_list(domain, list(zip(coefs, names)))
             self.Outputs.coefficients.send(coef_table)
         else:
