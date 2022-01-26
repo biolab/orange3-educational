@@ -237,8 +237,9 @@ class TestOWPolynomialRegression(WidgetTest):
         When some rows are nan in attributes array widget crashes.
         GH-43
         """
-        data = self.data[::50]
-        data.X[0] = np.nan
+        data = self.data[::50].copy()
+        with data.unlocked(data.X):
+            data.X[0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
 
 
