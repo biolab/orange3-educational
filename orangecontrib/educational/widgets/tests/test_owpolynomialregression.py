@@ -11,7 +11,6 @@ from Orange.preprocess.preprocess import Normalize
 
 
 class TestOWPolynomialRegression(WidgetTest):
-
     def setUp(self):
         self.widget = self.create_widget(OWPolynomialRegression)   # type: OWPolynomialRegression
         self.data = Table.from_file("iris")
@@ -199,7 +198,7 @@ class TestOWPolynomialRegression(WidgetTest):
         self.assertNotEqual(self.widget.plot_item, None)
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
-        self.widget.set_preprocessor((Normalize(),))
+        self.widget.set_preprocessor(Normalize())
         self.assertNotEqual(self.widget.plot_item, None)
         self.assertNotEqual(self.widget.scatterplot_item, None)
 
@@ -241,6 +240,78 @@ class TestOWPolynomialRegression(WidgetTest):
         with data.unlocked(data.X):
             data.X[0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
+
+    def test_coefficients(self):
+        w = self.widget
+
+        self.send_signal(w.Inputs.data, self.data)
+        spin = self.widget.controls.polynomialexpansion
+        intercept_cb = self.widget.controls.fit_intercept
+
+        spin.setValue(0)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(1, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(1)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(2, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(2)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(3, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        intercept_cb.setChecked(False)
+        spin.setValue(0)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertIsNone(coef)
+
+        spin.setValue(1)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(1, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(2)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(2, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        self.send_signal(w.Inputs.learner, LinearRegressionLearner())
+
+        spin.setValue(0)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(1, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(1)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(2, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(2)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(3, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        # intercept is produced by PolynomialFeatures preprocessors
+        self.send_signal(w.Inputs.learner, LinearRegressionLearner(fit_intercept=False))
+
+        spin.setValue(0)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(1, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(1)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(2, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
+
+        spin.setValue(2)
+        coef = self.get_output(w.Outputs.coefficients)
+        self.assertEqual(3, len(coef))
+        self.assertTrue(coef.X.all())  # all nonzero
 
 
 if __name__ == "__main__":
