@@ -373,7 +373,7 @@ def cd(name, rvs, *parameters):  # short-lived, pylint: disable=invalid-name
 dist_defs = [
     cd("Normal distribution", stats.norm.rvs,
        ("Mean", "loc", 0, any_float),
-       ("Variance", "scale", 1, pos_float)),
+       ("Standard deviation", "scale", 1, pos_float)),
     Bernoulli,
     cd("Binomial distribution", stats.binom.rvs,
        ("Number of trials", "n", 100, pos_int),
