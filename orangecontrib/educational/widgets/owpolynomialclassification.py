@@ -341,7 +341,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     def help_event(self, event):
         if self.probabilities_grid is None:
-            return
+            return False
 
         pos = event.scenePos()
         pos = self.graph.plot_widget.mapToView(pos)
