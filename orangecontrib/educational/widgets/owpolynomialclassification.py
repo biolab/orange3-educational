@@ -1,6 +1,5 @@
 import copy
 from colorsys import rgb_to_hsv, hsv_to_rgb
-from xml.sax.saxutils import escape
 from itertools import chain
 
 import numpy as np
@@ -27,7 +26,6 @@ from Orange.widgets.utils.colorpalettes import DiscretePalette
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.visualize.owscatterplotgraph import OWScatterPlotBase
-from Orange.widgets.visualize.utils.plotutils import SymbolItemSample
 from Orange.widgets.widget import Msg, Input, Output
 
 from orangecontrib.educational.widgets.utils.gradient_grid import \
@@ -50,26 +48,23 @@ class HoverEventDelegate(QObject):
 
 
 class PolynomialPlot(OWScatterPlotBase):
-    # Like OWScatterPlotBase, but with reversed legend, so the target class
-    # is first and "others" is seecond.
-    @staticmethod
-    def _make_pen(color, width):
-        p = QPen(color, width)
-        p.setCosmetic(True)
-        return p
+    def __init__(self, scatter_widget, parent=None):
+        super().__init__(scatter_widget, parent)
+        self.alpha_value = 255
 
-    def _update_colored_legend(self, legend, labels, _):
-        if self.scatterplot_item is None or not self.palette:
-            return
-        colors = self.palette.values_to_colors(np.arange(len(labels)))
-        for color, label in reversed(list(zip(colors, labels))):
-            color = QColor(*color)
-            pen = self._make_pen(color.darker(self.DarkerValue), 1.5)
-            color.setAlpha(self.alpha_value)
-            brush = QBrush(color)
-            legend.addItem(
-                SymbolItemSample(pen=pen, brush=brush, size=10, symbol="o"),
-                escape(label))
+    def _get_discrete_colors(self, c_data, subset):
+        pen, _ = super()._get_discrete_colors(c_data, subset)
+
+        probs = self.master.get_probabilities()
+        if probs is None:
+            return pen, QBrush(self.palette.qcolors_w_nan[-1])
+
+        probs = probs[:, 1]
+        palette = self.master.get_model_palette().palette
+        colors = np.hstack((palette[(probs > 0.5).astype(int)],
+                            128 + 255 * np.abs(probs - 0.5)[:, None].astype(int)))
+        brush = [QBrush(QColor(*[int(x) for x in col])) for col in colors]
+        return pen, brush
 
 
 class OWPolynomialClassification(OWBaseLearner):
@@ -122,6 +117,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
         self.learner = None
         self.selected_data = None
+        self.orig_class = None
         self.probabilities_grid = None
         self.xv = None
         self.yv = None
@@ -189,7 +185,7 @@ class OWPolynomialClassification(OWBaseLearner):
         self.Error.clear()
         combo.clear()
         self.var_model.set_domain(None)
-        self.data = self.selected_data = None
+        self.data = self.selected_data = self.orig_class = None
         self.xv = None
         self.yv = None
         self.probabilities_grid = None
@@ -240,6 +236,7 @@ class OWPolynomialClassification(OWBaseLearner):
         attr_x, attr_y = self.attr_x, self.attr_y
         if self.attr_x is self.attr_y:
             self.selected_data = None
+            self.orig_class = None
             self.Error.same_variable()
             return
 
@@ -252,14 +249,17 @@ class OWPolynomialClassification(OWBaseLearner):
         values = old_class.values
         target_idx = values.index(self.target_class)
 
+        binary = len(values) == 2
         new_class = DiscreteVariable(
             old_class.name + "'",
-            values=(values[1 - target_idx] if len(values) == 2 else 'Others',
+            values=(values[1 - target_idx] if binary else 'Others',
                     self.target_class),
             compute_value=Indicator(old_class, target_idx))
         new_class.palette = DiscretePalette(
             "indicator", "indicator",
-            [[64, 64, 64], list(old_class.palette.palette[target_idx])])
+            [list(old_class.palette.palette[1 - target_idx])
+             if binary else [64, 64, 64],
+             list(old_class.palette.palette[target_idx])])
 
         domain = Domain([attr_x, attr_y], new_class, [old_class])
 
@@ -273,8 +273,10 @@ class OWPolynomialClassification(OWBaseLearner):
         if not valid_data.size:
             self.Error.no_nonnan_data()
             self.selected_data = None
+            self.orig_class = None
         else:
             self.selected_data = self.selected_data[valid_data]
+            self.orig_class = self.data.Y[valid_data]
 
 
     def apply(self):
@@ -481,16 +483,22 @@ class OWPolynomialClassification(OWBaseLearner):
         return self.selected_data.X.T
 
     def get_color_data(self):
-        return self.selected_data and self.selected_data.Y
+        return self.orig_class
 
     def get_palette(self):
-        return self.selected_data and self.selected_data.domain.class_var.palette
+        return self.data.domain.class_var.palette
 
     def get_color_labels(self):
-        return self.selected_data and self.selected_data.domain.class_var.values
+        return self.selected_data and self.data.domain.class_var.values
 
     def is_continuous_color(self):
         return False
+
+    def get_model_palette(self):
+        return self.model and self.selected_data.domain.class_var.palette
+
+    def get_probabilities(self):
+        return self.model and self.model(self.selected_data, 1)
 
     get_size_data = get_shape_data = get_shape_labels = \
         get_subset_mask = get_label_data = get_tooltip = selection_changed = \
