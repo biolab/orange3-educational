@@ -206,7 +206,8 @@ class OWPolynomialClassification(OWBaseLearner):
             return
 
         self.data = data
-        non_empty = np.bincount(data.Y[np.isfinite(data.Y)].astype(int)) > 0
+        non_empty = np.bincount(data.Y[np.isfinite(data.Y)].astype(int),
+                                minlength=len(domain.class_var.values)) > 0
         values = np.array(domain.class_var.values)[non_empty]
         combo.addItems(values.tolist())
         self.var_model.set_domain(self.data.domain)
@@ -340,7 +341,7 @@ class OWPolynomialClassification(OWBaseLearner):
 
     def help_event(self, event):
         if self.probabilities_grid is None:
-            return
+            return False
 
         pos = event.scenePos()
         pos = self.graph.plot_widget.mapToView(pos)
