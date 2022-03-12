@@ -270,7 +270,7 @@ class OWPolynomialClassification(OWBaseLearner):
                     np.isfinite(self.selected_data.X),
                     axis=1)
             )
-        if not valid_data.size:
+        if not np.any(np.isfinite(self.data.Y[valid_data])):
             self.Error.no_nonnan_data()
             self.selected_data = None
             self.orig_class = None
@@ -296,7 +296,8 @@ class OWPolynomialClassification(OWBaseLearner):
         self.probabilities_grid = None
         if self.selected_data is not None and self.learner is not None:
             try:
-                self.model = self.learner(self.selected_data)
+                defined = self.selected_data[np.isfinite(self.selected_data.Y)]
+                self.model = self.learner(defined)
                 self.model.name = self.learner_name
             except Exception as e:
                 self.Error.fitting_failed(str(e))
