@@ -1,5 +1,6 @@
 import math
 
+from Orange.data.util import SharedComputeValue
 from Orange.evaluation import RMSE, TestOnTrainingData, MAE
 from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtGui import QColor, QPalette, QPen, QFont
@@ -13,9 +14,9 @@ from orangewidget.utils.widgetpreview import WidgetPreview
 
 from Orange.data import Table, Domain
 from Orange.data.variable import ContinuousVariable, StringVariable
-from Orange.regression.linear import (RidgeRegressionLearner, PolynomialLearner,
-                                      LinearRegressionLearner)
-from Orange.regression import Learner
+from Orange.regression.linear import RidgeRegressionLearner, LinearRegressionLearner
+from Orange.base import Learner
+from Orange.preprocess import PreprocessorList
 from Orange.regression.mean import MeanModel
 from Orange.statistics.distribution import Continuous
 from Orange.widgets import settings, gui
@@ -26,10 +27,55 @@ from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.sql import check_sql_input
 
 
+class PolynomialFeatureSharedCV(SharedComputeValue):
+    def __init__(self, compute_shared, idx):
+        super().__init__(compute_shared)
+        self.idx = idx
+
+    def compute(self, _, shared_data):
+        return shared_data[:, self.idx]
+
+
+class PolynomialFeatures:
+    def __init__(self, degree=2, include_bias=True):
+        self.degree = degree
+        self.include_bias = include_bias
+
+    def __call__(self, data):
+        pf = skl_preprocessing.PolynomialFeatures(
+            self.degree, include_bias=self.include_bias
+        )
+        pf.fit(data.X)
+        cv = lambda table: pf.transform(table.X)
+        domain = Domain(
+            [
+                ContinuousVariable(f, compute_value=PolynomialFeatureSharedCV(cv, i))
+                for i, f in enumerate(
+                    pf.get_feature_names_out() if pf.n_output_features_ else []
+                )
+            ],
+            class_vars=data.domain.class_vars,
+            metas=data.domain.metas,
+        )
+        return data.transform(domain)
+
+
+class TempMeanModel(MeanModel):
+    """
+    Using MeanModel Model's __call__ is called that transform table to the
+    original domain space which produces empty X - and so the error is raised
+    Here we bypass model's __call__
+    """
+
+    def __call__(self, data, *args, **kwargs):
+        return self.predict(data)
+
+
 class RegressTo0(Learner):
     @staticmethod
-    def fit(*args, **kwargs):
-        return MeanModel(Continuous(np.empty(0)))
+    def __call__(data, *args, **kwargs):
+        model = TempMeanModel(Continuous(np.empty(0)))
+        return model
 
 
 class OWPolynomialRegression(OWBaseLearner):
@@ -54,7 +100,7 @@ class OWPolynomialRegression(OWBaseLearner):
         "orangecontrib.educational.widgets.owunivariateregression."
     ]
 
-    LEARNER = PolynomialLearner
+    LEARNER = LinearRegressionLearner
 
     learner_name = settings.Setting("Polynomial Regression")
 
@@ -299,12 +345,8 @@ class OWPolynomialRegression(OWBaseLearner):
             # the intercept is added as bias term in polynomial expansion
             # If there is a learner on input, we have not control over this;
             # we include_bias to have the placeholder for the coefficient
-            lin_learner = self.learner \
-                          or LinearRegressionLearner(fit_intercept=False)
-            learner = self.LEARNER(
-                preprocessors=self.preprocessors, degree=degree,
-                include_bias=self.fit_intercept,
-                learner=lin_learner)
+            learner = self.learner or LinearRegressionLearner(fit_intercept=False)
+
         learner.name = self.learner_name
         predictor = None
         model = None
@@ -318,9 +360,10 @@ class OWPolynomialRegression(OWBaseLearner):
                 self.clear_plot()
                 return
 
+            valid_mask = ~np.isnan(self.data.X).any(axis=1)
             data_table = Table.from_table(
-                Domain([self.x_var], self.y_var),
-                self.data)
+                Domain([self.x_var], self.y_var), self.data[valid_mask]
+            )
 
             # all lines has nan
             if np.all(np.isnan(data_table.X.flatten()) | np.isnan(data_table.Y)):
@@ -328,41 +371,49 @@ class OWPolynomialRegression(OWBaseLearner):
                 self.clear_plot()
                 return
 
-            predictor = learner(data_table)
-            model = None
+            # apply preprocessors on the input first
+            preprocessed_table = (
+                self.preprocessors(data_table) if self.preprocessors else data_table
+            )
+
+            # use polynomial preprocessor after applying preprocessors from input
+            poly_preprocessor = PolynomialFeatures(
+                degree=degree, include_bias=self.fit_intercept
+            )
+            predictor = learner(poly_preprocessor(preprocessed_table))
+
             if hasattr(predictor, "model"):
                 model = predictor.model
-                if hasattr(model, "model"):
-                    model = model.model
-                elif hasattr(model, "skl_model"):
-                    model = model.skl_model
+            elif hasattr(predictor, "skl_model"):
+                model = predictor.skl_model
 
-            preprocessed_data = data_table
-            for preprocessor in learner.active_preprocessors:
-                preprocessed_data = preprocessor(preprocessed_data)
+            x = preprocessed_table.X.ravel()
+            y = preprocessed_table.Y.ravel()
 
-            x = preprocessed_data.X.ravel()
-            y = preprocessed_data.Y.ravel()
-
-            linspace = np.linspace(
-                np.nanmin(x), np.nanmax(x), 1000).reshape(-1,1)
+            linspace = Table.from_numpy(
+                Domain(data_table.domain.attributes),
+                np.linspace(np.nanmin(x), np.nanmax(x), 1000).reshape(-1, 1),
+            )
             values = predictor(linspace, predictor.Value)
 
-            # calculate prediction for x from data
+            # calculate prediction for x from data for error bars and scores
             validation = TestOnTrainingData()
-            predicted = validation(preprocessed_data, [learner])
+            pp = self.preprocessors
+            preprocessors = ([pp] if pp else []) + [poly_preprocessor]
+            predicted = validation(
+                data_table, [learner], preprocessor=PreprocessorList(preprocessors)
+            )
             self.rmse = round(RMSE(predicted)[0], 6)
             self.mae = round(MAE(predicted)[0], 6)
 
             # plot error bars
-            self.plot_error_bars(
-                x, predicted.actual, predicted.predicted.ravel())
+            self.plot_error_bars(x, predicted.actual, predicted.predicted.ravel())
 
             # plot data points
             self.plot_scatter_points(x, y)
 
             # plot regression line
-            x_data, y_data = linspace.ravel(), values.ravel()
+            x_data, y_data = linspace.X.ravel(), values.ravel()
             if self.polynomialexpansion == 0:
                 self.plot_infinite_line(x_data[0], y_data[0], 0)
             elif self.polynomialexpansion == 1 and hasattr(model, "coef_"):
@@ -386,7 +437,7 @@ class OWPolynomialRegression(OWBaseLearner):
             names = self._varnames(self.x_var.name)
             coefs = list(model.coef_)
             if self._has_intercept:
-                model.coef_[0] += model.intercept_
+                coefs[0] += model.intercept_
             coef_table = Table.from_list(domain, list(zip(coefs, names)))
             self.Outputs.coefficients.send(coef_table)
         else:
@@ -441,5 +492,5 @@ class OWPolynomialRegression(OWBaseLearner):
 
 if __name__ == "__main__":
     learner = RidgeRegressionLearner(alpha=1.0)
-    iris = Table('iris')
-    WidgetPreview(OWPolynomialRegression).run(set_data=iris) #, set_learner=learner)
+    iris = Table("iris")
+    WidgetPreview(OWPolynomialRegression).run(set_data=iris)  # , set_learner=learner)
