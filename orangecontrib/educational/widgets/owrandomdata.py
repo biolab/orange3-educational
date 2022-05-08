@@ -76,11 +76,10 @@ class ParametersEditor(QGroupBox):
         gui.rubber(hbox)
         hbox.layout().addWidget(self.error)
 
-        self.trash_button = trash = QPushButton(
-            self,
-            icon=self.style().standardIcon(QStyle.SP_DockWidgetCloseButton))
-        trash.setGeometry(0, 20, 15, 15)
-        trash.setFlat(True)
+        self.trash_button = trash = QPushButton(self, text='×')
+        trash.setFixedWidth(35)
+        size = trash.sizeHint()
+        trash.setGeometry(0, 20, size.width(), size.height())
         trash.setHidden(True)
         trash.clicked.connect(self.on_trash_clicked)
 
