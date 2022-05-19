@@ -92,8 +92,9 @@ class OWPolynomialRegression(OWBaseLearner):
         learner = Input("Learner", Learner)
 
     class Outputs(OWBaseLearner.Outputs):
-        coefficients = Output("Coefficients", Table, default=True)
-        data = Output("Data", Table)
+        coefficients = Output("Coefficients", Table, explicit=True)
+        data = Output("Data", Table, explicit=True)
+
 
     replaces = [
         "Orange.widgets.regression.owunivariateregression."
