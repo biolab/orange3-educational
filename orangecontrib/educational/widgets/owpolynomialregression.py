@@ -384,6 +384,14 @@ class OWPolynomialRegression(OWBaseLearner):
         return self.learner is not None or self.fit_intercept
 
     def apply(self):
+        def error_and_clear(error):
+            error()
+            self.clear_plot()
+            self.Outputs.data.send(None)
+            self.Outputs.coefficients.send(None)
+            self.Outputs.learner.send(None)
+            self.Outputs.model.send(None)
+
         poly_learner = None
         predictor = None
         model = None
@@ -393,8 +401,7 @@ class OWPolynomialRegression(OWBaseLearner):
 
         if self.data is not None:
             if self.x_var is self.y_var:
-                self.Error.same_dep_indepvar()
-                self.clear_plot()
+                error_and_clear(self.Error.same_dep_indepvar)
                 return
 
             degree = self.polynomialexpansion
@@ -416,8 +423,7 @@ class OWPolynomialRegression(OWBaseLearner):
             data_table, preprocessed_table, poly_preprocessor, predictor = \
                 poly_learner.data_and_model(self.data)
             if preprocessed_table is None:
-                self.Error.all_none()
-                self.clear_plot()
+                error_and_clear(self.Error.all_none)
                 return
 
             if hasattr(predictor, "model"):
