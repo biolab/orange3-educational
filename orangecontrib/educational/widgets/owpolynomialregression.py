@@ -42,17 +42,19 @@ class PolynomialFeatures:
         self.include_bias = include_bias
 
     def __call__(self, data):
-        pf = skl_preprocessing.PolynomialFeatures(
-            self.degree, include_bias=self.include_bias
-        )
-        pf.fit(data.X)
-        cv = lambda table: pf.transform(table.X)
+        features = []
+        # PolynomialFeatures raises ValueError when degree=0 and include_bias=False
+        if self.degree > 0 or self.include_bias:
+            pf = skl_preprocessing.PolynomialFeatures(
+                self.degree, include_bias=self.include_bias
+            )
+            pf.fit(data.X)
+            cv = lambda table: pf.transform(table.X)
+            features = pf.get_feature_names_out() if pf.n_output_features_ else []
         domain = Domain(
             [
                 ContinuousVariable(f, compute_value=PolynomialFeatureSharedCV(cv, i))
-                for i, f in enumerate(
-                    pf.get_feature_names_out() if pf.n_output_features_ else []
-                )
+                for i, f in enumerate(features)
             ],
             class_vars=data.domain.class_vars,
             metas=data.domain.metas,
