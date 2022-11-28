@@ -34,6 +34,12 @@ class PolynomialFeatureSharedCV(SharedComputeValue):
     def compute(self, _, shared_data):
         return shared_data[:, self.idx]
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.idx == other.idx
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.idx))
+
 
 class PolynomialFeatures:
     def __init__(self, degree=2, include_bias=True):
@@ -41,20 +47,27 @@ class PolynomialFeatures:
         self.include_bias = include_bias
 
     def __call__(self, data):
-        features = []
-        # PolynomialFeatures raises ValueError when degree=0 and include_bias=False
-        if self.degree > 0 or self.include_bias:
+        if self.degree == 0:
+            # Zero degree without intercept shouldn't have a column of 1's,
+            # otherwise we do have intercapt. But some data is needed by most
+            # learners, so we provide a column of zeros
+            variables = [
+                ContinuousVariable(
+                    "x0",
+                    compute_value=TempMeanModel(int(self.include_bias)))]
+        else:
             pf = skl_preprocessing.PolynomialFeatures(
                 self.degree, include_bias=self.include_bias
             )
             pf.fit(data.X)
-            cv = lambda table: pf.transform(table.X)
+            cv = lambda table: pf.transform(table.transform(data.domain).X)
             features = pf.get_feature_names_out() if pf.n_output_features_ else []
-        domain = Domain(
-            [
+            variables = [
                 ContinuousVariable(f, compute_value=PolynomialFeatureSharedCV(cv, i))
                 for i, f in enumerate(features)
-            ],
+            ]
+        domain = Domain(
+            variables,
             class_vars=data.domain.class_vars,
             metas=data.domain.metas,
         )
@@ -67,6 +80,11 @@ class TempMeanModel(MeanModel):
     original domain space which produces empty X - and so the error is raised
     Here we bypass model's __call__
     """
+    InheritEq = True
+
+    def __init__(self, const):
+        distr = Continuous(np.array([[const], [1.0]]))
+        super().__init__(distr)
 
     def __call__(self, data, *args, **kwargs):
         return self.predict(data)
@@ -75,7 +93,7 @@ class TempMeanModel(MeanModel):
 class RegressTo0(Learner):
     @staticmethod
     def __call__(data, *args, **kwargs):
-        model = TempMeanModel(Continuous(np.empty(0)))
+        model = TempMeanModel(0)
         return model
 
 
@@ -101,14 +119,15 @@ class PolynomialLearnerWrapper(Learner):
         The function is used in the widget instead of __call__ to avoid
         recomputing preprocessed and expanded data.
         """
-        valid_mask = ~np.isnan(data.X).any(axis=1)
+        valid_mask = np.isfinite(data.get_column(self.x_var)) \
+                     & np.isfinite(data.get_column(self.y_var))
         data_table = Table.from_table(
             Domain([self.x_var], self.y_var), data[valid_mask]
         )
 
         # all lines have nan
         if np.all(np.isnan(data_table.X.flatten()) | np.isnan(data_table.Y)):
-            return None, None, None, None
+            return None, None, None, None, None
 
         # apply preprocessors on the input first
         preprocessed_table = (
@@ -120,8 +139,10 @@ class PolynomialLearnerWrapper(Learner):
             degree=self.degree, include_bias=self.fit_intercept
         )
 
-        predictor = self.learner(poly_preprocessor(preprocessed_table))
-        return data_table, preprocessed_table, poly_preprocessor, predictor
+        expanded_data = poly_preprocessor(preprocessed_table)
+        predictor = self.learner(expanded_data)
+        return (data_table, preprocessed_table, poly_preprocessor,
+                expanded_data, predictor)
 
 
 class OWPolynomialRegression(OWBaseLearner):
@@ -384,136 +405,121 @@ class OWPolynomialRegression(OWBaseLearner):
         return self.learner is not None or self.fit_intercept
 
     def apply(self):
-        def error_and_clear(error):
-            error()
+        def error_and_clear(error=None):
+            if error:
+                error()
             self.clear_plot()
             self.Outputs.data.send(None)
             self.Outputs.coefficients.send(None)
             self.Outputs.learner.send(None)
             self.Outputs.model.send(None)
 
-        poly_learner = None
-        predictor = None
-        model = None
-
         self.Error.all_none.clear()
         self.Error.same_dep_indepvar.clear()
+        if self.data is None:
+            error_and_clear()
+            return
+        if self.x_var is self.y_var:
+            error_and_clear(self.Error.same_dep_indepvar)
+            return
 
-        if self.data is not None:
-            if self.x_var is self.y_var:
-                error_and_clear(self.Error.same_dep_indepvar)
-                return
+        degree = self.polynomialexpansion
+        if degree == 0 and not self.fit_intercept and (
+                self.learner is None
+                or not getattr(self.learner, "fit_intercept", True)):
+            learner = RegressTo0()
+        else:
+            # For LinearRegressionLearner, set fit_intercept to False:
+            # the intercept is added as bias term in polynomial expansion
+            learner = self.learner \
+                      or LinearRegressionLearner(fit_intercept=False)
 
-            degree = self.polynomialexpansion
-            if degree == 0 and not self.fit_intercept:
-                learner = RegressTo0()
-            else:
-                # For LinearRegressionLearner, set fit_intercept to False:
-                # the intercept is added as bias term in polynomial expansion
-                # If there is a learner on input, we have not control over this;
-                # we include_bias to have the placeholder for the coefficient
-                learner = self.learner or LinearRegressionLearner(
-                    fit_intercept=False)
+        include_bias = self.learner is None and self.fit_intercept
+        poly_learner = PolynomialLearnerWrapper(
+            self.x_var, self.y_var, degree, learner,
+            self.preprocessors, include_bias)
+        poly_learner.name = self.learner_name
 
-            poly_learner = PolynomialLearnerWrapper(
-                self.x_var, self.y_var, degree, learner,
-                self.preprocessors, self.fit_intercept)
-            poly_learner.name = self.learner_name
+        data_table, preprocessed_table, poly_preprocessor, \
+        expanded_data, predictor = \
+            poly_learner.data_and_model(self.data)
+        if preprocessed_table is None:
+            error_and_clear(self.Error.all_none)
+            return
 
-            data_table, preprocessed_table, poly_preprocessor, predictor = \
-                poly_learner.data_and_model(self.data)
-            if preprocessed_table is None:
-                error_and_clear(self.Error.all_none)
-                return
+        model = None
+        if hasattr(predictor, "model"):
+            model = predictor.model
+        elif hasattr(predictor, "skl_model"):
+            model = predictor.skl_model
 
-            if hasattr(predictor, "model"):
-                model = predictor.model
-            elif hasattr(predictor, "skl_model"):
-                model = predictor.skl_model
+        x = preprocessed_table.X.ravel()
+        y = preprocessed_table.Y.ravel()
 
-            x = preprocessed_table.X.ravel()
-            y = preprocessed_table.Y.ravel()
+        linspace = Table.from_numpy(
+            Domain(data_table.domain.attributes),
+            np.linspace(np.nanmin(x), np.nanmax(x), 1000).reshape(-1, 1),
+        )
+        values = predictor(linspace, predictor.Value)
 
-            linspace = Table.from_numpy(
-                Domain(data_table.domain.attributes),
-                np.linspace(np.nanmin(x), np.nanmax(x), 1000).reshape(-1, 1),
-            )
-            values = predictor(linspace, predictor.Value)
+        predicted = predictor(data_table, predictor.Value)
+        results = Results(
+            domain=self.data.domain,
+            nrows=len(data_table), learners=[poly_learner],
+            row_indices=np.arange(len(data_table)),
+            folds=(Ellipsis,),
+            actual=data_table.Y,
+            predicted=predicted[None, :])
+        self.rmse = round(RMSE(results)[0], 6)
+        self.mae = round(MAE(results)[0], 6)
 
-            predicted = predictor(data_table, predictor.Value)
-            results = Results(
-                domain=self.data.domain,
-                nrows=len(data_table), learners=[poly_learner],
-                row_indices=np.arange(len(data_table)),
-                folds=(Ellipsis,),
-                actual=data_table.Y,
-                predicted=predicted[None, :])
-            self.rmse = round(RMSE(results)[0], 6)
-            self.mae = round(MAE(results)[0], 6)
+        # plot error bars
+        self.plot_error_bars(x, results.actual, results.predicted.ravel())
 
-            # plot error bars
-            self.plot_error_bars(x, results.actual, results.predicted.ravel())
+        # plot data points
+        self.plot_scatter_points(x, y)
 
-            # plot data points
-            self.plot_scatter_points(x, y)
+        # plot regression line
+        x_data, y_data = linspace.X.ravel(), values.ravel()
+        if self.polynomialexpansion == 0:
+            self.plot_infinite_line(x_data[0], y_data[0], 0)
+        elif self.polynomialexpansion == 1 and self.learner is None:
+            k = model.coef_[1 if self._has_intercept else 0]
+            self.plot_infinite_line(x_data[0], y_data[0],
+                                    math.degrees(math.atan(k)))
+        else:
+            self.plot_regression_line(x_data, y_data)
 
-            # plot regression line
-            x_data, y_data = linspace.X.ravel(), values.ravel()
-            if self.polynomialexpansion == 0:
-                self.plot_infinite_line(x_data[0], y_data[0], 0)
-            elif self.polynomialexpansion == 1 and hasattr(model, "coef_"):
-                k = model.coef_[1 if self._has_intercept else 0]
-                self.plot_infinite_line(x_data[0], y_data[0],
-                                        math.degrees(math.atan(k)))
-            else:
-                self.plot_regression_line(x_data, y_data)
-
-            self.plot.getAxis("bottom").setLabel(self.x_var.name)
-            self.plot.getAxis("left").setLabel(self.y_var.name)
-            self.set_range(x, y)
+        self.plot.getAxis("bottom").setLabel(self.x_var.name)
+        self.plot.getAxis("left").setLabel(self.y_var.name)
+        self.set_range(x, y)
 
         self.Outputs.learner.send(poly_learner)
         self.Outputs.model.send(predictor)
 
         # Send model coefficents
         if model is not None and hasattr(model, "coef_"):
+            if getattr(learner, "fit_intercept", True):
+                coefs = [model.intercept_]
+            else:
+                coefs = []
+            coefs += list(model.coef_)
+        elif self.learner is None \
+                and isinstance(predictor, MeanModel) \
+                and self.fit_intercept:
+            coefs = [predictor.mean]
+        else:
+            coefs = None
+        if coefs:
             domain = Domain([ContinuousVariable("coef")],
                             metas=[StringVariable("name")])
             names = self._varnames(self.x_var.name)
-            coefs = list(model.coef_)
-            if self._has_intercept:
-                coefs[0] += model.intercept_
             coef_table = Table.from_list(domain, list(zip(coefs, names)))
             self.Outputs.coefficients.send(coef_table)
         else:
             self.Outputs.coefficients.send(None)
 
-        self.send_data()
-
-    def send_data(self):
-        if self.data is not None:
-            data_table = Table.from_table(
-                Domain([self.x_var], self.y_var), self.data)
-            polyfeatures = skl_preprocessing.PolynomialFeatures(
-                self.polynomialexpansion, include_bias=self._has_intercept)
-
-            valid_mask = ~np.isnan(data_table.X).any(axis=1)
-            if not self._has_intercept and not self.polynomialexpansion:
-                x = np.empty((len(data_table), 0))
-            else:
-                x = data_table.X[valid_mask]
-                x = polyfeatures.fit_transform(x)
-
-            out_array = np.hstack((x, data_table.Y[np.newaxis].T[valid_mask]))
-
-            out_domain = Domain(
-                [ContinuousVariable(name)
-                 for name in self._varnames(self.x_var.name)],
-                self.y_var)
-            self.Outputs.data.send(Table.from_numpy(out_domain, out_array))
-            return
-
-        self.Outputs.data.send(None)
+        self.Outputs.data.send(expanded_data)
 
     def send_report(self):
         if self.data is None:
