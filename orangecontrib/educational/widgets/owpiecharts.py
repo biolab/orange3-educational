@@ -138,7 +138,7 @@ class OWPieChart(widget.OWWidget):
     def pie_chart(self, x, y, r, dist, colors):
         start_angle = 0
         dist = np.asarray(dist)
-        spans = dist / (float(np.sum(dist)) or 1) * 360 * 16
+        spans = np.round(dist / (float(np.sum(dist)) or 1) * 360 * 16).astype(int)
         for span, color in zip(spans, colors):
             if not span:
                 continue
