@@ -35,7 +35,9 @@ class PolynomialFeatureSharedCV(SharedComputeValue):
         return shared_data[:, self.idx]
 
     def __eq__(self, other):
-        return super().__eq__(other) and self.idx == other.idx
+        # Remove the first test after we require Orange 3.33
+        return type(self) is type(other) \
+               and super().__eq__(other) and self.idx == other.idx
 
     def __hash__(self):
         return hash((super().__hash__(), self.idx))
