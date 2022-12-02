@@ -1,9 +1,12 @@
+import unittest
+
 import numpy as np
 
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.educational.widgets.owpolynomialregression \
-    import OWPolynomialRegression
+    import OWPolynomialRegression, PolynomialFeatures, RegressTo0, \
+    TempMeanModel, PolynomialLearnerWrapper
 from Orange.regression import (LinearRegressionLearner,
                                RandomForestRegressionLearner)
 from Orange.regression.tree import TreeLearner as TreeRegressionLearner
@@ -207,28 +210,55 @@ class TestOWPolynomialRegression(WidgetTest):
         Check if correct data on output
         """
         w = self.widget
+        spin =w.controls.polynomialexpansion
 
         self.assertIsNone(self.get_output(w.Outputs.data))
-        self.widget.set_data(self.data)
-        spin = self.widget.controls.polynomialexpansion
+
+        u, x, y, z = (ContinuousVariable(n) for n in "uxyz")
+        domain = Domain([u, x], y)
+        data = Table.from_numpy(
+            domain,
+            [[1, 1], [0, 2], [np.nan, 3], [-1, np.nan], [2, 4]],
+            [3, 5, 7, 7, np.nan])
+
+        spin.setValue(0)
+        self.send_signal(w.Inputs.data, data)
+        w.x_var = x
+        w.y_var = y
+
+        w.fit_intercept = False
         spin.setValue(1)
-        self.widget.send_data()
-        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 2)
+        np.testing.assert_almost_equal(
+            self.get_output(w.Outputs.data).X.T,
+            [[1, 2, 3]])
 
         spin.setValue(2)
-        self.widget.send_data()
-        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 3)
+        np.testing.assert_almost_equal(
+            self.get_output(w.Outputs.data).X.T,
+            [[1, 2, 3], [1, 4, 9]])
 
         spin.setValue(3)
-        self.widget.send_data()
-        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 4)
+        np.testing.assert_almost_equal(
+            self.get_output(w.Outputs.data).X.T,
+            [[1, 2, 3], [1, 4, 9], [1, 8, 27]])
 
-        spin.setValue(4)
-        self.widget.send_data()
-        self.assertEqual(len(self.get_output(w.Outputs.data).domain.attributes), 5)
+        w.fit_intercept = True
+        spin.setValue(1)
+        np.testing.assert_almost_equal(
+            self.get_output(w.Outputs.data).X.T,
+            [[1, 1, 1], [1, 2, 3]])
 
-        self.widget.set_data(None)
-        self.widget.send_data()
+        spin.setValue(2)
+        np.testing.assert_almost_equal(
+            self.get_output(w.Outputs.data).X.T,
+            [[1, 1, 1], [1, 2, 3], [1, 4, 9]])
+
+        spin.setValue(3)
+        np.testing.assert_almost_equal(
+            self.get_output(w.Outputs.data).X.T,
+            [[1, 1, 1], [1, 2, 3], [1, 4, 9], [1, 8, 27]])
+
+        self.send_signal(w.Inputs.data, None)
         self.assertIsNone(self.get_output(w.Outputs.data))
 
     def test_data_nan_row(self):
@@ -244,24 +274,32 @@ class TestOWPolynomialRegression(WidgetTest):
     def test_coefficients(self):
         w = self.widget
 
-        self.send_signal(w.Inputs.data, self.data)
+        u, x, y, z = (ContinuousVariable(n) for n in "uxyz")
+        domain = Domain([u, x], y)
+        data = Table.from_numpy(
+            domain,
+            [[1, 1], [0, 2], [np.nan, 3], [-1, np.nan], [2, 4]],
+            [3, 5, 7, 7, np.nan])
+
+        self.send_signal(w.Inputs.data, data)
+        w.x_var = x
+        w.y_var = y
+
         spin = self.widget.controls.polynomialexpansion
         intercept_cb = self.widget.controls.fit_intercept
+        intercept_cb.setChecked(True)
 
         spin.setValue(0)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(1, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        np.testing.assert_almost_equal(coef.X, [[5]])
 
         spin.setValue(1)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(2, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        np.testing.assert_almost_equal(coef.X.T, [[1, 2]])
 
         spin.setValue(2)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(3, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        np.testing.assert_almost_equal(coef.X.T, [[1, 2, 0]])
 
         intercept_cb.setChecked(False)
         spin.setValue(0)
@@ -270,50 +308,234 @@ class TestOWPolynomialRegression(WidgetTest):
 
         spin.setValue(1)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(1, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        # I haven't computed this value manually, I just copied it
+        np.testing.assert_almost_equal(coef.X.T, [[2.4285714]])
 
         spin.setValue(2)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(2, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        # I haven't computed these values manually, I just copied them
+        np.testing.assert_almost_equal(coef.X.T, [[ 3.1052632, -0.2631579]])
 
-        self.send_signal(w.Inputs.learner, LinearRegressionLearner())
+        self.send_signal(w.Inputs.learner, LinearRegressionLearner(fit_intercept=True))
 
         spin.setValue(0)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(1, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        np.testing.assert_almost_equal(coef.X.T, [[5]])
 
         spin.setValue(1)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(2, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        np.testing.assert_almost_equal(coef.X.T, [[1, 2]])
 
         spin.setValue(2)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(3, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        np.testing.assert_almost_equal(coef.X.T, [[1, 2, 0]])
 
-        # intercept is produced by PolynomialFeatures preprocessors
         self.send_signal(w.Inputs.learner, LinearRegressionLearner(fit_intercept=False))
 
         spin.setValue(0)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(1, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        self.assertIsNone(coef)
 
         spin.setValue(1)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(2, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        # I haven't computed this value manually, I just copied it
+        np.testing.assert_almost_equal(coef.X.T, [[2.4285714]])
 
         spin.setValue(2)
         coef = self.get_output(w.Outputs.coefficients)
-        self.assertEqual(3, len(coef))
-        self.assertTrue(coef.X.all())  # all nonzero
+        # I haven't computed these values manually, I just copied them
+        np.testing.assert_almost_equal(coef.X.T, [[ 3.1052632, -0.2631579]])
+
+
+class PolynomialFeaturesTest(unittest.TestCase):
+    def test_1d(self):
+        x, y, z = (ContinuousVariable(n) for n in "xyz")
+        domain = Domain([x], y, [z])
+        data = Table.from_numpy(
+            domain,
+            [[1], [2], [3]], [1, 2, 3], [[1], [2], [3]])
+        data2 = Table.from_numpy(
+            domain,
+            [[3], [4], [5]], [1, 2, 3], [[1], [2], [3]])
+        tf = PolynomialFeatures(1, False)(data)
+        self.assertIs(tf.domain.class_var, y)
+        np.testing.assert_equal(tf.Y, [1, 2, 3])
+        self.assertEqual(tf.domain.metas, (z, ))
+        np.testing.assert_equal(tf.metas.T, [[1, 2, 3]])
+
+        np.testing.assert_equal(tf.X.T, [[1, 2, 3]])
+        np.testing.assert_equal(data2.transform(tf.domain).X.T, [[3, 4, 5]])
+
+        tf = PolynomialFeatures(1, True)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 1, 1], [1, 2, 3]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[1, 1, 1], [3, 4, 5]])
+
+        tf = PolynomialFeatures(2, True)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 1, 1], [1, 2, 3], [1, 4, 9]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[1, 1, 1], [3, 4, 5], [9, 16, 25]])
+
+        tf = PolynomialFeatures(2, False)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 2, 3], [1, 4, 9]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[3, 4, 5], [9, 16, 25]])
+
+        tf = PolynomialFeatures(3, True)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 1, 1], [1, 2, 3], [1, 4, 9], [1, 8, 27]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[1, 1, 1], [3, 4, 5], [9, 16, 25], [27, 64, 125]])
+
+        tf = PolynomialFeatures(3, False)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 2, 3], [1, 4, 9], [1, 8, 27]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[3, 4, 5], [9, 16, 25], [27, 64, 125]])
+
+        tf = PolynomialFeatures(0, True)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 1, 1]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[1, 1, 1]])
+
+        tf = PolynomialFeatures(0, False)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[0, 0, 0]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[0, 0, 0]])
+
+    def test_nd(self):
+        x, y, z = (ContinuousVariable(n) for n in "xyz")
+        domain = Domain([x, y, z])
+        data = Table.from_numpy(
+            domain,
+            [[1, 2, 3], [4, 5, 6]])
+        data2 = Table.from_numpy(
+            domain,
+            [[1, 3, 5]])
+
+        tf = PolynomialFeatures(1, False)(data)
+        np.testing.assert_equal(tf.X, data.X)
+        np.testing.assert_equal(data2.transform(tf.domain).X, data2.X)
+
+        tf = PolynomialFeatures(1, True)(data)
+        np.testing.assert_equal(tf.X, [[1, 1, 2, 3], [1, 4, 5, 6]])
+        np.testing.assert_equal(data2.transform(tf.domain).X, [[1, 1, 3, 5]])
+
+        tf = PolynomialFeatures(2, False)(data)
+        np.testing.assert_equal(
+            tf.X,
+            [[1, 2, 3, 1, 2, 3, 4, 6, 9],
+             [4, 5, 6, 16, 20, 24, 25, 30, 36]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X,
+            [[1, 3, 5, 1, 3, 5, 9, 15, 25]])
+
+        tf = PolynomialFeatures(2, True)(data)
+        np.testing.assert_equal(
+            tf.X,
+            [[1, 1, 2, 3, 1, 2, 3, 4, 6, 9],
+             [1, 4, 5, 6, 16, 20, 24, 25, 30, 36]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X,
+            [[1, 1, 3, 5, 1, 3, 5, 9, 15, 25]])
+
+        tf = PolynomialFeatures(0, True)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[1, 1]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[1]])
+
+        tf = PolynomialFeatures(0, False)(data)
+        np.testing.assert_equal(
+            tf.X.T,
+            [[0, 0]])
+        np.testing.assert_equal(
+            data2.transform(tf.domain).X.T,
+            [[0]])
+
+
+class ModelsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = Table("iris")[:10]
+
+    def test_regressto0(self):
+        model = RegressTo0()(self.data)
+        prediction = model(self.data[:5])
+        np.testing.assert_equal(prediction, [0] * 5)
+
+    def test_tempmeanmodel(self):
+        model = TempMeanModel(42)
+        prediction = model(self.data[:5])
+        np.testing.assert_equal(prediction, [42] * 5)
+
+    def test_polynomiallearnerwrapper(self):
+        u, x, y, z = (ContinuousVariable(n) for n in "uxyz")
+        domain = Domain([u, x], y)
+        data = Table.from_numpy(
+            domain,
+            [[1, 1], [0, 2], [np.nan, 3], [-1, np.nan], [2, 4]],
+            [3, 5, 7, 7, np.nan])
+        data2 = Table.from_numpy(
+            Domain([x, z]),
+            [[5, 6], [7, 8]])
+
+        learner = PolynomialLearnerWrapper(
+            x, y, 1, LinearRegressionLearner(fit_intercept=False),
+            fit_intercept=True, preprocessors=None)
+        model = learner(data)
+        np.testing.assert_almost_equal(model.coefficients, [1, 2])
+        np.testing.assert_almost_equal(model(data2), [11, 15])
+
+        learner = PolynomialLearnerWrapper(
+            x, y, 1, LinearRegressionLearner(fit_intercept=True),
+            fit_intercept=False, preprocessors=False)
+        model = learner(data)
+        np.testing.assert_almost_equal(model.coefficients, [2])
+        self.assertAlmostEqual(model.intercept, 1)
+        np.testing.assert_almost_equal(model(data2), [11, 15])
+
+        learner = PolynomialLearnerWrapper(
+            x, y, 1, LinearRegressionLearner(fit_intercept=False),
+            fit_intercept=False, preprocessors=None)
+        model = learner(data)
+        # I haven't computed this value manually, just copied the result
+        # But it must be something a bit larger than 2, hence...
+        np.testing.assert_almost_equal(model.coefficients, [2.4285714])
+        self.assertEqual(model.intercept, 0)
+        np.testing.assert_almost_equal(model(data2), [12.1428571, 17])
+
+        learner = PolynomialLearnerWrapper(
+            x, y, 2, LinearRegressionLearner(fit_intercept=False),
+            fit_intercept=False, preprocessors=False)
+        model = learner(data)
+        # I haven't computed this value manually, just copied the result
+        np.testing.assert_almost_equal(model.coefficients,
+                                       [3.1052632, -0.2631579])
+        self.assertEqual(model.intercept, 0)
+        np.testing.assert_almost_equal(model(data2), [8.9473684, 8.8421053])
 
 
 if __name__ == "__main__":
-    import unittest
     unittest.main()
