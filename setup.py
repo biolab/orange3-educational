@@ -30,9 +30,13 @@ DATA_FILES = [
 ]
 
 INSTALL_REQUIRES = [
-    'Orange3 >=3.31.1',
+    'anyqt',
     'BeautifulSoup4',
     'numpy',
+    'Orange3 >=3.31.1',
+    'orange-widget-base',
+    'scikit-learn',
+    'pyqtgraph',
 ]
 
 EXTRAS_REQUIRE = {
