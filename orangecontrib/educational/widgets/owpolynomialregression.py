@@ -192,9 +192,14 @@ class OWPolynomialRegression(OWBaseLearner):
     want_main_area = True
     graph_name = 'plot'
 
+    class Warning(OWBaseLearner.Warning):
+        large_diffs = Msg(
+            "Polynomial feature values are very large. "
+            "This may cause numerical instabilities."
+        )
+
     class Error(OWBaseLearner.Error):
-        all_none = \
-            Msg("All rows have undefined data.")
+        all_none = Msg("All rows have undefined data.")
         no_cont_variables =\
             Msg("Regression requires at least two numeric variables.")
         same_dep_indepvar =\
@@ -418,6 +423,7 @@ class OWPolynomialRegression(OWBaseLearner):
 
         self.Error.all_none.clear()
         self.Error.same_dep_indepvar.clear()
+        self.Warning.large_diffs.clear()
         if self.data is None:
             error_and_clear()
             return
@@ -443,11 +449,14 @@ class OWPolynomialRegression(OWBaseLearner):
         poly_learner.name = self.learner_name
 
         data_table, preprocessed_table, poly_preprocessor, \
-        expanded_data, predictor = \
-            poly_learner.data_and_model(self.data)
+        expanded_data, predictor = poly_learner.data_and_model(self.data)
         if preprocessed_table is None:
             error_and_clear(self.Error.all_none)
             return
+        if expanded_data.X.max() - expanded_data.X.min() > 1e14:
+            # the threshold defined with experimenting, instability typically
+            # started to have effects for values >= 1e15
+            self.Warning.large_diffs()
 
         model = None
         if hasattr(predictor, "model"):

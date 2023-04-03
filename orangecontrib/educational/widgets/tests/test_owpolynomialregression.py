@@ -346,6 +346,18 @@ class TestOWPolynomialRegression(WidgetTest):
         # I haven't computed these values manually, I just copied them
         np.testing.assert_almost_equal(coef.X.T, [[ 3.1052632, -0.2631579]])
 
+    def test_large_polynomial_values(self):
+        x, y = (ContinuousVariable(n) for n in "xy")
+        data = Table.from_numpy(Domain([x], y), [[1], [30]], [3, 5])
+        self.send_signal(self.widget.Inputs.data, data)
+
+        self.widget.controls.polynomialexpansion.setValue(9)
+        self.assertFalse(self.widget.Warning.large_diffs.is_shown())
+        self.widget.controls.polynomialexpansion.setValue(10)
+        self.assertTrue(self.widget.Warning.large_diffs.is_shown())
+        self.widget.controls.polynomialexpansion.setValue(9)
+        self.assertFalse(self.widget.Warning.large_diffs.is_shown())
+
 
 class PolynomialFeaturesTest(unittest.TestCase):
     def test_1d(self):
