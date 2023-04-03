@@ -307,12 +307,12 @@ class OWGradientDescent(OWWidget):
                      self.restart_button, self.properties_box, self.options_box]:
             item.setDisabled(disabled)
 
-    key_actions = {(0, Qt.Key_Space): step}  # space button for step
+    key_actions = {(Qt.NoModifier, Qt.Key_Space): step}  # space button for step
 
     def keyPressEvent(self, e):
         """Bind 'back' key to step back"""
-        if (int(e.modifiers()), e.key()) in self.key_actions:
-            fun = self.key_actions[(int(e.modifiers()), e.key())]
+        if (e.modifiers(), e.key()) in self.key_actions:
+            fun = self.key_actions[(e.modifiers(), e.key())]
             fun(self)
         else:
             super().keyPressEvent(e)

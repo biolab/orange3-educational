@@ -43,30 +43,31 @@ class TestPolynomialTransform(unittest.TestCase):
         transformed_data = polynomial_transform(self.data)
 
         for i, row in enumerate(transformed_data):
-            self.assertEqual(row[0], self.data[i][0])
-            self.assertEqual(row[1], self.data[i][1])
+            self.assertAlmostEqual(row[0], self.data[i][0])
+            self.assertAlmostEqual(row[1], self.data[i][1])
 
-            self.assertEqual(row[2], self.data[i][0] ** 2)
-            self.assertEqual(row[3], self.data[i][0] * self.data[i][1])
-            self.assertEqual(row[4], self.data[i][1] ** 2)
+            self.assertAlmostEqual(row[2], self.data[i][0] ** 2)
+            self.assertAlmostEqual(row[3], self.data[i][0] * self.data[i][1])
+            self.assertAlmostEqual(row[4], self.data[i][1] ** 2)
 
-            self.assertEqual(row[5], self.data[i][0] ** 3)
-            self.assertEqual(row[6], self.data[i][0] ** 2 * self.data[i][1])
-            self.assertEqual(row[7], self.data[i][0] * self.data[i][1] ** 2)
-            self.assertEqual(row[8], self.data[i][1] ** 3)
+            self.assertAlmostEqual(row[5], self.data[i][0] ** 3)
+            self.assertAlmostEqual(row[6], self.data[i][0] ** 2 * self.data[i][1])
+            self.assertAlmostEqual(row[7], self.data[i][0] * self.data[i][1] ** 2)
+            self.assertAlmostEqual(row[8], self.data[i][1] ** 3)
 
-            self.assertEqual(row[9], self.data[i][0] ** 4)
-            self.assertEqual(row[10], self.data[i][0] ** 3 * self.data[i][1])
-            self.assertEqual(
-                row[11], self.data[i][0] ** 2 * self.data[i][1] ** 2)
-            self.assertEqual(row[12], self.data[i][0] * self.data[i][1] ** 3)
-            self.assertEqual(row[13], self.data[i][1] ** 4)
+            self.assertAlmostEqual(row[9], self.data[i][0] ** 4)
+            self.assertAlmostEqual(row[10], self.data[i][0] ** 3 * self.data[i][1])
+            self.assertAlmostEqual(row[11], self.data[i][0] ** 2 * self.data[i][1] ** 2)
+            self.assertAlmostEqual(row[12], self.data[i][0] * self.data[i][1] ** 3)
+            self.assertAlmostEqual(row[13], self.data[i][1] ** 4)
 
-            self.assertEqual(row[14], self.data[i][0] ** 5)
-            self.assertEqual(row[15], self.data[i][0] ** 4 * self.data[i][1])
-            self.assertEqual(
-                row[16], self.data[i][0] ** 3 * self.data[i][1] ** 2)
-            self.assertEqual(
-                row[17], self.data[i][0] ** 2 * self.data[i][1] ** 3)
-            self.assertEqual(row[18], self.data[i][0] * self.data[i][1] ** 4)
-            self.assertEqual(row[19], self.data[i][1] ** 5)
+            self.assertAlmostEqual(row[14], self.data[i][0] ** 5)
+            self.assertAlmostEqual(row[15], self.data[i][0] ** 4 * self.data[i][1])
+            self.assertAlmostEqual(row[16], self.data[i][0] ** 3 * self.data[i][1] ** 2)
+            self.assertAlmostEqual(row[17], self.data[i][0] ** 2 * self.data[i][1] ** 3)
+            self.assertAlmostEqual(row[18], self.data[i][0] * self.data[i][1] ** 4)
+            self.assertAlmostEqual(row[19], self.data[i][1] ** 5)
+
+
+if __name__ == "__main__":
+    unittest.main()

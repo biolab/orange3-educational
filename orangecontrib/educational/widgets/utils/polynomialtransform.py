@@ -82,7 +82,7 @@ class TransformationMultipleVariables:
             elif inst:
                 data_col = np.array([float(data[attr_index])])
             else:
-                data_col = data.get_column_view(attr_index)[0]
+                data_col = data.get_column(attr_index)
             data_all.append(data_col)
         transformed_col = self.transform(data_all)
         if (inst and isinstance(transformed_col, np.ndarray) and

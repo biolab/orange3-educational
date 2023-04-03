@@ -613,8 +613,7 @@ class OWKmeans(OWWidget):
         Return None if there are no non-nan columns
         """
         attrs = [self.attr_x, self.attr_y]
-        x = np.vstack(tuple(self.data.get_column_view(attr)[0]
-                            for attr in attrs)).T
+        x = np.vstack(tuple(self.data.get_column(attr) for attr in attrs)).T
         not_nan = ~np.isnan(x).any(axis=1)
         x = x[not_nan]  # remove rows with nan
         if not x.size:
