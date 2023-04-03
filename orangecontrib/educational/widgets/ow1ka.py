@@ -20,20 +20,7 @@ from Orange.widgets import widget, gui, settings
 from Orange.data import Table
 from Orange.widgets.utils.signals import Output
 from Orange.widgets.utils.webview import WebviewWidget
-try:
-    from Orange.widgets.utils.webview import wait
-except ImportError:  # WebKit and before wait() was toplevel
-    import time
-    from AnyQt.QtWidgets import qApp
-    from AnyQt.QtCore import QEventLoop
-
-    def wait(until: callable, timeout=5000):
-        started = time.perf_counter()
-        while not until():
-            qApp.processEvents(QEventLoop.ExcludeUserInputEvents)
-            if (time.perf_counter() - started) * 1000 > timeout:
-                raise TimeoutError()
-
+from orangewidget.utils.webview import wait
 
 log = logging.getLogger(__name__)
 
@@ -353,8 +340,7 @@ class OW1ka(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    a = QApplication([])
-    ow = OW1ka()
-    ow.combo.setEditText('https://www.1ka.si/podatki/139234/A4228E24/')
-    ow.show()
-    a.exec_()
+    from orangewidget.utils.widgetpreview import WidgetPreview
+
+    # use link: https://www.1ka.si/podatki/139234/A4228E24/
+    widget_preview = WidgetPreview(OW1ka).run()
