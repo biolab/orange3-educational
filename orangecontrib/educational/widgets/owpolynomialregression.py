@@ -190,7 +190,7 @@ class OWPolynomialRegression(OWBaseLearner):
     regressor_name = ""
 
     want_main_area = True
-    graph_name = 'plot'
+    graph_name = 'plot'  # pg.GraphicsItem  (pg.PlotItem)
 
     class Warning(OWBaseLearner.Warning):
         large_diffs = Msg(

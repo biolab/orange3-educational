@@ -35,7 +35,7 @@ class OWPieChart(widget.OWWidget):
     attribute = ContextSetting(None)
     split_var = ContextSetting(None)
     explode = Setting(False)
-    graph_name = "scene"
+    graph_name = "scene"  # QGraphicsScene
 
     def __init__(self):
         super().__init__()
