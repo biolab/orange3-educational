@@ -92,7 +92,7 @@ class OWGradientDescent(OWWidget):
         model = Output("Model", Model)
         coefficients = Output("Coefficients", Table)
 
-    graph_name = "grapH"
+    graph_name = "graph"  # QGraphicsView (pg.PlotWidget)
 
     settingsHandler = settings.DomainContextHandler(
         match_values=settings.DomainContextHandler.MATCH_VALUES_CLASS)
@@ -455,7 +455,7 @@ class OWGradientDescent(OWWidget):
         if self.stochastic:
             caption_items += (("Stochastic step size", self.step_size),)
         caption = report.render_items_vert(caption_items)
-        self.report_plot(self.graph)
+        self.report_plot()
         self.report_caption(caption)
 
     ##############################

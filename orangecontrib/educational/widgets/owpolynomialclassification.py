@@ -98,7 +98,7 @@ class OWPolynomialClassification(OWBaseLearner):
     degree = Setting(1)
     contours_enabled = Setting(True)
 
-    graph_name = 'graph'
+    graph_name = 'graph.plot_widget'  # QGraphicsView (pg.PlotWidget)
 
     class Error(OWBaseLearner.Error):
         num_features = Msg("Data must contain at least two numeric variables.")
@@ -278,7 +278,6 @@ class OWPolynomialClassification(OWBaseLearner):
         else:
             self.selected_data = self.selected_data[valid_data]
             self.orig_class = self.data.Y[valid_data]
-
 
     def apply(self):
         self.update_model()
@@ -544,7 +543,7 @@ class OWPolynomialClassification(OWBaseLearner):
             return
         name = "" if self.degree == 1 \
             else f"Model with polynomial expansion {self.degree}"
-        self.report_plot(name=name, plot=self.graph.plot_widget)
+        self.report_plot(name=name)
 
 
 if __name__ == "__main__":

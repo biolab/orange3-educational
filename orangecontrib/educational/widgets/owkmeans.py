@@ -180,7 +180,7 @@ class OWKmeans(OWWidget):
     attr_y = settings.ContextSetting(None)
     sound_effects = settings.Setting(False)
 
-    graph_name = 'scatter'
+    graph_name = 'plot'  # pg.GraphicsItem  (pg.PlotItem)
     move_sound = regroup_sound = None
 
     step_trigger = Signal()
@@ -659,7 +659,7 @@ class OWKmeans(OWWidget):
     def send_report(self):
         if self.data is None:
             return
-        self.report_plot(self.plot)
+        self.report_plot()
 
 
 if __name__ == "__main__":
