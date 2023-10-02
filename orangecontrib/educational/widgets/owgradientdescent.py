@@ -104,7 +104,7 @@ class OWGradientDescent(OWWidget):
     auto_play_speed = settings.Setting(1)
     stochastic = settings.Setting(False)
 
-    default_background_color = np.array([0, 0xbf, 0xff])
+    default_background_color = [0, 0xbf, 0xff]
     auto_play_button_text = ["Run", "Stop"]
 
     step_trigger = pyqtSignal()
@@ -499,7 +499,7 @@ class OWGradientDescent(OWWidget):
         bitmap = cg * (255 / np.max(cg))  # make a copy
         bitmap = bitmap.astype(np.uint8)
 
-        h, s, v = rgb_to_hsv(*self.default_background_color / 255)
+        h, s, v = rgb_to_hsv(*np.array(self.default_background_color) / 255)
         palette = np.linspace([h, 0, v], [h, s, 1], 255)
         palette = 255 * np.array([hsv_to_rgb(*col) for col in palette])
         palette = palette.astype(int)
