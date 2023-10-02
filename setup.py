@@ -36,6 +36,7 @@ INSTALL_REQUIRES = [
     'Orange3 >=3.31.1',
     'orange-widget-base',
     'scikit-learn',
+    'scipy',
     'pyqtgraph',
 ]
 
