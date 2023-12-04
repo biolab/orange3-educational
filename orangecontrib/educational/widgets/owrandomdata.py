@@ -244,8 +244,10 @@ class ContinuousUniform(ParametersEditorContinuous):
 
     @staticmethod
     def check(*, loc, scale):  # pylint: disable=arguments-differ
-        if loc >= scale:
-            return "Lower bound is must be below the upper."
+        # if loc >= scale:
+        #     return "Lower bound is must be below the upper."
+        if scale<=0:
+            return "Range needs to be >=0."
         return None
 
 
