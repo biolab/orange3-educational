@@ -238,18 +238,18 @@ class ContinuousUniform(ParametersEditorContinuous):
     name = "Uniform distribution"
     parameters = (
         ParameterDef("Low bound", "loc", 0, any_float),
-        #ParameterDef("High bound", "scale", 1, any_float)
-        ParameterDef("Range", "scale", 1, any_float)
+        ParameterDef("High bound", "scale", 1, any_float)
     )
-    rvs = stats.uniform.rvs
+    @staticmethod
+    def rvs(loc, scale, size):
+        return stats.uniform.rvs(loc, scale - loc, size=size)
 
     @staticmethod
     def check(*, loc, scale):  # pylint: disable=arguments-differ
-        # if loc >= scale:
-        #     return "Lower bound is must be below the upper."
-        if scale<=0:
-            return "Range needs to be >=0."
+        if loc >= scale:
+            return "Lower bound is must be below the upper."
         return None
+
 
 class DiscreteUniform(ParametersEditorDiscrete):
     name = "Discrete uniform distribution"
