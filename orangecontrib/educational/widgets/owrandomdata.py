@@ -91,7 +91,7 @@ class ParametersEditor(QGroupBox):
         self.trash_button.setHidden(False)
 
     def leaveEvent(self, e):
-        super().enterEvent(e)
+        super().leaveEvent(e)
         self.trash_button.setHidden(True)
 
     def add_standard_parameters(self, parent):
