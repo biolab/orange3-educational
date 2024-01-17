@@ -240,7 +240,9 @@ class ContinuousUniform(ParametersEditorContinuous):
         ParameterDef("Low bound", "loc", 0, any_float),
         ParameterDef("High bound", "scale", 1, any_float)
     )
-    rvs = stats.uniform.rvs
+    @staticmethod
+    def rvs(loc, scale, size):
+        return stats.uniform.rvs(loc, scale - loc, size=size)
 
     @staticmethod
     def check(*, loc, scale):  # pylint: disable=arguments-differ
