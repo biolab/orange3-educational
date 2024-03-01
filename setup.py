@@ -31,7 +31,6 @@ DATA_FILES = [
 
 INSTALL_REQUIRES = [
     'anyqt',
-    'BeautifulSoup4',
     'numpy',
     'Orange3 >=3.31.1',
     'orange-widget-base',
