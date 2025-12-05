@@ -14,6 +14,7 @@ from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.educational.widgets.owgradientdescent import \
     OWGradientDescent, GRID_SIZE
+from orangewidget.tests.utils import simulate
 
 
 class TestOWGradientDescent(WidgetTest):
@@ -146,6 +147,59 @@ class TestOWGradientDescent(WidgetTest):
         self.assertFalse(w.controls.attr_y.isVisible())
         self.assertFalse(w.controls.target_class.isVisible())
         self.assertIs(w.attr_x, continuous_attributes[0])
+
+    def test_attr_hints(self):
+        w = self.widget
+        combo_x, combo_y = w.controls.attr_x, w.controls.attr_y
+        combo_t = w.controls.target_class
+        a, b = ContinuousVariable("a"), ContinuousVariable("b")
+        c = DiscreteVariable("c", values=("a", "b", "c"))
+        data = Table.from_numpy(Domain([a, b], c), [[1, 2], [2, 3]], [0, 1])
+
+        self.send_signal(w.Inputs.data, data)
+        self.assertEqual(len(w.var_model), 2)
+        self.assertFalse(w.controls.target_class.box.isHidden())
+        self.assertFalse(w.controls.attr_y.isHidden())
+
+        simulate.combobox_activate_index(combo_x, 1)
+        simulate.combobox_activate_index(combo_y, 0)
+        simulate.combobox_activate_item(combo_t, c.values[1])
+
+        self.send_signal(w.Inputs.data, None)
+        self.assertEqual(len(w.var_model), 0)
+
+        self.send_signal(w.Inputs.data, data)
+        self.assertEqual(len(w.var_model), 2)
+        self.assertIs(w.attr_x, b)
+        self.assertIs(w.attr_y, a)
+        self.assertEqual(w.target_class, c.values[1])
+
+        self.send_signal(w.Inputs.data, data.transform(Domain([a, c], b)))
+        self.assertEqual(len(w.var_model), 1)
+        self.assertTrue(w.controls.attr_y.isHidden())
+        self.assertTrue(w.controls.target_class.box.isHidden())
+
+        self.send_signal(w.Inputs.data, None)
+        self.assertEqual(len(w.var_model), 0)
+
+        self.send_signal(w.Inputs.data, data.transform(Domain([a], b)))
+        self.assertEqual(len(w.var_model), 1)
+
+        d, e = ContinuousVariable("d"), ContinuousVariable("e")
+        data = Table.from_numpy(
+            Domain([d, a, e], b),
+            [[1, 2, 5], [2, 3, 9]], [0.1, 1])
+        self.send_signal(w.Inputs.data, data)
+        self.assertEqual(len(w.var_model), 3)
+        self.assertIs(w.attr_x, a)
+
+        simulate.combobox_activate_index(combo_x, 2)
+        self.assertIs(w.attr_x, e)
+
+        self.send_signal(w.Inputs.data, None)
+        self.assertEqual(len(w.var_model), 0)
+        self.send_signal(w.Inputs.data, data)
+        self.assertIs(w.attr_x, e)
 
     def test_set_learner_discrete(self):
         """

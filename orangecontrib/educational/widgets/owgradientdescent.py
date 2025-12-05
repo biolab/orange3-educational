@@ -16,7 +16,7 @@ from Orange.data import \
 from Orange.preprocess.transformation import Indicator
 from Orange.widgets import gui
 from Orange.widgets import settings
-from Orange.widgets.utils.itemmodels import DomainModel
+from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.preprocess.preprocess import Normalize
 from orangewidget.report import report
@@ -94,12 +94,10 @@ class OWGradientDescent(OWWidget):
 
     graph_name = "graph"  # QGraphicsView (pg.PlotWidget)
 
-    settingsHandler = settings.DomainContextHandler(
-        match_values=settings.DomainContextHandler.MATCH_VALUES_CLASS)
-    attr_x = settings.ContextSetting(None)
-    attr_y = settings.ContextSetting(None)
+    attr_x_hint = settings.Setting("")
+    attr_y_hint = settings.Setting("")
     normalization = settings.Setting(True)
-    target_class = settings.Setting('')
+    target_class_hint = settings.Setting('')
     alpha = settings.Setting(0.4)
     step_size = settings.Setting(30)  # step size for stochastic gds
     auto_play_speed = settings.Setting(1)
@@ -122,6 +120,8 @@ class OWGradientDescent(OWWidget):
         super().__init__()
         self.learner = None
         self.data = None
+        self.attr_x = self.attr_y = None
+        self.target_class = ""
         self.selected_data = None
         self.cost_grid = None
         self.min_x = self.max_x = self.min_y = self.max_y = None
@@ -133,8 +133,7 @@ class OWGradientDescent(OWWidget):
         self.auto_play_button_text = ["Run", "Stop"]
         self.auto_play_thread = None
 
-        self.var_model = DomainModel(valid_types=ContinuousVariable,
-                                     order=DomainModel.ATTRIBUTES)
+        self.var_model = VariableListModel()
 
         self.options_box = gui.widgetBox(self.controlArea, "Variables")
         opts = dict(
@@ -211,6 +210,9 @@ class OWGradientDescent(OWWidget):
     # User-interaction
 
     def change_attributes(self):
+        self.attr_x_hint = self.attr_x.name if self.attr_x else ""
+        self.attr_y_hint = self.attr_y.name if self.attr_y else ""
+        self.target_class_hint = self.target_class
         self.set_axis_titles()
         self.learner = None  # that theta does not same equal
         self.restart()
@@ -327,25 +329,26 @@ class OWGradientDescent(OWWidget):
     @Inputs.data
     def set_data(self, data):
         target_combo = self.controls.target_class
-
-        self.closeContext()
         self.Error.clear()
 
         self.cost_grid = None
         self.learner = None
         self.selected_data = None
         self.data = None
+        domain = None  # for pylint
         target_combo.clear()
         self.clear_plot()
 
         if data:
-            self.var_model.set_domain(data.domain)
+            domain = data.domain
+            self.var_model[:] = [
+                attr for attr in domain.attributes if attr.is_continuous]
             if data.domain.class_var is None:
                 data = None
                 self.Error.no_class()
             # don't use self.is_classification -- widget has no self.data yet
-            elif data.domain.class_var.is_discrete:
-                if len(data.domain.class_var.values) < 2:
+            elif domain.class_var.is_discrete:
+                if len(domain.class_var.values) < 2:
                     self.Error.no_class_values()
                     data = None
                 elif len(self.var_model) < 2:
@@ -356,24 +359,37 @@ class OWGradientDescent(OWWidget):
                 data = None
 
         if not data:
-            self.var_model.set_domain(None)
+            self.var_model.clear()
             self.send_output()
             return
 
+        assert domain is not None
         self.data = data
         self.controls.attr_y.setHidden(not self.is_classification)
         target_combo.box.setHidden(not self.is_classification)
-        self.attr_x = self.var_model[0]
+        attr_names = [var.name for var in self.var_model]
+        if self.attr_x_hint in attr_names:
+            self.attr_x = domain[self.attr_x_hint]
+        else:
+            self.attr_x = self.var_model[0]
+            self.attr_x_hint = self.attr_x.name
         if self.is_classification:
-            self.attr_y = self.var_model[min(1, len(self.var_model))]
+            if self.attr_y_hint in attr_names:
+                self.attr_y = domain[self.attr_y_hint]
+            else:
+                self.attr_y = self.var_model[int(self.attr_x == self.var_model[0])]
+                self.attr_y_hint = self.attr_y.name
             target_combo.clear()
             values = data.domain.class_var.values
             target_combo.addItems(values)
             # For binary class, take value with index 1 as a target, so the
-            # output class is the same as the input
-            self.target_class = values[1 if len(values) == 2 else 0]
+            # output class is the same as the inputđ
+            if self.target_class_hint in values:
+                self.target_class = self.target_class_hint
+            else:
+                self.target_class = values[1 if len(values) == 2 else 0]
+                self.target_class_hint = self.target_class
         self.step_size_spin.setMaximum(len(data))
-        self.openContext(self.data)
         self.set_axis_titles()
         self.restart()
 
