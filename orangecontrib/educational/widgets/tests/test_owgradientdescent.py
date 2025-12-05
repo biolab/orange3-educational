@@ -189,6 +189,19 @@ class TestOWGradientDescent(WidgetTest):
         self.assertEqual(w.learner.stochastic, False)
         self.assertEqual(w.learner.stochastic_step_size, w.step_size)
 
+    def test_normalization(self):
+        w = self.widget
+        w.normalization = False
+        a, b = ContinuousVariable("a"), ContinuousVariable("b")
+        c = DiscreteVariable("c", values=("a", "b", "c"))
+        data = Table.from_numpy(Domain([a, b], c), [[1, 2], [2, 3]], [0, 1])
+        self.send_signal(w.Inputs.data, data)
+
+        np.testing.assert_equal(w.selected_data.X, data.X)
+
+        w.controls.normalization.click()
+        np.testing.assert_equal(w.selected_data.X, [[-1, -1], [1, 1]])
+
     def test_learner_set_continuous_restart(self):
         """
         Test if restart works fine

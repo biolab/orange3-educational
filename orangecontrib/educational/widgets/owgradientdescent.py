@@ -98,6 +98,7 @@ class OWGradientDescent(OWWidget):
         match_values=settings.DomainContextHandler.MATCH_VALUES_CLASS)
     attr_x = settings.ContextSetting(None)
     attr_y = settings.ContextSetting(None)
+    normalization = settings.Setting(True)
     target_class = settings.Setting('')
     alpha = settings.Setting(0.4)
     step_size = settings.Setting(30)  # step size for stochastic gds
@@ -141,6 +142,9 @@ class OWGradientDescent(OWWidget):
             callback=self.change_attributes)
         gui.comboBox(value='attr_x', model=self.var_model, **opts)
         gui.comboBox(value='attr_y', model=self.var_model, **opts)
+        gui.checkBox(self.options_box, self, 'normalization',
+                     'Scale and center data',
+                     callback=self.change_attributes)
         gui.comboBox(value='target_class', label='Target: ',
                      sendSelectedValue=True, **opts)
 
@@ -413,9 +417,12 @@ class OWGradientDescent(OWWidget):
             return
 
         data = data[valid_data]
-        self.selected_data = Normalize(
-            transform_class=not self.is_classification)(
-            data)
+        if self.normalization:
+            self.selected_data = Normalize(
+                transform_class=not self.is_classification)(
+                data)
+        else:
+            self.selected_data = data
 
     def send_output(self):
         self.send_model()
