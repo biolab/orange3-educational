@@ -342,7 +342,7 @@ class OWCreateTable(OWWidget):
     @Inputs.data
     def set_dataset(self, data):
         self.closeContext()
-        if data is not None:
+        if data is not None and len(data.domain):
             self.table_model.set_domain(data.domain)
             self.context_data = [
                 [None] * (len(data.domain.variables) + len(data.domain.metas))
