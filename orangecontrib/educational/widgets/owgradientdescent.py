@@ -190,6 +190,7 @@ class OWGradientDescent(OWWidget):
         self.mainArea.layout().addWidget(self.graph)
 
         self.hover_label = label = QGraphicsTextItem()
+        label.setDefaultTextColor(Qt.black)
         label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
         self.graph.addItem(label)
         label.setZValue(10)
@@ -200,6 +201,7 @@ class OWGradientDescent(OWWidget):
 
         self.optimization_label = label = QGraphicsTextItem()
         label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
+        label.setDefaultTextColor(Qt.black)
         self.graph.addItem(label)
         label.setZValue(10)
 
