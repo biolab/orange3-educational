@@ -42,13 +42,13 @@ class Autoplay(QThread):
     ow_gradient_descent : OWGradientDescent
         Instance of OWGradientDescent class
     """
+    step_trigger = pyqtSignal()
+    stop_auto_play_trigger = pyqtSignal()
+
 
     def __init__(self, ow_gradient_descent):
         QThread.__init__(self)
         self.ow_gradient_descent = ow_gradient_descent
-
-    def __del__(self):
-        self.wait()
 
     def run(self):
         """
@@ -59,11 +59,11 @@ class Autoplay(QThread):
                self.ow_gradient_descent.auto_play_enabled and
                self.ow_gradient_descent.learner.step_no <= 500):
             try:
-                self.ow_gradient_descent.step_trigger.emit()
+                self.step_trigger.emit()
             except RuntimeError:
                 return
             time.sleep(0.2)
-        self.ow_gradient_descent.stop_auto_play_trigger.emit()
+        self.stop_auto_play_trigger.emit()
 
 
 class HoverEventDelegate(QObject):
@@ -105,9 +105,6 @@ class OWGradientDescent(OWWidget):
 
     default_background_color = [0, 0xbf, 0xff]
     auto_play_button_text = ["Run", "Stop"]
-
-    step_trigger = pyqtSignal()
-    stop_auto_play_trigger = pyqtSignal()
 
     class Error(OWWidget.Error):
         num_features = Msg("Data must contain at least {}.")
@@ -193,6 +190,7 @@ class OWGradientDescent(OWWidget):
         self.mainArea.layout().addWidget(self.graph)
 
         self.hover_label = label = QGraphicsTextItem()
+        label.setDefaultTextColor(Qt.black)
         label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
         self.graph.addItem(label)
         label.setZValue(10)
@@ -203,6 +201,7 @@ class OWGradientDescent(OWWidget):
 
         self.optimization_label = label = QGraphicsTextItem()
         label.setFlag(QGraphicsTextItem.ItemIgnoresTransformations)
+        label.setDefaultTextColor(Qt.black)
         self.graph.addItem(label)
         label.setZValue(10)
 
@@ -287,8 +286,8 @@ class OWGradientDescent(OWWidget):
             if self.auto_play_enabled:
                 self.disable_controls(self.auto_play_enabled)
                 self.auto_play_thread = Autoplay(self)
-                self.step_trigger.connect(self.step)
-                self.stop_auto_play_trigger.connect(self.stop_auto_play)
+                self.auto_play_thread.step_trigger.connect(self.step)
+                self.auto_play_thread.stop_auto_play_trigger.connect(self.stop_auto_play)
                 self.auto_play_thread.start()
             else:
                 self.stop_auto_play()
