@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 NAME = "Orange3-Educational"
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 
 DESCRIPTION = "Orange Educational add-on for Orange data mining software package."
 LONG_DESCRIPTION = open(path.join(path.dirname(__file__), 'README.pypi')).read()
@@ -30,13 +30,7 @@ DATA_FILES = [
 ]
 
 INSTALL_REQUIRES = [
-    'anyqt',
-    'numpy',
-    'Orange3 >=3.31.1',
-    'orange-widget-base',
-    'scikit-learn',
-    'scipy',
-    'pyqtgraph',
+    'Orange3 >=3.39.0',
 ]
 
 EXTRAS_REQUIRE = {
